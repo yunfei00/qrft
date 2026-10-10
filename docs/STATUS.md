@@ -304,3 +304,7 @@
 - 后续补充 Web 管理入口、报告/临时文件同名恢复回归、[14 类测试覆盖说明](DISTRIBUTED_TESTING.md)。最终验证记录随提交补充。总验收基线保持 **1/10（10%）**。
 - 新增 Decoder EXE 的 worker 子命令并保留本地恢复；新增 Control EXE 构建、HTTP 服务/任务 API/Web 登录页面冒烟流水线。构建成功不等于真实设备验收。
 - 最终本地门禁：58 个 Python 文件格式通过、Ruff check PASS、**90 passed，无跳过**（8.35s）；Web JavaScript `node --check` PASS；Control/Decoder worker 帮助启动 PASS。最终 PR CI 与构件结果将在推送后记录。
+- 第二阶段提交 `20405da`：[Windows CI 38036835026](https://github.com/yunfei00/qrft/actions/runs/38036835026) 全绿，90 passed（11.35s），图片 6 passed，ZXing 6 passed，真实 AVI 1 passed，Control/Worker 集成 27 passed，无跳过。
+- [Control EXE 38036835057](https://github.com/yunfei00/qrft/actions/runs/38036835057) 构建、EXE 帮助、真实 HTTP health/任务创建/Web 页面冒烟和构件上传全部通过。
+- [PR #1](https://github.com/yunfei00/qrft/pull/1) 待最终文档提交 CI 通过后正常合并；未强推或绕过检查。
+- 下一步：UA-006 实际双设备与 SMB 故障验收；兼容现有协议的会话 ID 扩展设计、包数内存优化、增量临时文件恢复、真实录屏/大视频性能和四 EXE 人工启动验收。当前验收仍为 1/10。
