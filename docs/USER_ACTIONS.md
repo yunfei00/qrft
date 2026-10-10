@@ -35,3 +35,14 @@ uv run ruff format --check .
 ## 状态维护
 
 执行完成后在 GitHub 记录：执行日期、命令、PASS/FAIL、日志位置。未验证不得标为通过。
+
+### UA-005：提供失败的 GitHub Actions 运行链接（仅当无法自动定位最新运行时）
+**状态：待用户提供运行链接。**
+
+前提：`yunfei00/qrft` 的 Windows Python CI 出现红色失败。
+
+1. 打开 https://github.com/yunfei00/qrft/actions 。
+2. 点击最上方标记红色叉号的 **Windows Python CI** 运行记录。
+3. 从浏览器地址栏复制完整地址，格式为 `https://github.com/yunfei00/qrft/actions/runs/数字`，发送到当前对话。
+
+预期：得到包含数字 run ID 的链接；助手即可直接读取该次运行的失败步骤和完整日志，修复根因，不需要用户复制大量日志或本地运行命令。
