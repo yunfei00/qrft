@@ -269,3 +269,11 @@
 - 新增 `tests/test_control_packets.py`，覆盖去重、冲突、损坏包拒绝、续期归属与完成状态。
 - **本轮尚未验证 CI**。当前批量接口在部分包成功后遇到错误时可能保留先前包；下一轮需增强整批原子性、START 会话绑定、缺包导出及解码节点联动。
 - 验收进度仍为 1/10（10%）。
+
+### 本轮：START 会话绑定、批量事务、缺包查询（2026-10-10）
+- 用户确认前一轮 CI 通过。
+- 新增 `POST /tasks/manifest`：绑定并验证 START 元数据，拒绝不一致的重复绑定和已存在数据包后的绑定。
+- `POST /packets/batch`：整批 SQLite IMMEDIATE 事务；失败时通过 connection 上下文回滚；绑定 manifest 时验证包号和 payload 长度。
+- 新增 `GET /tasks/{task_id}/missing`：返回总包数、已接收数和缺包 ID 列表。
+- `tests/test_control_api.py` 新增 API 回归测试：批量失败不留部分数据、缺包计算和完整接收。
+- **本轮 CI 尚待验证**；尚未实现 START/FINISH 帧从视频节点自动提交、缺包文件导出及恢复。验收保持 1/10（10%）。
