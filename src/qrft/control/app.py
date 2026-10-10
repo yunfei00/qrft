@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import os
 import sqlite3
 import time
@@ -12,7 +14,9 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from qrft.control.scheduler import add_slices, claim, complete, init_schema
+from qrft.control.packets import ingest, init_schema as init_packets
+from qrft.control.scheduler import add_slices, claim, complete, init_schema, renew
+from qrft.core.protocol import ProtocolError
 
 app = FastAPI(title="QRFT Control", version="0.1.0")
 
@@ -50,6 +54,7 @@ def connection():
             """
         )
         init_schema(db)
+        init_packets(db)
         yield db
         db.commit()
     finally:
@@ -77,6 +82,16 @@ class VideoCreate(BaseModel):
 class SliceClaim(BaseModel):
     node_id: str = Field(min_length=1, max_length=128)
     lease_seconds: int = Field(default=120, ge=1, le=3600)
+
+
+class SliceRenew(BaseModel):
+    node_id: str = Field(min_length=1, max_length=128)
+    lease_seconds: int = Field(default=120, ge=1, le=3600)
+
+
+class PacketBatch(BaseModel):
+    task_id: int = Field(gt=0)
+    frames_base64: list[str] = Field(min_length=1, max_length=1000)
 
 
 class SliceComplete(BaseModel):
@@ -173,6 +188,47 @@ def list_slices(video_id: int | None = None) -> list[dict]:
         else:
             rows = db.execute("SELECT * FROM slices WHERE video_id=? ORDER BY id", (video_id,))
         return [dict(row) for row in rows]
+
+
+@app.post("/slices/{slice_id}/renew", dependencies=[Depends(require_token)])
+def renew_slice(slice_id: int, item: SliceRenew) -> dict[str, str]:
+    with connection() as db:
+        result = renew(db, slice_id, item.node_id, item.lease_seconds)
+        if result == "not_found":
+            raise HTTPException(status_code=404, detail=result)
+        if result == "lease_invalid":
+            raise HTTPException(status_code=409, detail=result)
+        return {"status": result}
+
+
+@app.post("/packets/batch", dependencies=[Depends(require_token)])
+def ingest_batch(item: PacketBatch) -> dict[str, int]:
+    counts = {"inserted": 0, "duplicate": 0, "conflict": 0}
+    with connection() as db:
+        if db.execute("SELECT 1 FROM tasks WHERE id=?", (item.task_id,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+        for encoded in item.frames_base64:
+            try:
+                raw = base64.b64decode(encoded, validate=True)
+                if len(raw) > 8192:
+                    raise ValueError("frame exceeds size limit")
+                result = ingest(db, item.task_id, raw)
+            except (ValueError, binascii.Error, ProtocolError) as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            counts[result] += 1
+    return counts
+
+
+@app.get("/packets/{task_id}/stats", dependencies=[Depends(require_token)])
+def packet_stats(task_id: int) -> dict[str, int]:
+    with connection() as db:
+        stored = db.execute(
+            "SELECT COUNT(*) FROM packets WHERE task_id=?", (task_id,)
+        ).fetchone()[0]
+        conflicts = db.execute(
+            "SELECT COUNT(*) FROM packet_conflicts WHERE task_id=?", (task_id,)
+        ).fetchone()[0]
+    return {"stored": stored, "conflicts": conflicts}
 
 
 def main() -> None:
