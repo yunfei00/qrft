@@ -21,3 +21,7 @@
 ### 编码器 CLI 子功能
 - 新增二进制文件流式二维码 PNG 帧导出，支持 `--chunk-size` 和 `--retransmit`，导出 START/FINISH 控制帧及 manifest.json。
 - 新增 CLI 导出、缺包重传和空文件测试；新 CI 尚待验证。
+
+### 真实二维码往返
+- 新增 ZXing-C++ PNG 二维码识别，严格提取原始字节并复用协议 CRC 校验。
+- 新增二进制数据与控制帧往返测试并纳入 Windows CI；尚待 CI 验证。
