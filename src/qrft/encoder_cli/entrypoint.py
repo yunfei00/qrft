@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 from qrft.encoder_cli.main import main as export_main
@@ -10,6 +11,11 @@ from qrft.encoder_cli.player import play
 
 
 def main(argv: list[str] | None = None) -> int:
+    """兼容 Windows 非 UTF-8 控制台中的中文帮助与 JSON 输出。"""
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="backslashreplace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(errors="backslashreplace")
     parser = argparse.ArgumentParser(description="QRFT 编码器")
     sub = parser.add_subparsers(dest="command", required=True)
     export = sub.add_parser("export", help="将文件导出为二维码 PNG")
