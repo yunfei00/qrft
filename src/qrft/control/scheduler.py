@@ -25,7 +25,10 @@ def init_schema(db: sqlite3.Connection) -> None:
 
 
 def add_slices(
-    db: sqlite3.Connection, video_id: int, duration_seconds: float, slice_ms: int = 30000,
+    db: sqlite3.Connection,
+    video_id: int,
+    duration_seconds: float,
+    slice_ms: int = 30000,
     overlap_ms: int = 1000,
 ) -> int:
     if slice_ms <= 0 or overlap_ms < 0 or overlap_ms >= slice_ms:
@@ -63,8 +66,7 @@ def claim(db: sqlite3.Connection, node_id: str, lease_seconds: int = 120) -> dic
         db.commit()
         return None
     db.execute(
-        "UPDATE slices SET state='leased', owner=?, lease_until=?, attempts=attempts+1 "
-        "WHERE id=?",
+        "UPDATE slices SET state='leased', owner=?, lease_until=?, attempts=attempts+1 WHERE id=?",
         (node_id, now + lease_seconds, row["id"]),
     )
     db.commit()
@@ -86,16 +88,12 @@ def complete(db: sqlite3.Connection, slice_id: int, node_id: str) -> str:
     if row["state"] != "leased" or row["owner"] != node_id or row["lease_until"] <= now:
         db.commit()
         return "lease_invalid"
-    db.execute(
-        "UPDATE slices SET state='done', lease_until=NULL WHERE id=?", (slice_id,)
-    )
+    db.execute("UPDATE slices SET state='done', lease_until=NULL WHERE id=?", (slice_id,))
     db.commit()
     return "done"
 
 
-def renew(
-    db: sqlite3.Connection, slice_id: int, node_id: str, lease_seconds: int = 120
-) -> str:
+def renew(db: sqlite3.Connection, slice_id: int, node_id: str, lease_seconds: int = 120) -> str:
     """仅允许当前有效租约的持有者续期，不复活过期任务。"""
     if lease_seconds <= 0:
         raise ValueError("lease_seconds must be positive")
