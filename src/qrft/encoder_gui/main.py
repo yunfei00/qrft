@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -114,9 +115,7 @@ class EncoderWindow(QMainWindow):
             source, missing = self.paths()
             if not self.output.text().strip():
                 raise ValueError("请选择导出目录")
-            QApplication.setOverrideCursor(
-                __import__("PySide6.QtCore", fromlist=["Qt"]).Qt.CursorShape.WaitCursor
-            )
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             try:
                 result = export_frames(
                     source,
