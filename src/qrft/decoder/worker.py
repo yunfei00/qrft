@@ -24,7 +24,15 @@ def request_json(base_url: str, token: str, route: str, payload: dict) -> dict |
     request = urllib.request.Request(
         base_url.rstrip("/") + route,
         data=data,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            **(
+                {"X-QRFT-Acceptance-ID": os.environ["QRFT_ACCEPTANCE_ID"]}
+                if os.environ.get("QRFT_ACCEPTANCE_ID")
+                else {}
+            ),
+        },
         method="POST",
     )
     # Claim is not retried: a lost response must expire before another allocation.

@@ -73,6 +73,14 @@ def test_missing_binaries_report_failure_without_claiming_environment_pass(tmp_p
     assert "缺少完整程序目录" in report["results"][0]["reason"]
 
 
+def test_failed_integrity_preflight_prevents_executable_start(tmp_path):
+    runner = Runner(tmp_path, tmp_path, selected=["environment", "encoder"])
+    report = runner.execute()
+    assert report["counts"]["failed"] == 1
+    assert report["counts"]["blocked"] == 1
+    assert not runner.processes
+
+
 def test_acceptance_qt_worker_cancellation_and_window_close(tmp_path):
     from PySide6.QtTest import QTest
     from PySide6.QtWidgets import QApplication
@@ -81,6 +89,10 @@ def test_acceptance_qt_worker_cancellation_and_window_close(tmp_path):
 
     app = QApplication.instance() or QApplication([])
     window = AcceptanceWindow(tmp_path)
+    assert window.smb_share.isHidden()
+    window.role.setCurrentIndex(1)
+    assert not window.smb_share.isHidden() and window.smb_server.isHidden()
+    window.role.setCurrentIndex(0)
     window.output.setText(str(tmp_path))
     for key, checkbox in window.checks.items():
         checkbox.setChecked(key == "performance")
@@ -96,6 +108,72 @@ def test_acceptance_qt_worker_cancellation_and_window_close(tmp_path):
     assert window.start_button.isEnabled()
     assert (window.job.runner.root / "report.json").is_file()
     window.close()
+
+
+def test_headless_selected_performance_does_not_claim_complete_candidate(tmp_path):
+    from qrft.acceptance.main import main
+
+    assert (
+        main(
+            [
+                "--headless",
+                "--programs",
+                str(tmp_path),
+                "--output",
+                str(tmp_path),
+                "--items",
+                "performance",
+                "--size-mb",
+                "1",
+            ]
+        )
+        == 0
+    )
+    report = json.loads(next(tmp_path.glob("*/report.json")).read_text(encoding="utf-8"))
+    assert not report["candidate_software_gate"]
+    assert report["counts"]["passed"] == 1
+
+
+def test_synthetic_zxing_metrics_use_real_qr_video_not_mock(tmp_path):
+    from qrft.encoder_cli.main import export_frames
+
+    runner = Runner(tmp_path, tmp_path, selected=["qr_performance"])
+    export_frames(runner.source, runner.images, chunk_size=64)
+    runner.make_video(runner.images, runner.video)
+    report = runner.execute()
+    result = next(r for r in report["results"] if r["id"] == "qr_performance")
+    assert result["status"] == "passed"
+    assert result["metrics"]["decoded_qr_frames"] == 210
+    assert result["metrics"]["sampled_video_frames"] == 210
+    assert result["metrics"]["unrecognized_sample_fraction"] == 0
+    assert not report["hardware_accepted"]
+
+
+def test_control_acceptance_identity_is_optional_and_contains_no_token(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from qrft.control.app import app
+
+    monkeypatch.delenv("QRFT_ACCEPTANCE_ID", raising=False)
+    client = TestClient(app)
+    assert client.get("/health").json() == {"status": "ok"}
+    monkeypatch.setenv("QRFT_ACCEPTANCE_ID", "owned-session")
+    monkeypatch.setenv("QRFT_API_TOKEN", "private-token")
+    assert client.get("/health").json() == {"status": "ok", "acceptance_instance": "owned-session"}
+    assert client.get("/acceptance/nodes").status_code == 401
+    monkeypatch.setenv("QRFT_DB_PATH", str(tmp_path / "should-not-create.db"))
+    assert (
+        client.post(
+            "/tasks",
+            json={"name": "must not mutate"},
+            headers={
+                "Authorization": "Bearer private-token",
+                "X-QRFT-Acceptance-ID": "other-session",
+            },
+        ).status_code
+        == 409
+    )
+    assert not (tmp_path / "should-not-create.db").exists()
 
 
 def test_smb_single_host_is_blocked_not_passed(tmp_path):

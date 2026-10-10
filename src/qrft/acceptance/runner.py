@@ -77,11 +77,13 @@ class Runner:
             smb_port,
         )
         self.token = smb_token or secrets.token_urlsafe(32)
+        self.expected_instance = self.root.name
         self.env = {
             **os.environ,
             "QRFT_API_TOKEN": self.token,
             "QRFT_DB_PATH": str(self.root / "control.db"),
             "QRFT_OUTPUT_DIR": str(self.root / "recovered"),
+            "QRFT_ACCEPTANCE_ID": self.root.name,
             "PYTHONUTF8": "1",
             "PYTHONIOENCODING": "utf-8",
         }
@@ -178,15 +180,25 @@ class Runner:
 
     def api(self, route, body=None, *, raw=False):
         self.check()
+        if self.server is not None and self.server.poll() is not None:
+            raise RuntimeError("自有控制中心已退出；停止发送请求")
         request = urllib.request.Request(
             self.base + route,
             data=json.dumps(body).encode() if body is not None else None,
-            headers={"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
+                "X-QRFT-Acceptance-ID": self.expected_instance,
+            },
         )
         # 本地验收不经系统代理；Token 只进入请求头和子进程环境。
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        with opener.open(request, timeout=10) as response:
-            content = response.read()
+        try:
+            with opener.open(request, timeout=10) as response:
+                content = response.read()
+        except urllib.error.HTTPError as exc:
+            detail = exc.read(8192).decode("utf-8", errors="replace")
+            raise RuntimeError(f"HTTP {exc.code} {route}：{detail}") from None
         return content if raw else json.loads(content)
 
     def environment(self):
@@ -328,7 +340,12 @@ class Runner:
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             try:
-                return {"health": self.api("/health")}
+                health = self.api("/health")
+                if health.get("acceptance_instance") != self.root.name:
+                    raise RuntimeError(
+                        "控制中心实例不匹配；端口可能被其他服务占用，未操作该服务的任务"
+                    )
+                return {"health": health}
             except (OSError, urllib.error.URLError):
                 if self.server.poll() is not None:
                     raise RuntimeError("控制中心启动失败") from None
@@ -498,6 +515,7 @@ class Runner:
                     data=data,
                     headers={
                         "Authorization": f"Bearer {runner.token}",
+                        "X-QRFT-Acceptance-ID": runner.expected_instance,
                         "Content-Type": "application/json",
                     },
                 )
@@ -670,8 +688,34 @@ class Runner:
         with (self.root / name).open("x", encoding="utf-8") as stream:
             json.dump(value, stream, ensure_ascii=False, indent=2)
 
+    def qr_performance(self):
+        from qrft.decoder.video import iter_video_frames
+
+        self.ensure_video()
+        samples = 0
+
+        def sampled(_):
+            nonlocal samples
+            self.check()
+            samples += 1
+
+        started = time.perf_counter()
+        frames = sum(1 for _ in iter_video_frames(self.video, sample_fps=5, on_sample=sampled))
+        seconds = max(time.perf_counter() - started, 1e-9)
+        if not frames:
+            raise ValueError("合成 AVI 没有识别出合法二维码")
+        return {
+            "scope": "真实 CLI PNG + 小规模合成 AVI + ZXing 核心；不是录屏或大文件传输",
+            "decoded_qr_frames": frames,
+            "sampled_video_frames": samples,
+            "unrecognized_sample_fraction": max(0, samples - frames) / max(samples, 1),
+            "zxing_seconds": seconds,
+            "decoded_qr_frames_per_second": frames / seconds,
+        }
+
     def execute(self):
         started = datetime.now(UTC).isoformat()
+        environment_failed = False
         handlers = {
             "environment": self.environment,
             "encoder": self.encoder,
@@ -681,6 +725,7 @@ class Runner:
             "dual": lambda: self.chain(2),
             "missing": self.missing,
             "performance": self.performance,
+            "qr_performance": self.qr_performance,
             "fault": self.fault,
             "stability": self.stability,
             "smb": lambda: worker_role(self) if self.role == "worker" else controller_role(self),
@@ -698,6 +743,8 @@ class Runner:
                     result.update(status="skipped", reason="未选择")
                 elif self.cancel.is_set():
                     result.update(status="skipped", reason="用户取消")
+                elif environment_failed:
+                    result.update(status="blocked", reason="环境检查失败，无法启动后续验收")
                 elif item not in handlers:
                     result.update(
                         status="blocked",
@@ -730,6 +777,8 @@ class Runner:
                     result["duration_seconds"] = time.monotonic() - timer
                     result["ended_at"] = datetime.now(UTC).isoformat()
                 self.notify("result", dict(result))
+                if item == "environment" and result["status"] == "failed":
+                    environment_failed = True
                 self.log(f"{ITEMS[item]}：{result['status']} {result.get('reason', '')}")
         finally:
             for process in reversed(self.processes):

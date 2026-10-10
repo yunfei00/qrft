@@ -112,12 +112,19 @@ def connection():
         db.close()
 
 
-def require_token(authorization: Annotated[str | None, Header()] = None) -> None:
+def require_token(
+    authorization: Annotated[str | None, Header()] = None,
+    acceptance_instance: Annotated[str | None, Header(alias="X-QRFT-Acceptance-ID")] = None,
+) -> None:
     expected = os.environ.get("QRFT_API_TOKEN")
     if not expected:
         raise HTTPException(status_code=503, detail="QRFT_API_TOKEN is not configured")
     if authorization != f"Bearer {expected}":
         raise HTTPException(status_code=401, detail="Invalid API token")
+    if acceptance_instance is not None and acceptance_instance != os.environ.get(
+        "QRFT_ACCEPTANCE_ID"
+    ):
+        raise HTTPException(status_code=409, detail="Acceptance instance mismatch")
 
 
 register_routes(app, connection, require_token)
@@ -219,7 +226,10 @@ def checkpoint_slice(slice_id: int, item: ScanCheckpoint):
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    result = {"status": "ok"}
+    if instance := os.environ.get("QRFT_ACCEPTANCE_ID"):
+        result["acceptance_instance"] = instance
+    return result
 
 
 @app.post("/tasks", dependencies=[Depends(require_token)], status_code=201)

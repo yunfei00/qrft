@@ -76,6 +76,15 @@ class AcceptanceWindow(QMainWindow):
         form.addRow("Worker B 控制中心地址", self.smb_server)
         form.addRow("SMB 路径", self.smb_share)
         form.addRow("双机共用 Token（不保存）", self.smb_token)
+
+        def show_smb(index):
+            for field in (self.smb_server, self.smb_share, self.smb_token):
+                visible = index != 0 and (field is not self.smb_server or index == 2)
+                field.setVisible(visible)
+                form.labelForField(field).setVisible(visible)
+
+        self.role.currentIndexChanged.connect(show_smb)
+        show_smb(0)
         self.programs = QLineEdit(str(programs or Path(sys.executable).parent.parent))
         self.output = QLineEdit(str(Path.home() / "QRFT验收报告"))
         for title, field in (("完整程序目录", self.programs), ("结果保存目录", self.output)):
@@ -90,6 +99,8 @@ class AcceptanceWindow(QMainWindow):
         self.custom = QSpinBox()
         self.custom.setRange(1, 10240)
         self.custom.setValue(10)
+        self.custom.setVisible(False)
+        self.size.currentIndexChanged.connect(lambda index: self.custom.setVisible(index == 3))
         size_row = QHBoxLayout()
         size_row.addWidget(self.size)
         size_row.addWidget(self.custom)
@@ -102,7 +113,7 @@ class AcceptanceWindow(QMainWindow):
         for key, title in ITEMS.items():
             row = QHBoxLayout()
             check = QCheckBox(title)
-            check.setChecked(key not in ("smb", "performance", "stability"))
+            check.setChecked(key not in ("smb", "performance", "qr_performance", "stability"))
             state = QLabel("未开始")
             row.addWidget(check)
             row.addStretch()
@@ -159,6 +170,7 @@ class AcceptanceWindow(QMainWindow):
             self.job.update.connect(self.on_update)
             self.job.finished.connect(lambda: self.start_button.setEnabled(True))
             self.start_button.setEnabled(False)
+            self.report = None
             self.logs.clear()
             self.progress.setValue(0)
             for state in self.states.values():
@@ -212,12 +224,24 @@ def main(argv=None):
     parser.add_argument("--output", type=Path, default=Path.home() / "QRFT验收报告")
     parser.add_argument("--headless", action="store_true", help="执行最小真实 EXE 验收并保存报告")
     parser.add_argument("--smoke-test", action="store_true", help="Qt 启动后自动退出")
+    parser.add_argument(
+        "--items", nargs="+", choices=list(ITEMS), help="无界面模式选择项目，默认完整软件验收"
+    )
+    parser.add_argument("--size-mb", type=int, default=10, help="哈希性能文件大小，1–10240 MiB")
+    parser.add_argument(
+        "--stability-seconds", type=int, default=600, help="GUI 播放时长，1–3600 秒"
+    )
     args = parser.parse_args(argv)
+    if not 1 <= args.size_mb <= 10240 or not 1 <= args.stability_seconds <= 3600:
+        parser.error("size-mb or stability-seconds outside supported range")
+    if args.items and not args.headless:
+        parser.error("--items requires --headless")
     if args.headless:
         runner = Runner(
             args.programs or Path(sys.executable).parent.parent,
             args.output,
-            selected={
+            selected=args.items
+            or {
                 "environment",
                 "encoder",
                 "decoder",
@@ -227,9 +251,21 @@ def main(argv=None):
                 "missing",
                 "fault",
             },
+            size_bytes=args.size_mb * 1024**2,
+            stability_seconds=args.stability_seconds,
         )
         try:
             report = runner.execute()
+            if args.items:
+                if report["counts"]["failed"]:
+                    return 1
+                return (
+                    0
+                    if all(
+                        r["status"] == "passed" for r in report["results"] if r["id"] in args.items
+                    )
+                    else 2
+                )
             return 1 if report["counts"]["failed"] or not report["candidate_software_gate"] else 0
         except Exception as exc:  # noqa: BLE001 - frozen CLI preserves fatal diagnostics
             (runner.root / "fatal.json").write_text(

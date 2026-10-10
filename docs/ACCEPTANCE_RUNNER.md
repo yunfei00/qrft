@@ -21,6 +21,8 @@
 
 控制机向局域网监听仅在明确选择 SMB 控制机角色时启用，API 始终要求 Token。端口已占用会显示启动失败；请关闭冲突的验收实例。不同机器的 Token 只进入内存、HTTP 请求头和 Worker 环境，不写入报告、配置或日志。
 
+独占验收中心带随机实例标识。验收器与其 Worker 请求附带实例标识，错误端口或其他中心即使使用相同 Token 也拒绝这些请求；普通客户端不带该标识时保持原 API 兼容。节点证据中的 frames 指批量提交 DATA/FINISH 帧数（含重复），不含 START 元数据请求，不能当作 ZXing 全部解码帧数。
+
 ## 性能和长时间播放
 
 大文件项可选择 10 MB、100 MB、1 GB 或自定义 MB（1–10240）。以最多 1 MB 的随机块流式写入独占测试文件，再测 SHA256。重复随机块用于控制生成成本，不宣称独立随机熵；文件大小真实。**这是哈希性能，不是二维码传输速度，也不是完整大文件二维码验收。** 空间不足会失败并说明原因。
@@ -28,6 +30,17 @@
 GUI 稳定性可选择 10、30、60 分钟：实际 Encoder GUI 连续播放测试二维码并循环，保存已显示帧数、完成轮次、Qt 平台、实际时长和错误。提前退出、零帧或编码失败不能通过。采样验收器和自有 EXE 的 CPU 时间、200ms 采样内存峰值及进程 I/O；短暂峰值可能漏采，进程 CPU 单核口径可超过 100%。显示窗口播放不代表录屏传输质量，offscreen 结果也不代替桌面人工交互验收。
 
 链路报告的有效包/字节速率以最终唯一数据包和整条测试耗时计算，限于合成 AVI 与 HTTP 本机恢复，不称作纯 ZXing 速度。真正大视频解码与屏幕录制吞吐仍需现场验收。
+
+另有“合成 AVI 解码性能”项目：用实际 CLI 导出的二维码生成小规模视频，真实调用 ZXing 核心，统计合法二维码帧数、采样数、未识别比例和帧/秒，保存为独立指标，不能代替所选 1GB 文件的完整传输。当前实测见 [验收证据](ACCEPTANCE_RESULTS.md)。
+
+维护者可在 Release 根目录用 PowerShell 重复测试，无需安装 Python：
+
+```powershell
+$test = Start-Process -FilePath .\QRFT-Acceptance\QRFT-Acceptance.exe -ArgumentList @('--headless','--items','performance','--size-mb','1024') -WindowStyle Hidden -PassThru -Wait
+$test.ExitCode
+```
+
+默认报告在用户目录的“QRFT验收报告”下新建随机子目录。`--items qr_performance` 测合成解码；`--items stability --stability-seconds 600` 测 GUI。退出码 0 表示所选项通过，1 表示失败，2 表示所选项跳过/条件不具备。仅做性能测试时软件候选版门禁仍为“未满足”。不带 `--items` 的 `--headless` 执行全部默认软件项目。中文日志兼容 UTF-8 与 Windows ANSI。先前报告不影响新一轮验收。
 
 ## 报告与故障排查
 

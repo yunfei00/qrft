@@ -53,6 +53,10 @@ def worker_role(runner):
     runner.base = runner.smb_server.rstrip("/")
     node = "smb-" + machine_id()[:16]
     video = runner.smb_video
+    if runner.api("/health").get("acceptance_instance") != Path(video).parent.name:
+        raise Blocked("该地址不是本次 UNC 视频对应的独占验收控制中心，未登记或领取任务")
+    runner.expected_instance = Path(video).parent.name
+    runner.env["QRFT_ACCEPTANCE_ID"] = runner.expected_instance
     register(runner, node, video)
     runner.log(f"SMB 节点 {node} 已验证 UNC 访问，正在等待控制机登记视频")
     deadline = time.monotonic() + 600
