@@ -44,7 +44,6 @@ def test_worker_heartbeat_and_claim(monkeypatch) -> None:
 
     def fake_request(base_url, token, route, payload):
         calls.append(route)
-        return None
 
     monkeypatch.setattr(worker, "request_json", fake_request)
     worker.run_worker("http://localhost", "token", "node-a", once=True)
