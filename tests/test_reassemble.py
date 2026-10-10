@@ -5,7 +5,13 @@ from pathlib import Path
 import pytest
 
 from qrft.core.manifest import inspect_file
-from qrft.core.protocol import ProtocolError, decode_frame, encode_data, encode_finish, encode_start
+from qrft.core.protocol import (
+    ProtocolError,
+    decode_frame,
+    encode_data,
+    encode_finish,
+    encode_start,
+)
 from qrft.core.reassemble import FileAssembler
 
 
