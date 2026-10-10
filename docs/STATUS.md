@@ -230,3 +230,8 @@
 - 新增 `.github/workflows/build-gui.yml`：PyInstaller 构建 `QRFT-Encoder-GUI.exe`，验证构件存在并上传。
 - **本轮 GUI 的 CI 尚未验证；GUI 实际 Windows 启动/交互亦未验收**。现阶段 GUI 导出在主线程运行，大文件可能阻塞界面，后续应迁移后台工作线程。
 - 总体验收仍为 1/10（10%）；下阶段先修复新 CI，再完善 GUI 异步处理及 Control 端。
+
+### Windows Python CI 运行 38032313905 修复（2026-10-10）
+- 实际作业日志：格式检查 FAIL，Ruff 指出 `encoder_cli/player.py:127` 单引号以及 `encoder_gui/main.py:108` 条件表达式多行格式；其余 42 个文件格式通过，后续静态检查/测试未执行。
+- 按 Ruff 给出的精确修改修复两处格式：提交 `edcb791`、`3d106e4`；不涉及业务逻辑变更。
+- 修复后的 CI 尚未确认；总体验收维持 1/10（10%）。
