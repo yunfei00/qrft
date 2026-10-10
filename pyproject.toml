@@ -1,6 +1,6 @@
 [project]
 name = "qrft"
-version = "0.2.0rc1"
+version = "0.3.0rc1"
 description = "Universal binary file transfer via QR codes and recorded video"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
@@ -11,6 +11,9 @@ encoder = ["qrcode>=8.0", "pillow>=11.0"]
 gui = ["pyside6>=6.8,<6.10"]
 decoder = ["zxing-cpp>=2.2", "opencv-python-headless>=4.10"]
 control = ["fastapi>=0.115", "uvicorn>=0.34", "pyyaml>=6.0"]
+acceptance = [
+    "psutil>=7.2.2",
+]
 
 [dependency-groups]
 dev = ["pytest>=8.3", "ruff>=0.9", "hypothesis>=6.120", "build>=1.2", "pyinstaller>=6.11", "httpx>=0.28"]
