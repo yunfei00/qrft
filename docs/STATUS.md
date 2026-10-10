@@ -1,12 +1,14 @@
 # QRFT 项目进度与交接记录
 
-## Phase 3：一键验收工具（开发分支 feature/acceptance-runner）
+## Phase 3：0.3.0rc1 五程序候选版已交付
 
-最终本地门禁：**117 项测试通过**，Ruff 格式/静态检查通过。最终五 EXE 实测软件 8 项与独立合成 AVI 解码通过；实际 Control EXE 拒绝错误 Token（401）和错误实例（409），任务创建数为 0，旧客户端兼容。新提交将重新运行七项 CI 后合并及发布；发布事实稍后追加，不以首轮 CI 代替最终 CI。
+[Release 下载](https://github.com/yunfei00/qrft/releases/tag/v0.3.0-rc.1)。第五程序 QRFT-Acceptance.exe 提供中文后台验收、取消、实时日志、三种 SMB 角色配置、资源采样和 HTML/JSON/CSV 报告；原四 EXE 职责与 v1 协议不变。
 
-新增独立 PySide6 验收器、真实 EXE 调用链、可取消后台任务、中文 HTML/JSON/CSV 证据报告、原生资源采样、SMB 角色配置及专用 Windows 构建工作流。Worker 增加可配置租约/维护间隔，控制中心增加鉴权节点证据与每租约处理统计；v1 协议不变。版本准备为 0.3.0rc1，旧 Release 不改动。
+**117 项测试通过**，Ruff 格式/静态检查通过。PR #5 在七项 CI 全绿后合并；软件构建 Commit **0ccc140b41cd3d41399825ba2fdada6d7904e196**，其 main 七项 CI 及标签两个交付 CI 均成功。下载标签构件后 1080 个文件校验匹配，实际原生 Qt 启动与干净中文目录真实 EXE 验收通过：默认 8 项 PASS、0 FAIL；单 Worker、双 Worker、missing.txt 补传、503 重试/续租/异常退出/过期重领均最终 SHA256 一致。独立合成 AVI 解码及错误 Token/实例隔离通过。
 
-基线已重新核实：main af78a30、0.2.0rc1 Release、六项 main CI 全绿。本轮五 EXE 本机构建成功；从干净中文目录执行实际 Acceptance EXE，8 个默认自动项目通过、0 失败。两个 Worker 完成不同时间片；故障测试先持久化 2 个数据包并观察续租，再退出、过期重领、最终 SHA256 一致。实际 Windows GUI 600 秒、3195 帧循环无错误，实际 Acceptance EXE 的 1GiB 哈希通过；哈希与合成 ZXing 指标严格分开。首轮提交 771f243 的 PR #5 七项 CI 全绿；最后性能/报告完善提交仍须重新验证。Release 尚未发布。测试证据见 ACCEPTANCE_RESULTS.md，操作见 ACCEPTANCE_RUNNER.md。原里程碑仍 **7/10**，真实录屏、双 Windows/SMB、真实大视频尚未验收。
+实际开发冻结 GUI 连续 600 秒、3195 帧无错误；实际 Acceptance EXE 1GiB 文件哈希 1.378 秒、采样峰值约 46MiB。严格区分哈希、合成 AVI 与真实录屏传输。详细 Commit、CI、ZIP SHA256 和可追溯报告见 [交付证据](ACCEPTANCE_RESULTS.md)，操作见 [一键验收手册](ACCEPTANCE_RUNNER.md)。
+
+原里程碑仍 **7/10**。真实双 Windows/SMB 与断线重连、录屏、大视频、完整大文件二维码链路、30/60 分钟 GUI、全新无 Python 实机尚未验收，按 USER_ACTIONS.md 的 UA-008 完成。旧 0.2.0rc1 Release 与下方历史记录保留。
 
 **更新日期：2026-10-10**  
 **当前阶段：0.2.0rc1 候选版已发布；以下旧记录保留为历史证据**
