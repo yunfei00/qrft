@@ -12,6 +12,8 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from qrft.control.scheduler import add_slices, claim, complete, init_schema
+
 app = FastAPI(title="QRFT Control", version="0.1.0")
 
 
@@ -47,6 +49,7 @@ def connection():
             );
             """
         )
+        init_schema(db)
         yield db
         db.commit()
     finally:
@@ -69,6 +72,15 @@ class VideoCreate(BaseModel):
     task_id: int = Field(gt=0)
     path: str = Field(min_length=1, max_length=4096)
     duration_seconds: float = Field(gt=0)
+
+
+class SliceClaim(BaseModel):
+    node_id: str = Field(min_length=1, max_length=128)
+    lease_seconds: int = Field(default=120, ge=1, le=3600)
+
+
+class SliceComplete(BaseModel):
+    node_id: str = Field(min_length=1, max_length=128)
 
 
 class Heartbeat(BaseModel):
@@ -104,7 +116,9 @@ def register_video(item: VideoCreate) -> dict[str, int]:
             "INSERT INTO videos(task_id, path, duration_seconds, created_at) VALUES (?, ?, ?, ?)",
             (item.task_id, item.path, item.duration_seconds, time.time()),
         )
-        return {"id": int(cursor.lastrowid)}
+        video_id = int(cursor.lastrowid)
+        add_slices(db, video_id, item.duration_seconds)
+        return {"id": video_id}
 
 
 @app.get("/videos", dependencies=[Depends(require_token)])
@@ -132,6 +146,33 @@ def heartbeat(item: Heartbeat) -> dict[str, str]:
 def list_nodes() -> list[dict]:
     with connection() as db:
         return [dict(row) for row in db.execute("SELECT * FROM nodes ORDER BY node_id")]
+
+
+@app.post("/slices/claim", dependencies=[Depends(require_token)])
+def claim_slice(item: SliceClaim) -> dict | None:
+    with connection() as db:
+        return claim(db, item.node_id, item.lease_seconds)
+
+
+@app.post("/slices/{slice_id}/complete", dependencies=[Depends(require_token)])
+def complete_slice(slice_id: int, item: SliceComplete) -> dict[str, str]:
+    with connection() as db:
+        result = complete(db, slice_id, item.node_id)
+        if result == "not_found":
+            raise HTTPException(status_code=404, detail=result)
+        if result == "lease_invalid":
+            raise HTTPException(status_code=409, detail=result)
+        return {"status": result}
+
+
+@app.get("/slices", dependencies=[Depends(require_token)])
+def list_slices(video_id: int | None = None) -> list[dict]:
+    with connection() as db:
+        if video_id is None:
+            rows = db.execute("SELECT * FROM slices ORDER BY id")
+        else:
+            rows = db.execute("SELECT * FROM slices WHERE video_id=? ORDER BY id", (video_id,))
+        return [dict(row) for row in rows]
 
 
 def main() -> None:
