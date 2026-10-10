@@ -222,3 +222,11 @@
 - 根因：冻结后的 Windows 程序使用 `cp1252` 输出中文帮助，抛出 `UnicodeEncodeError`；仅设置 `PYTHONIOENCODING` 未能解决。
 - 修复：在 `src/qrft/decoder/main.py` 的 CLI 入口对 stdout/stderr 配置 `backslashreplace` 错误处理，提交 `2a6ce6b`。
 - 新一轮 CI 尚未验证；仍为 1/10（10%）已验收。
+
+### 本轮：PySide6 图形编码器实现及 Windows EXE 构建（2026-10-10）
+- 用户确认上一轮 Decoder EXE CI 通过。
+- 新增 `src/qrft/encoder_gui/main.py`：源文件/导出目录/缺包 TXT 选择，分包大小、播放间隔、启动延迟配置，PNG 导出与全屏播放按钮，调用现有 CLI 共享核心。
+- 调整 `encoder_cli/player.py`：GUI 中播放复用既有 QApplication 事件循环，避免嵌套 `app.exec()`；保留播放窗口引用。
+- 新增 `.github/workflows/build-gui.yml`：PyInstaller 构建 `QRFT-Encoder-GUI.exe`，验证构件存在并上传。
+- **本轮 GUI 的 CI 尚未验证；GUI 实际 Windows 启动/交互亦未验收**。现阶段 GUI 导出在主线程运行，大文件可能阻塞界面，后续应迁移后台工作线程。
+- 总体验收仍为 1/10（10%）；下阶段先修复新 CI，再完善 GUI 异步处理及 Control 端。
