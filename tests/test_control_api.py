@@ -30,11 +30,14 @@ def test_registry_persists_and_heartbeat_is_idempotent(tmp_path, monkeypatch) ->
     task = client.post("/tasks", json={"name": "video-001"}, headers=headers)
     assert task.status_code == 201
     task_id = task.json()["id"]
-    assert client.post(
-        "/videos",
-        json={"task_id": 9999, "path": "missing.avi", "duration_seconds": 10},
-        headers=headers,
-    ).status_code == 404
+    assert (
+        client.post(
+            "/videos",
+            json={"task_id": 9999, "path": "missing.avi", "duration_seconds": 10},
+            headers=headers,
+        ).status_code
+        == 404
+    )
     video = client.post(
         "/videos",
         json={"task_id": task_id, "path": r"\\server\share\sample.avi", "duration_seconds": 10},
@@ -42,9 +45,12 @@ def test_registry_persists_and_heartbeat_is_idempotent(tmp_path, monkeypatch) ->
     )
     assert video.status_code == 201
     for _ in range(2):
-        assert client.post(
-            "/nodes/heartbeat", json={"node_id": "worker-a"}, headers=headers
-        ).status_code == 200
+        assert (
+            client.post(
+                "/nodes/heartbeat", json={"node_id": "worker-a"}, headers=headers
+            ).status_code
+            == 200
+        )
     assert len(client.get("/nodes", headers=headers).json()) == 1
     assert len(client.get("/videos", headers=headers).json()) == 1
     assert len(client.get("/tasks", headers=headers).json()) == 1
