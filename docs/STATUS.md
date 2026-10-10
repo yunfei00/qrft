@@ -216,3 +216,9 @@
 - `docs/USER_ACTIONS.md` 新增 UA-002：构件下载、保留 `_internal`、Windows 本地验证及视频恢复验证指引。无需现在人工操作。
 - **Decoder 构建 CI 尚未验证**；四个 EXE 中仅推进到第二个，未完成 GUI/Control，也未验收双节点 SMB 分布式解码。
 - 总体已验收仍为 **1/10（10%）**，待对应里程碑全部达到验收标准再调整。
+
+### Decoder EXE CI 失败修复（运行 38032036288，2026-10-10）
+- 从作业 `114154815475` 的日志确认：真实 AVI 视频端到端回归测试 PASS，PyInstaller 打包 PASS，EXE `--help` 冒烟测试 FAIL。
+- 根因：冻结后的 Windows 程序使用 `cp1252` 输出中文帮助，抛出 `UnicodeEncodeError`；仅设置 `PYTHONIOENCODING` 未能解决。
+- 修复：在 `src/qrft/decoder/main.py` 的 CLI 入口对 stdout/stderr 配置 `backslashreplace` 错误处理，提交 `2a6ce6b`。
+- 新一轮 CI 尚未验证；仍为 1/10（10%）已验收。
