@@ -35,3 +35,12 @@ CSV and JSON exports require documented schemas. Invalid, reserved and out-of-ra
 
 ## Acceptance
 Round-trip fixtures must include embedded NUL, non-UTF8, Unicode filename, empty file, random bytes, corruption and duplicates. Final reconstructed bytes must match original SHA-256 and MD5.
+
+## Current reference implementation (2026-10-10)
+The first draft implementation is in `src/qrft/core/protocol.py`.
+- CRC32 is big-endian and covers `body || 8-digit packet ID`.
+- START body is `QRFT1S || UTF-8 compact JSON`.
+- FINISH body is `QRFT1F`.
+- DATA body is the original file bytes (without transformation).
+- All frames end in their 8-digit ASCII packet ID.
+These choices are **provisional** pending QR-image roundtrip and interoperability tests. START JSON is not yet split across multiple QR symbols, and session binding for orphan DATA frames remains unresolved. Do not treat protocol v1 as frozen.
