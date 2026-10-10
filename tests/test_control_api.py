@@ -7,9 +7,9 @@ import pytest
 pytest.importorskip("fastapi")
 pytest.importorskip("httpx")
 
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
-from qrft.control.app import app  # noqa: E402
+from qrft.control.app import app
 
 
 def test_health_and_token_required(tmp_path, monkeypatch) -> None:
