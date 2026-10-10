@@ -38,7 +38,7 @@ def ingest(db: sqlite3.Connection, task_id: int, raw: bytes) -> str:
     if frame.kind != "data":
         raise ProtocolError("only DATA frames accepted by packet ingestion")
     digest = hashlib.sha256(raw).hexdigest()
-    db.execute("BEGIN IMMEDIATE")
+    db.execute("SAVEPOINT qrft_packet_ingest")
     existing = db.execute(
         "SELECT digest FROM packets WHERE task_id=? AND packet_id=?",
         (task_id, frame.packet_id),
@@ -48,15 +48,15 @@ def ingest(db: sqlite3.Connection, task_id: int, raw: bytes) -> str:
             "INSERT INTO packets(task_id,packet_id,frame,digest,created_at) VALUES (?,?,?,?,?)",
             (task_id, frame.packet_id, raw, digest, time.time()),
         )
-        db.commit()
+        db.execute("RELEASE SAVEPOINT qrft_packet_ingest")
         return "inserted"
     if existing["digest"] == digest:
-        db.commit()
+        db.execute("RELEASE SAVEPOINT qrft_packet_ingest")
         return "duplicate"
     db.execute(
         "INSERT OR IGNORE INTO packet_conflicts "
         "(task_id,packet_id,digest,frame,created_at) VALUES (?,?,?,?,?)",
         (task_id, frame.packet_id, digest, raw, time.time()),
     )
-    db.commit()
+    db.execute("RELEASE SAVEPOINT qrft_packet_ingest")
     return "conflict"
