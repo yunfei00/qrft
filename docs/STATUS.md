@@ -27,3 +27,6 @@ Update this document after every milestone with: implemented files and commit SH
 - Added `docs/DEVELOPMENT.md` with Windows setup and uv dependency commands.
 - **Not yet verified:** CI execution, dependency resolution, uv.lock, Windows EXE builds, any protocol functionality.
 - **Next:** generate and commit uv.lock using uv; change CI to `uv sync --locked`; inspect first Windows CI run; implement binary QR test vectors.
+
+## User operation documentation policy
+All future user-required steps must first be committed to [USER_ACTIONS.md](USER_ACTIONS.md) with copy/paste commands, expected output and tracking status. UA-001 local uv validation is pending and optional; later hardware/SMB/EXE checks are not yet required.
