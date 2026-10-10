@@ -196,3 +196,10 @@
 - 从 GitHub Actions job 114152203232 读取完整日志：格式检查通过，静态检查因 `player.py:81` 的 Ruff BLE001 失败；后续测试未运行。
 - 将宽泛的 `except Exception` 收窄为 `except (OSError, RuntimeError, ValueError)`，保留用户可见错误提示。
 - 修复提交 `25209bd`；新 CI 尚待验证，总体验收保持 1/10（10%）。
+
+### 本轮：Windows Encoder CLI EXE 构建流水线（2026-10-10）
+- 用户确认上一轮 CI 通过。
+- 新增 `src/qrft/encoder_cli/entrypoint.py`：统一 `export` 与 `play` 子命令。
+- 新增 `.github/workflows/build-encoder.yml`：Windows Python 3.12 + uv + PyInstaller onedir 打包 `QRFT-Encoder-CLI.exe`，执行 `--help`、真实小文件 PNG 导出冒烟测试，并上传构件。
+- 新增 `tests/test_encoder_entrypoint.py`：命令入口测试；缺少 encoder 可选依赖时跳过。
+- **新构建 CI 尚未验证；未宣称 EXE 已生成或可运行**。总体验收进度保持 1/10（10%）。
