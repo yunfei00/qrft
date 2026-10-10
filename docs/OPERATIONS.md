@@ -4,6 +4,8 @@
 
 从仓库 Releases 下载 Windows 完整压缩包，检查 Release 附带的 ZIP SHA256，再解压到独立目录。保留四个程序目录及各自 `_internal` 子目录；不要只复制 EXE。目标机无需 Python。候选版尚未完成真实双机 SMB、长视频及人工 GUI 验收，使用测试文件执行 UA-006 后再用于实际传输。
 
+ZIP 校验：在下载目录运行 `Get-FileHash .\QRFT-Windows-0.2.0rc1.zip -Algorithm SHA256`，与 Release 附带 `.sha256` 文件中的值比较。解压根目录的 SHA256SUMS.txt 列出每个 EXE、DLL、资源与文档的哈希；检查指定文件可用 `Get-FileHash -LiteralPath '清单中的相对路径' -Algorithm SHA256`，不能把不同版本目录混搭。
+
 控制机启动前在 PowerShell 设置配置（Token 不写入公开配置文件）：
 
 ```powershell
