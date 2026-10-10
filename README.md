@@ -1,37 +1,41 @@
-# QRFT — QR File Transfer
+# QRFT — 二维码二进制文件传输与视频恢复系统
 
-Universal binary file transfer via displayed QR codes, recorded video and distributed Windows decoding.
+**当前状态：协议原型与工程骨架，尚未完成可运行产品。** 目标交付日期：2026-10-16（7 天紧凑排期）。
 
-**Status:** Phase 0; software not implemented yet. **Target:** 2026-10-16 (aggressive seven-day plan).
+QRFT 支持将任意二进制文件转换为二维码序列，通过录屏保存，再使用单机或多台 Windows 解码节点从视频中恢复文件。
 
-## Start here
-- [Current status and next action](docs/STATUS.md)
-- [Seven-day plan](docs/ROADMAP.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [QR binary protocol draft](docs/PROTOCOL.md)
-- [Acceptance criteria](docs/ACCEPTANCE.md)
-- [Development rules](CONTRIBUTING.md)
-- [Changelog](CHANGELOG.md)
+## 项目文档（全部以 GitHub 为准）
 
-## Four Windows executables
-1. `QRFT-Encoder-CLI.exe` — command-line file encoder and fullscreen QR display.
-2. `QRFT-Encoder-GUI.exe` — graphical file encoder.
-3. `QRFT-Decoder.exe` — headless distributed video decoding worker.
-4. `QRFT-Control.exe` — web control center, task scheduler and recovery service.
+- [最新进度、已验证内容和下一步](docs/STATUS.md)
+- [一周开发计划](docs/ROADMAP.md)
+- [系统架构](docs/ARCHITECTURE.md)
+- [二进制协议草案](docs/PROTOCOL.md)
+- [验收标准](docs/ACCEPTANCE.md)
+- [uv 开发环境](docs/DEVELOPMENT.md)
+- [用户操作手册（可复制命令）](docs/USER_ACTIONS.md)
+- [开发规范](CONTRIBUTING.md)
+- [更新日志](CHANGELOG.md)
 
-## Operating environment
-All decoder servers run Windows on one LAN. Recordings can be tens of GB and are stored on one Windows machine. Workers read video via SMB in logical time segments, without downloading the whole recording. Results are centrally merged and missing packet lists are generated for retransmission.
+## 四个 Windows 程序
 
-## Project rule
-**GitHub is the single source of truth.** Requirements, design decisions, test evidence, progress, blockers and next steps must be committed here. Never rely on ChatGPT conversation history.
+1. `QRFT-Encoder-CLI.exe`：命令行编码和二维码显示。
+2. `QRFT-Encoder-GUI.exe`：PySide6 图形编码器。
+3. `QRFT-Decoder.exe`：无界面分布式视频解码节点。
+4. `QRFT-Control.exe`：Web 管理中心、调度、缺包统计和文件恢复。
 
-No proprietary files, recordings, credentials or production configurations belong in this public repository.
+## 环境与部署
 
-## License
-Not yet selected. Public visibility does not automatically grant reuse rights.
+- Python 3.12，**统一使用 uv** 管理虚拟环境、依赖和锁文件。
+- Windows 局域网；中心机保存可能达到数十 GB 的录屏文件。
+- 工作节点通过 SMB 共享按逻辑时间片读取原视频，不整体上传、复制或物理切片。
+- 恢复文件必须通过完整哈希校验，缺包列表可直接用于补传。
 
-## Python development environment
-Python 3.12 with **uv** for environment, dependencies, lockfile and commands. See [uv development setup](docs/DEVELOPMENT.md). The Windows CI scaffold is in [ci.yml](.github/workflows/ci.yml).
+## 协作原则
 
-## Actions requiring your computer
-All copy/paste commands and manual validation steps live in [User Actions Runbook](docs/USER_ACTIONS.md). Consult it instead of chat instructions.
+**GitHub 是唯一事实来源，不依赖 ChatGPT 聊天记录。** 任何需要用户亲自操作的任务，必须先写入 [USER_ACTIONS.md](docs/USER_ACTIONS.md)，聊天中只需提示按照对应操作编号执行。能够通过 CI 自动验证的工作不要求用户重复操作。
+
+本仓库公开，请勿提交真实令牌、生产配置、录屏或业务文件。
+
+## 许可证
+
+尚未选择许可证；公开可见不代表自动授予使用许可。
