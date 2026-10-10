@@ -4,6 +4,9 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("qrcode")
+pytest.importorskip("PIL")
+
 from qrft.encoder_cli.entrypoint import main
 
 
