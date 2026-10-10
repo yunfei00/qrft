@@ -11,7 +11,11 @@ def test_playback_sequence(tmp_path: Path) -> None:
     source.write_bytes(b"abcdef")
     frames = list(iter_encoded_frames(source, chunk_size=2))
     assert [name for name, _ in frames] == [
-        "START", "00000000", "00000001", "00000002", "FINISH"
+        "START",
+        "00000000",
+        "00000001",
+        "00000002",
+        "FINISH",
     ]
     assert b"".join(decode_frame(raw).payload for _, raw in frames) == b"abcdef"
 
