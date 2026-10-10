@@ -1,46 +1,42 @@
-# QRFT wire protocol v1 — DRAFT
+# QRFT 二进制协议 v1（草案，尚未冻结）
 
-**Do not implement independent encoder/decoder releases before byte-level fixtures freeze this protocol.**
+**强制要求：每个二维码帧的最后 8 个字节，必须是 8 位 ASCII 十进制包号。**
 
-## Fixed requirements
-- QR content is raw binary bytes; never coerce to UTF-8 or Base64.
-- Each QR frame ends with **8 ASCII decimal digits** identifying its packet.
-- Reserved IDs: `88888888` START; `99999999` FINISH.
-- DATA packets use zero-based 8-digit decimal IDs, excluding reserved values.
-- Stream arbitrary files without loading entire content into RAM.
-- Retransmission uses original chunk size and packet numbering.
-- START includes filename, file size, MD5, SHA-256, chunk size, total count, version and stable file/session identity.
-- FINISH means sending ended, not that recovery is verified.
+- START 包号：`88888888`。
+- FINISH 包号：`99999999`。
+- DATA 使用从 0 开始的 8 位包号，排除保留编号。
+- 数据必须保持原始字节，不允许 Base64 或强制 UTF-8。
+- FINISH 仅表示发送结束，**不代表文件恢复成功**。
 
-## Proposed DATA bytes
+## 当前实现的字节布局
+
 ```text
-[payload: raw bytes][CRC32: 4 bytes][packet ID: 8 ASCII digits]
+DATA   = 原始数据 || CRC32(大端 4 字节) || 8 位 ASCII 包号
+START  = "QRFT1S" || UTF-8 紧凑 JSON || CRC32 || "88888888"
+FINISH = "QRFT1F" || CRC32 || "99999999"
 ```
-CRC coverage and byte order still require explicit test vectors. Last packet may be shorter. Binary-safe QR decoding is mandatory.
 
-## Missing list
-TXT lines may be individual 8-digit packet IDs or inclusive ranges, e.g.:
+CRC32 计算范围为 `正文 || 8 位 ASCII 包号`，结果采用大端 4 字节。实现位置：`src/qrft/core/protocol.py`。
+
+START 元数据计划包含协议版本、文件名、文件大小、分块大小、包总数、MD5、SHA-256 和稳定文件 ID。元数据过长时如何跨二维码承载仍待确定。
+
+## 缺包列表
+
+`missing.txt` 支持每行单个包号或闭区间：
+
 ```text
 00000001
 00000100-00000150
 ```
-CSV and JSON exports require documented schemas. Invalid, reserved and out-of-range IDs must be rejected.
 
-## D1 decisions to freeze
-- QR version, error correction and safe payload size in recorded video.
-- Control-frame serialization and handling metadata larger than a single QR.
-- Session binding for sparse retransmission, whose DATA frames lack session ID.
-- CRC32 endianness and covered bytes; byte-exact fixtures.
-- Empty files, max packet number, START replay, incomplete recording and packet conflicts.
+还需导出 CSV 和 JSON。补传必须保持原文件 ID、哈希、分块大小和包号不变。
 
-## Acceptance
-Round-trip fixtures must include embedded NUL, non-UTF8, Unicode filename, empty file, random bytes, corruption and duplicates. Final reconstructed bytes must match original SHA-256 and MD5.
+## 冻结协议前必须解决
 
-## Current reference implementation (2026-10-10)
-The first draft implementation is in `src/qrft/core/protocol.py`.
-- CRC32 is big-endian and covers `body || 8-digit packet ID`.
-- START body is `QRFT1S || UTF-8 compact JSON`.
-- FINISH body is `QRFT1F`.
-- DATA body is the original file bytes (without transformation).
-- All frames end in their 8-digit ASCII packet ID.
-These choices are **provisional** pending QR-image roundtrip and interoperability tests. START JSON is not yet split across multiple QR symbols, and session binding for orphan DATA frames remains unresolved. Do not treat protocol v1 as frozen.
+1. 真实录屏下二维码容量、纠错等级和默认分块大小。
+2. 超长 START 元数据如何分片。
+3. DATA 不含会话 ID 时，如何防止不同录屏/文件串包。
+4. 空文件、重复 START、截断视频、包冲突和最大文件大小。
+5. 使用真实二维码编码/解码库验证 NUL、非 UTF-8 字节不丢失。
+
+当前代码只是协议原型，未通过真实二维码图像和视频互操作验证。
