@@ -11,3 +11,6 @@ GitHub is the single source of truth. Every phase updates code, tests, docs/STAT
 - Use a Windows runner for EXE builds and smoke tests.
 
 To resume after any interruption: read README.md, docs/STATUS.md, docs/ROADMAP.md, docs/ARCHITECTURE.md and docs/PROTOCOL.md. Do not depend on chat transcripts.
+
+## User-side operation policy
+Before requesting any manual operation, write its exact PowerShell commands, prerequisites, expected results and status to [docs/USER_ACTIONS.md](docs/USER_ACTIONS.md). Prefer CI/automated validation; never rely on chat history for user operations.
