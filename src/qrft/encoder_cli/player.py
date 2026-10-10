@@ -124,7 +124,7 @@ def play(
     if existing_app is not None:
         windows = app.property("qrft_players") or []
         windows.append(window)
-        app.setProperty('qrft_players', windows)
+        app.setProperty("qrft_players", windows)
         window.destroyed.connect(lambda: windows.remove(window) if window in windows else None)
         return 0
     return app.exec()
