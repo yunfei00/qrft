@@ -60,3 +60,34 @@ def test_reject_invalid_length(tmp_path: Path) -> None:
     assembler.accept(decode_frame(encode_start(inspect_file(source, 3))))
     with pytest.raises(ProtocolError, match="incorrect packet length"):
         assembler.accept(decode_frame(encode_data(0, b"ab")))
+
+
+@pytest.mark.parametrize(
+    "filename", ["../escape", r"..\escape", "CON.bin", "file:stream", "trail."]
+)
+def test_windows_unsafe_filename(tmp_path, filename):
+    source = tmp_path / "safe.bin"
+    source.write_bytes(b"")
+    meta = inspect_file(source, 3)
+    meta["filename"] = filename
+    assembler = FileAssembler(tmp_path / "received")
+    assembler.accept(decode_frame(encode_start(meta)))
+    assembler.accept(decode_frame(encode_finish()))
+    with pytest.raises(ProtocolError, match="unsafe filename"):
+        assembler.finalize()
+
+
+def test_scratch_and_target_never_overwrite_existing_files(tmp_path):
+    source = tmp_path / "received.part"
+    source.write_bytes(b"abc")
+    directory = tmp_path / "received"
+    directory.mkdir()
+    target = directory / "received.part"
+    target.write_bytes(b"user data")
+    assembler = FileAssembler(directory)
+    assembler.accept(decode_frame(encode_start(inspect_file(source, 3))))
+    assembler.accept(decode_frame(encode_data(0, b"abc")))
+    assembler.accept(decode_frame(encode_finish()))
+    with pytest.raises(FileExistsError):
+        assembler.finalize()
+    assert target.read_bytes() == b"user data"

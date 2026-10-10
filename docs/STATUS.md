@@ -57,7 +57,7 @@
 
 > 统计口径：按以下 10 个交付里程碑计算，每项仅在**实现且验证通过**后计入完成率。代码已提交但未验证不算完成；避免主观百分比。
 
-**已验收：0 / 10（0%）**；**已实现待验证：2 项**。
+**已验收：1 / 10（10%）**（当前基线）；其余里程碑须按完整验收条件确认。
 
 | 里程碑 | 状态 | 验收条件 |
 |---|---|---|
@@ -285,3 +285,19 @@
 - 新增 `tests/test_worker.py`：模拟视频帧与控制端，覆盖时间片范围、批次提交、心跳及领取流程。
 - **当前限制**：Worker 尚未实现扫描期间续租、START 不在当前时间片时的可靠会话引导、FINISH 标记、请求失败重试和真实双机 SMB 验收；不能标记分布式里程碑完成。
 - **本轮 CI 尚待验证；总验收仍为 1/10（10%）。**
+
+## 接管与分布式可靠性阶段（2026-10-10）
+
+- 基线 main `af1ac2e`，工作区干净，分支 `feature/distributed-decoder-reliability`。
+- CI 38035201954 真实日志：两个模拟 videos 表缺 task_id；Worker 测试硬编码 Unix 路径。均修复，未删除测试。
+- uv 安装 Python 3.12.13；生成 uv.lock；正式声明 httpx，CI 安装全部依赖并使用 --locked。
+- Worker 独立心跳/续租线程、HTTP 暂态错误指数退避、Ctrl+C 清理、FINISH 提交；失败不完成租约，等待到期重领；同节点有效租约期间禁止继续分配。
+- DATA 可以先于 START 持久化，绑定时校验已有包号和长度；FINISH 持久化，START 冲突拒绝。
+- 增加任务进度、恢复状态、缺包导出和恢复 API；从 SQLite 流式重建临时文件，CRC32/SHA256/MD5 校验后原子发布，拒绝覆盖和 Windows 非法文件名。
+- 中断后可以重新从 SQLite 重建；尚未实现复用临时文件的增量恢复。缺包集合与已收包号集合仍占与包数相关的内存，大文件性能待实测。
+- v1 DATA/FINISH 没有会话 ID：不同来源同长度包不能由单包鉴别；START 冲突、包冲突隔离和最终哈希防止静默输出错误文件，不能声称彻底解决串包。协议升级需兼容方案。
+- 生成 AVI 测试不等于真实录屏或真实双 Windows SMB 验收。Web 业务界面、四 EXE 完整交付、大视频性能尚未验收。
+- 本地 Windows Python 3.12.13：Ruff format/check PASS；pytest **82 passed，无跳过**（7.31s）；二维码/ZXing/AVI/Control/Worker 专项 **31 passed**（4.50s）；全部关键依赖导入 PASS。Starlette/httpx 弃用警告 1 条，非失败。
+- 本机旧 pytest 临时目录 ACL 拒绝访问，使用 `PYTEST_DEBUG_TEMPROOT=D:/code_2026/qrft/temp` 后全部通过；没有修改用户临时目录权限。环境下载通过 NO_PROXY=* 绕过本机慢代理，Python 原版归档由 uv 安装。
+- 修改文件：pyproject.toml、uv.lock、ci.yml、control/app.py、control/recovery.py、control/scheduler.py、decoder/worker.py、core/reassemble.py、相关测试与文档。
+- 提交和 GitHub CI 链接在推送后补充。总验收基线保持 **1/10（10%）**。

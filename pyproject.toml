@@ -13,7 +13,7 @@ decoder = ["zxing-cpp>=2.2", "opencv-python-headless>=4.10"]
 control = ["fastapi>=0.115", "uvicorn>=0.34", "pyyaml>=6.0"]
 
 [dependency-groups]
-dev = ["pytest>=8.3", "ruff>=0.9", "hypothesis>=6.120", "build>=1.2", "pyinstaller>=6.11"]
+dev = ["pytest>=8.3", "ruff>=0.9", "hypothesis>=6.120", "build>=1.2", "pyinstaller>=6.11", "httpx>=0.28"]
 
 [build-system]
 requires = ["hatchling>=1.26"]

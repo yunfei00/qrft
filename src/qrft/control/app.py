@@ -16,7 +16,9 @@ from pydantic import BaseModel, Field
 
 from qrft.control.packets import ingest
 from qrft.control.packets import init_schema as init_packets
+from qrft.control.recovery import recover
 from qrft.control.scheduler import add_slices, claim, complete, init_schema, renew
+from qrft.core.missing import export_missing
 from qrft.core.protocol import ProtocolError, decode_frame
 
 app = FastAPI(title="QRFT Control", version="0.1.0")
@@ -56,6 +58,11 @@ def connection():
         )
         init_schema(db)
         init_packets(db)
+        db.execute("CREATE TABLE IF NOT EXISTS task_finishes (task_id INTEGER PRIMARY KEY)")
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS task_recoveries (task_id INTEGER PRIMARY KEY, "
+            "status TEXT NOT NULL, path TEXT, updated_at REAL NOT NULL)"
+        )
         db.execute(
             "CREATE TABLE IF NOT EXISTS task_manifests ("
             "task_id INTEGER PRIMARY KEY, start_frame BLOB NOT NULL, "
@@ -258,11 +265,12 @@ def bind_manifest(item: ManifestBind) -> dict[str, str]:
             if existing["start_frame"] != raw:
                 raise HTTPException(status_code=409, detail="Conflicting START manifest")
             return {"status": "already_bound"}
-        if (
-            db.execute("SELECT 1 FROM packets WHERE task_id=? LIMIT 1", (item.task_id,)).fetchone()
-            is not None
-        ):
-            raise HTTPException(status_code=409, detail="Packets already received")
+        for row in db.execute("SELECT frame FROM packets WHERE task_id=?", (item.task_id,)):
+            data = decode_frame(bytes(row["frame"]))
+            if data.packet_id >= total or len(data.payload) != min(
+                chunk, size - data.packet_id * chunk
+            ):
+                raise HTTPException(status_code=409, detail="Stored DATA does not match START")
         db.execute(
             "INSERT INTO task_manifests(task_id,start_frame,total_packets,chunk_size,file_size) "
             "VALUES (?,?,?,?,?)",
@@ -301,6 +309,12 @@ def ingest_batch(item: PacketBatch) -> dict[str, int]:
                 if len(raw) > 8192:
                     raise ValueError("frame exceeds size limit")
                 frame = decode_frame(raw)
+                if frame.kind == "finish":
+                    cursor = db.execute(
+                        "INSERT OR IGNORE INTO task_finishes VALUES (?)", (item.task_id,)
+                    )
+                    counts["inserted" if cursor.rowcount else "duplicate"] += 1
+                    continue
                 manifest = db.execute(
                     "SELECT total_packets,chunk_size,file_size FROM task_manifests WHERE task_id=?",
                     (item.task_id,),
@@ -332,6 +346,67 @@ def packet_stats(task_id: int) -> dict[str, int]:
             "SELECT COUNT(*) FROM packet_conflicts WHERE task_id=?", (task_id,)
         ).fetchone()[0]
     return {"stored": stored, "conflicts": conflicts}
+
+
+@app.get("/tasks/{task_id}/progress", dependencies=[Depends(require_token)])
+def task_progress(task_id: int) -> dict:
+    stats = packet_stats(task_id)
+    with connection() as db:
+        if db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+        stats["finished"] = (
+            db.execute("SELECT 1 FROM task_finishes WHERE task_id=?", (task_id,)).fetchone()
+            is not None
+        )
+        recovery = db.execute(
+            "SELECT status,path,updated_at FROM task_recoveries WHERE task_id=?", (task_id,)
+        ).fetchone()
+        stats["recovery"] = dict(recovery) if recovery else {"status": "not_started"}
+        stats["slices"] = [
+            dict(row)
+            for row in db.execute(
+                "SELECT s.state, COUNT(*) AS count FROM slices s JOIN videos v ON v.id=s.video_id "
+                "WHERE v.task_id=? GROUP BY s.state",
+                (task_id,),
+            )
+        ]
+    try:
+        stats.update(missing_packets(task_id))
+    except HTTPException:
+        stats["total_packets"] = None
+    return stats
+
+
+@app.post("/tasks/{task_id}/missing/export", dependencies=[Depends(require_token)])
+def export_task_missing(task_id: int) -> dict:
+    missing = missing_packets(task_id)
+    directory = Path(os.environ.get("QRFT_OUTPUT_DIR", "recovered")) / str(task_id)
+    with connection() as db:
+        received = (
+            row[0]
+            for row in db.execute("SELECT packet_id FROM packets WHERE task_id=?", (task_id,))
+        )
+        export_missing(directory, missing["total_packets"], received)
+    return {"directory": str(directory), **missing}
+
+
+@app.post("/tasks/{task_id}/recover", dependencies=[Depends(require_token)])
+def recover_task(task_id: int) -> dict:
+    directory = Path(os.environ.get("QRFT_OUTPUT_DIR", "recovered")) / str(task_id)
+    with connection() as db:
+        db.execute("BEGIN")
+        try:
+            result = recover(db, task_id, directory)
+        except (ProtocolError, FileExistsError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+    with connection() as db:
+        db.execute(
+            "INSERT INTO task_recoveries VALUES (?,?,?,?) "
+            "ON CONFLICT(task_id) DO UPDATE SET status=excluded.status, "
+            "path=excluded.path,updated_at=excluded.updated_at",
+            (task_id, result["status"], result.get("path"), time.time()),
+        )
+    return result
 
 
 def main() -> None:

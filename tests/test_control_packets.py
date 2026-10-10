@@ -29,8 +29,8 @@ def test_packet_ingest_and_conflict() -> None:
 def test_renew_owner_and_expiration(tmp_path) -> None:
     db = sqlite3.connect(tmp_path / "renew.db")
     db.row_factory = sqlite3.Row
-    db.execute("CREATE TABLE videos(id INTEGER PRIMARY KEY, path TEXT)")
-    db.execute("INSERT INTO videos VALUES (1, 'share.avi')")
+    db.execute("CREATE TABLE videos(id INTEGER PRIMARY KEY, path TEXT, task_id INTEGER)")
+    db.execute("INSERT INTO videos VALUES (1, 'share.avi', 1)")
     init_slices(db)
     add_slices(db, 1, 2)
     db.commit()

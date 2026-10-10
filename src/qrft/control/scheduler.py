@@ -53,6 +53,15 @@ def claim(db: sqlite3.Connection, node_id: str, lease_seconds: int = 120) -> dic
         raise ValueError("lease_seconds must be positive")
     now = time.time()
     db.execute("BEGIN IMMEDIATE")
+    if (
+        db.execute(
+            "SELECT 1 FROM slices WHERE state='leased' AND owner=? AND lease_until>? LIMIT 1",
+            (node_id, now),
+        ).fetchone()
+        is not None
+    ):
+        db.commit()
+        return None
     row = db.execute(
         """
         SELECT s.id, s.video_id, s.start_ms, s.end_ms, v.path, v.task_id, s.attempts
@@ -110,7 +119,7 @@ def renew(db: sqlite3.Connection, slice_id: int, node_id: str, lease_seconds: in
         return "lease_invalid"
     db.execute(
         "UPDATE slices SET lease_until=? WHERE id=?",
-        (max(now, row["lease_until"]) + lease_seconds, slice_id),
+        (max(now + lease_seconds, row["lease_until"]), slice_id),
     )
     db.commit()
     return "renewed"
