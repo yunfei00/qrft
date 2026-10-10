@@ -32,9 +32,7 @@ def iter_encoded_frames(
         if retransmit is None
         else [
             packet_id
-            for packet_id in parse_packet_list(
-                retransmit.read_text(encoding="utf-8-sig"), total
-            )
+            for packet_id in parse_packet_list(retransmit.read_text(encoding="utf-8-sig"), total)
             if start_id <= packet_id <= last
         ]
     )
