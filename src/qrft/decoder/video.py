@@ -34,7 +34,9 @@ def iter_video_frames(
             raise OSError("video FPS unavailable")
         total_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
         start_index = max(0, int(start_seconds * fps))
-        end_index = total_frames if end_seconds is None else min(total_frames, int(end_seconds * fps))
+        end_index = (
+            total_frames if end_seconds is None else min(total_frames, int(end_seconds * fps))
+        )
         step = max(1, round(fps / sample_fps))
         for index in range(start_index, end_index, step):
             capture.set(cv2.CAP_PROP_POS_FRAMES, index)
