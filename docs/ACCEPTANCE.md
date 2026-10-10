@@ -1,14 +1,20 @@
-# Acceptance checklist
+# QRFT 验收清单
 
-- Arbitrary bytes: empty, one byte, chunk boundary, random binary, NUL, non-UTF8, Unicode filename, no extension.
-- Binary QR encode/decode and actual recorded-video recovery, whole-file SHA-256/MD5 verification.
-- Corrupt, duplicate, out-of-order, conflicting and missing packets.
-- Always write missing.txt, missing.csv and missing.json after decode attempt.
-- Sparse retransmission and merge into original session.
-- Worker crash/restart, lease expiry, reconnect, idempotent merge.
-- Two Windows workers reading one shared large video by time ranges without copying entire video.
-- Verify segment boundary overlap and keyframe seek.
-- Control EXE starts browser UI; workers connect and authenticate.
-- Four packaged Windows programs with no separately installed Python or Node.
-- Measure FPS, packets/sec, RAM peak, disk and SMB throughput on a tens-of-GB recording.
-- Document actual test evidence, remaining failures and limitations.
+## 二进制正确性
+- 空文件、1 字节、分块边界、随机二进制、NUL、非 UTF-8 字节、中文文件名和无扩展名文件。
+- 二维码原始字节编解码及**真实录屏**恢复；SHA-256 和 MD5 一致。
+- 损坏、重复、乱序、冲突和缺失包处理正确。
+- 每次解码尝试均导出 TXT/CSV/JSON 缺包文件；指定缺包补传并合并。
+
+## 可靠性
+- 解码节点中途退出、租约超时、重新连接、任务重试不丢已确认包。
+- 控制中心重启后可恢复任务状态。
+- 时间片重叠不会重复拼接，关键帧定位不遗漏边界。
+- SMB 不可访问、令牌错误等故障提示清晰。
+
+## 部署和性能
+- 两个 Windows 节点直接读取同一 SMB 视频，不整体复制。
+- 测量大视频解码耗时、有效包数、内存、CPU、磁盘及网络吞吐。
+- 四个 Windows EXE 无需目标机预装 Python/Node。
+- 提供安装、录屏、解码、补传、恢复的中文操作说明。
+- 所有未验证项必须在 `STATUS.md` 明示。
