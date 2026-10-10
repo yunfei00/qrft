@@ -83,3 +83,11 @@
 - 静态检查与 pytest 在该运行中被跳过，**尚未验证通过**；最新提交触发的 CI 也尚未确认结果。
 - **里程碑统计不变：0/10 已验收（0%）；2 项已实现待验证。** 只有新 CI 全绿后才能更新已验收比例。
 - CI 证据：https://github.com/yunfei00/qrft/actions/runs/38021211028
+
+### CI 运行 38021294255：已读取真实日志并修复
+- 运行地址：https://github.com/yunfei00/qrft/actions/runs/38021294255
+- 已通过：Checkout、uv 安装、Python 3.12 安装、核心测试依赖安装、Ruff 格式检查（23 个文件符合格式）。
+- **实际失败原因**：Ruff 静态检查在 `src/qrft/core/missing.py` 检出 I001（导入顺序）和 UP035（`Iterable` 应来自 `collections.abc`）。
+- 已按 Ruff 诊断修改导入顺序和来源；修复提交 `f32b0a7`。
+- 该运行的 pytest 被跳过；**新 CI 尚未验证通过**。
+- 交付进度维持 **0/10 验收完成（0%）**，2 项核心功能代码已实现待验证。下一步读取新 CI 的 pytest 结果，若失败按日志修复。
