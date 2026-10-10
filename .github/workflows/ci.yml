@@ -32,3 +32,5 @@ jobs:
         run: |
           uv sync --extra encoder --extra decoder --group dev
           uv run --no-sync pytest -q tests/test_qr_roundtrip.py
+      - name: 真实 AVI 视频端到端恢复测试
+        run: uv run --no-sync pytest -q tests/test_video_end_to_end.py
