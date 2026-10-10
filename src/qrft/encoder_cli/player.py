@@ -7,8 +7,8 @@ import sys
 from collections.abc import Iterator
 from pathlib import Path
 
-from qrft.encoder_cli.prefetch import prefetch_png
 from qrft.encoder_cli.playback import iter_encoded_frames
+from qrft.encoder_cli.prefetch import prefetch_png
 
 
 def play(
