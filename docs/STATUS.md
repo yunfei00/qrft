@@ -203,3 +203,9 @@
 - 新增 `.github/workflows/build-encoder.yml`：Windows Python 3.12 + uv + PyInstaller onedir 打包 `QRFT-Encoder-CLI.exe`，执行 `--help`、真实小文件 PNG 导出冒烟测试，并上传构件。
 - 新增 `tests/test_encoder_entrypoint.py`：命令入口测试；缺少 encoder 可选依赖时跳过。
 - **新构建 CI 尚未验证；未宣称 EXE 已生成或可运行**。总体验收进度保持 1/10（10%）。
+
+### Windows Encoder EXE #4 故障修复（2026-10-10）
+- 读取运行 `38031704104`、作业 `114153840706` 的真实日志：PyInstaller 构建成功，`--help` 冒烟测试因 Windows 控制台 `cp1252` 无法编码中文而抛出 `UnicodeEncodeError`，上传构件步骤跳过。
+- `entrypoint.py` 在 CLI 入口配置 stdout/stderr 的 `backslashreplace` 编码错误处理，避免不可表示字符导致崩溃；构建工作流的冒烟测试显式设置 `PYTHONIOENCODING=utf-8`。
+- 修复提交 `c802d1c`、`3e7b582`；新构建运行尚未验证，不能声称 EXE 已通过冒烟测试或已上传。
+- 总体验收进度仍为 1/10（10%）。
