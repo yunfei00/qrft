@@ -29,3 +29,6 @@ No proprietary files, recordings, credentials or production configurations belon
 
 ## License
 Not yet selected. Public visibility does not automatically grant reuse rights.
+
+## Python development environment
+Python 3.12 with **uv** for environment, dependencies, lockfile and commands. See [uv development setup](docs/DEVELOPMENT.md). The Windows CI scaffold is in [ci.yml](.github/workflows/ci.yml).
