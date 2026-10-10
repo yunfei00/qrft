@@ -39,7 +39,8 @@ def export_missing(directory: Path, total_packets: int, received_ids: Iterable[i
             {"schema_version": 1, "total_packets": total_packets, "missing_ids": ids},
             ensure_ascii=False,
             indent=2,
-        ) + "\n",
+        )
+        + "\n",
         encoding="utf-8",
     )
     return ids
