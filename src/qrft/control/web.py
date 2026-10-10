@@ -8,6 +8,7 @@ body{font:16px system-ui;background:#f3f5f8;color:#172335;margin:2rem auto;max-w
 section{background:white;border:1px solid #dce2eb;border-radius:12px;padding:1.2rem;margin:1rem 0}
 input,select,button{font:inherit;padding:.5rem;margin:.3rem;border:1px solid #bbc6d4;border-radius:6px}
 button{background:#145bd7;color:white;cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+table{border-collapse:collapse;font:14px system-ui}th,td{text-align:left;border-bottom:1px solid #dce2eb;padding:.45rem;overflow-wrap:anywhere}
 label{display:inline-block}#message{min-height:1.5rem}h1,h2{margin:.5rem 0}
 </style>
 <h1>QRFT 控制中心</h1><p>二进制文件传输 · 分布式视频解码</p>
@@ -57,28 +58,46 @@ async function api(path,body){
  const response=await fetch(path,{method:body===undefined?'GET':'POST',headers,
    body:body===undefined?undefined:JSON.stringify(body)});
  const result=await response.json();
- if(!response.ok)throw new Error(JSON.stringify(result.detail||result));
+ if(!response.ok){const detail=result.detail||result;
+ const messages={'START manifest required':'尚未识别 START，请先完整扫描包含起始帧的视频',
+  'START manifest not bound':'尚未绑定 START 元数据，请先扫描起始帧',
+  'Invalid API token':'Token 错误，请重新输入','Task cancelled':'任务已取消，不能继续处理',
+  'reassembled file hash mismatch':'文件哈希校验失败，请检查冲突和来源并重新扫描',
+  'Conflicting START manifest':'START 与任务文件不一致，请为不同文件新建任务',
+  'lease_invalid':'租约已失效，请等待节点重新领取'};
+ throw new Error(typeof detail==='string'?(messages[detail]||detail):JSON.stringify(detail));}
  return result;
 }
-async function action(fn){try{await fn();el('message').textContent='操作成功';}
+async function action(fn){try{const message=await fn();el('message').textContent=typeof message==='string'?message:'操作成功';}
  catch(error){el('message').textContent=error.message;}}
 function selected(){if(!el('task').value)throw new Error('请先选择任务');return el('task').value;}
 async function progress(){
- const id=selected();show('details',await api('/tasks/'+id+'/progress'));
+ const id=selected();const data=await api('/tasks/'+id+'/progress');
+ const states={not_started:'未开始',incomplete:'缺包或缺少 FINISH',verified:'校验通过',failed:'校验失败'};
+ table('details',[{项目:'数据包',结果:data.stored+' / '+(data.total_packets??'等待 START')},
+  {项目:'缺包',结果:data.missing_count??'等待 START'},{项目:'重复 / 冲突',结果:data.duplicates+' / '+data.conflicts},
+  {项目:'FINISH',结果:data.finished?'已识别':'未识别'},{项目:'任务',结果:data.cancelled?'已取消':(data.recovery.status==='verified'?'已恢复':'运行中')},
+  {项目:'恢复',结果:states[data.recovery.status]||data.recovery.status},
+  {项目:'输出文件',结果:data.recovery.path||'尚未生成'}]);
  const videos=await api('/videos?task_id='+id);table('videos',videos);
  const slices=await Promise.all(videos.map(v=>api('/slices?video_id='+v.id)));
  table('slices',slices.flat());
+ await updateOverview();
 }
+async function updateOverview(){const overview=await api('/overview');
+ el('overview').textContent='任务 '+overview.tasks+' · 在线节点 '+overview.online_nodes+
+  ' · 处理中时间片 '+overview.processing_slices+' · 已验证恢复 '+overview.verified_tasks;}
 async function refresh(){
  const tasks=await api('/tasks');const prior=el('task').value;el('task').replaceChildren();
  for(const task of tasks){const option=document.createElement('option');option.value=task.id;
    option.textContent=task.id+' · '+task.name;el('task').append(option);}
  if(tasks.some(t=>String(t.id)===prior))el('task').value=prior;
  const nodes=await api('/nodes');table('nodes',nodes);
- show('settings',await api('/settings'));
- const overview=await api('/overview');
- el('overview').textContent='任务 '+overview.tasks+' · 在线节点 '+overview.online_nodes+
-  ' · 处理中时间片 '+overview.processing_slices+' · 已验证恢复 '+overview.verified_tasks;
+ const settings=await api('/settings');table('settings',[{项目:'二维码协议',结果:'v'+settings.protocol_version},
+  {项目:'租约 / 时间片 / 重叠',结果:settings.lease_seconds+' / '+settings.slice_seconds+' / '+settings.overlap_seconds+' 秒'},
+  {项目:'在线超时',结果:settings.online_timeout_seconds+' 秒'},{项目:'输出目录',结果:settings.output_directory},
+  {项目:'修改配置',结果:settings.configuration}]);
+ await updateOverview();
  if(tasks.length)await progress();
 }
 el('refresh').onclick=()=>action(refresh);
@@ -89,9 +108,10 @@ el('newtask').onsubmit=event=>{event.preventDefault();action(async()=>{
 el('newvideo').onsubmit=event=>{event.preventDefault();action(async()=>{
  await api('/videos',{task_id:Number(selected()),path:el('path').value,
  duration_seconds:Number(el('duration').value)});await progress();});};
-el('missing').onclick=()=>action(async()=>show('details',await api('/tasks/'+selected()+'/missing/export',{})));
-el('recover').onclick=()=>action(async()=>{const result=await api('/tasks/'+selected()+'/recover',{});
- await progress();show('details',result);});
+el('missing').onclick=()=>action(async()=>{const result=await api('/tasks/'+selected()+'/missing/export',{});
+ return '缺包报告已生成：'+result.directory;});
+el('recover').onclick=()=>action(async()=>{await api('/tasks/'+selected()+'/recover',{});
+ await progress();});
 el('cancel').onclick=()=>action(async()=>{await api('/tasks/'+selected()+'/cancel',{});await progress();});
 el('rescan').onclick=()=>action(async()=>{const id=Number(el('rescanid').value);
  if(!Number.isInteger(id)||id<1)throw new Error('请输入有效的视频 ID');

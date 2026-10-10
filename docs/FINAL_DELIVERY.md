@@ -14,6 +14,8 @@
 
 ## 后续开发与验证
 
+- 浏览器实测：Token 连接、中文任务创建、SMB 路径登记与三片展示、缺少 START 的中文错误、网页触发恢复后 SHA256/原始 0–255 字节一致、missing.txt 实际下载。共享路径仅登记模拟值，未读取真实共享。修复恢复后概览计数刷新与中文进度表。CI 3a731a2 六项全绿（Windows Delivery 38040094866）；界面最后调整需新 CI 确认。
+
 - Phase A 提交 aa255d3，Python CI 通过；GUI EXE 启动门禁实际发现 Qt 6.12 DLL 问题。改为锁定 PySide6 6.9.3 后本机无控制台 EXE 创建窗口并退出，exit=0。
 - 缺包 API 默认返回最多 1000 个 ID，支持 after/limit 游标和 missing_count；完整下载支持鉴权 TXT/CSV/JSON 流式生成，不接受任意下载路径。
 - 控制中心恢复按 SQLite 排序游标写入并校验 CRC/SHA256/MD5，不加载全部包号。断电后从持久化 SQLite 重新恢复，暂未实现跳过已写磁盘区块的恢复检查点。
