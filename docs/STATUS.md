@@ -128,3 +128,11 @@
 - 已按 Ruff 日志中的精确格式改回单行；修复提交 `a835bc4`。
 - 静态检查、pytest、图片测试、ZXing 测试均因格式检查失败被跳过，不能声称这些检查已通过。
 - **验收进度维持 1/10（10%）**，待新 CI 验证。
+
+### 本轮：视频读取与本地恢复入口（2026-10-10）
+- 用户确认上一轮 CI 已通过。
+- 新增 `src/qrft/decoder/video.py`：OpenCV 从本地/可访问 SMB 路径直接读取视频，按 FPS 和时间范围取帧；ZXing 从帧提取原始 QR 字节并进行 CRC 校验。
+- 新增 `src/qrft/decoder/main.py`：`python -m qrft.decoder.main VIDEO --output DIR [--sample-fps 10] [--start 0] [--end N]`，将帧接入文件恢复核心。
+- 新增 `tests/test_video_decoder.py`：模拟视频帧的端到端文件恢复、参数边界验证。
+- **本轮 CI 尚未确认**；尚无真实录屏视频验收，视频随机定位性能、丢帧容错、分布式租约和断点续传仍待实现。
+- **验收进度维持 1/10（10%）**，不将模拟测试视作真实视频验收。
