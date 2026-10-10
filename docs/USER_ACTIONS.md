@@ -46,3 +46,26 @@ uv run ruff format --check .
 3. 从浏览器地址栏复制完整地址，格式为 `https://github.com/yunfei00/qrft/actions/runs/数字`，发送到当前对话。
 
 预期：得到包含数字 run ID 的链接；助手即可直接读取该次运行的失败步骤和完整日志，修复根因，不需要用户复制大量日志或本地运行命令。
+
+## UA-002：Windows 编码器/解码器构件下载与基础验收（可选，构建成功后执行）
+
+1. 打开仓库 GitHub Actions，选择成功的 **Windows Encoder EXE** 或 **Windows Decoder EXE** 运行。
+2. 在运行页面的 **Artifacts** 下载 `QRFT-Encoder-CLI-windows` 或 `QRFT-Decoder-windows`；分别解压到不同目录。**必须保留整个解压目录（含 `_internal`），不能只复制 EXE。**
+3. 在 PowerShell 进入编码器目录，运行：
+
+   ```powershell
+   .\\QRFT-Encoder-CLI.exe --help
+   .\\QRFT-Encoder-CLI.exe export C:\\Temp\\sample.bin --output C:\\Temp\\qrft-frames
+   ```
+
+   其中 `C:\\Temp\\sample.bin` 替换为本机真实存在的小文件。检查输出目录中的 `manifest.json` 和 PNG 图片。
+4. 在解码器目录运行 `.\\QRFT-Decoder.exe --help`，检查帮助文字是否正常显示。
+5. 视频恢复实际验收需要一段包含完整 START/DATA/FINISH 的二维码录屏：
+
+   ```powershell
+   .\\QRFT-Decoder.exe C:\\Temp\\qrft-recording.avi --output C:\\Temp\\qrft-restored
+   ```
+
+   录屏必须真实存在；程序输出成功并核对 SHA-256 后才算视频恢复验收通过。尚未准备录屏时可跳过第 5 步。
+
+> UA-002 为构件成功后可选的本地人工验收；当前 CI 可自动完成编码器 PNG 导出冒烟测试、解码器帮助启动测试及真实 AVI 端到端 Python 回归测试，无须现在执行。
