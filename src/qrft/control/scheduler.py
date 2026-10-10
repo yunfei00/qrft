@@ -60,12 +60,14 @@ def claim(db: sqlite3.Connection, node_id: str, lease_seconds: int = 120) -> dic
         (now,),
     ).fetchone()
     if row is None:
+        db.commit()
         return None
     db.execute(
         "UPDATE slices SET state='leased', owner=?, lease_until=?, attempts=attempts+1 "
         "WHERE id=?",
         (node_id, now + lease_seconds, row["id"]),
     )
+    db.commit()
     return {**dict(row), "owner": node_id, "lease_until": now + lease_seconds}
 
 
@@ -76,12 +78,16 @@ def complete(db: sqlite3.Connection, slice_id: int, node_id: str) -> str:
         "SELECT state, owner, lease_until FROM slices WHERE id=?", (slice_id,)
     ).fetchone()
     if row is None:
+        db.commit()
         return "not_found"
     if row["state"] == "done":
+        db.commit()
         return "already_done"
     if row["state"] != "leased" or row["owner"] != node_id or row["lease_until"] <= now:
+        db.commit()
         return "lease_invalid"
     db.execute(
         "UPDATE slices SET state='done', lease_until=NULL WHERE id=?", (slice_id,)
     )
+    db.commit()
     return "done"
