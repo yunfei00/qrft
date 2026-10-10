@@ -260,3 +260,12 @@
 - `src/qrft/control/app.py` 在登记视频时自动生成切片，提供 `POST /slices/claim`、`POST /slices/{slice_id}/complete`、`GET /slices`（均需 API Token）。
 - 新增 `tests/test_scheduler.py`，覆盖切片覆盖范围、重复登记、租约到期重领、归属检查与完成幂等。
 - **本轮尚未通过 CI**；节点实际解码、租约续期、结果包批量上传与恢复尚未实现。验收仍为 1/10（10%）。
+
+### 本轮：租约续期与原始 QR 数据包批量接收（2026-10-10）
+- 用户确认上一轮 CI 通过。
+- `scheduler.renew`：仅当前有效租约持有者可以续期；原子事务保证状态一致。
+- 新增 `control/packets.py`：解码原始 QRFT DATA 帧并验证 CRC，SQLite 按 (task_id,packet_id) 去重，冲突数据写入 packet_conflicts 隔离表。
+- `control/app.py`：新增 `POST /slices/{slice_id}/renew`、`POST /packets/batch`、`GET /packets/{task_id}/stats`；受 Token 保护，限制每批包数和单包字节数。
+- 新增 `tests/test_control_packets.py`，覆盖去重、冲突、损坏包拒绝、续期归属与完成状态。
+- **本轮尚未验证 CI**。当前批量接口在部分包成功后遇到错误时可能保留先前包；下一轮需增强整批原子性、START 会话绑定、缺包导出及解码节点联动。
+- 验收进度仍为 1/10（10%）。
