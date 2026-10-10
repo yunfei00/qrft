@@ -1,0 +1,39 @@
+name: Windows Encoder EXE
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+      - name: 安装 Python 3.12
+        run: uv python install 3.12
+      - name: 安装编码器与打包依赖
+        run: uv sync --extra encoder --extra gui --group dev
+      - name: PyInstaller 打包编码器
+        run: |
+          uv run --no-sync pyinstaller --noconfirm --clean --onedir --console --name QRFT-Encoder-CLI --paths src src/qrft/encoder_cli/entrypoint.py
+      - name: EXE 命令行冒烟测试
+        shell: pwsh
+        run: |
+          & dist/QRFT-Encoder-CLI/QRFT-Encoder-CLI.exe --help
+          if ($LASTEXITCODE -ne 0) { throw "EXE --help failed" }
+          New-Item -ItemType Directory -Force -Path smoke | Out-Null
+          [System.IO.File]::WriteAllBytes((Join-Path (Get-Location) "smoke/sample.bin"), [byte[]](1,2,3,4,5))
+          & dist/QRFT-Encoder-CLI/QRFT-Encoder-CLI.exe export smoke/sample.bin --output smoke/output --chunk-size 2
+          if ($LASTEXITCODE -ne 0) { throw "EXE export failed" }
+          if (!(Test-Path smoke/output/manifest.json)) { throw "missing manifest.json" }
+          if ((Get-ChildItem smoke/output/*-data.png).Count -ne 3) { throw "wrong data packet count" }
+      - name: 上传 Windows 编码器构件
+        uses: actions/upload-artifact@v4
+        with:
+          name: QRFT-Encoder-CLI-windows
+          path: dist/QRFT-Encoder-CLI/
+          if-no-files-found: error
