@@ -7,6 +7,7 @@ FINISH: b"QRFT1F" || crc32_be(prefix) || b"99999999"
 
 A control packet can only be interpreted as control when its reserved packet ID is present.
 """
+
 from __future__ import annotations
 
 import json
@@ -97,7 +98,7 @@ def decode_frame(raw: bytes) -> Frame:
         if not body.startswith(START_MAGIC):
             raise ProtocolError("invalid START magic")
         try:
-            metadata = json.loads(body[len(START_MAGIC):].decode("utf-8"))
+            metadata = json.loads(body[len(START_MAGIC) :].decode("utf-8"))
         except (UnicodeError, json.JSONDecodeError) as exc:
             raise ProtocolError("invalid START metadata") from exc
         if not isinstance(metadata, dict):
