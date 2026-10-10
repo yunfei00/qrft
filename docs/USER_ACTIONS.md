@@ -2,7 +2,7 @@
 
 ## UA-008：第五程序与真实双机验收
 
-时机：包含五程序的候选 Release 下载后。环境：两台 Windows、可访问 UNC 共享、同版本完整解压目录。按 [中文一键验收手册](ACCEPTANCE_RUNNER.md) 运行单机默认项目并导出完整报告；其结果不替代真实双机。
+时机：[0.3.0rc1 五程序候选 Release](https://github.com/yunfei00/qrft/releases/tag/v0.3.0-rc.1) 下载后（335,909,638 字节，ZIP SHA256 见 ACCEPTANCE_RESULTS.md）。环境：两台 Windows、可访问 UNC 共享、同版本完整解压目录。按 [中文一键验收手册](ACCEPTANCE_RUNNER.md) 运行单机默认项目并导出完整报告；其结果不替代真实双机。
 
 控制机选择 SMB 控制机 + Worker A，配置可写 UNC 共享和本次 Token，允许局域网端口 8788。Worker B 在另一台 Windows 配置控制机 IP、日志给出的 UNC 视频与同一 Token，开始测试。收集两端报告，检查不同机器标识、不同时间片、最终 SHA256。无第二台电脑时保持“真实双机 SMB：未验收”。基础双机链路成功后，完整 SMB 项目仍 BLOCKED，远程断网/重新连接未自动执行。
 

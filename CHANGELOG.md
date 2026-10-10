@@ -6,7 +6,7 @@
 - 调用实际四 EXE 执行二维码 PNG、AVI、单 Worker、双 Worker、HTTP/SQLite/SHA256、缺包选择性补传和进程退出/租约恢复。
 - 中文 HTML、JSON、CSV 报告，SHA256 清单核对，原生 CPU/内存/I/O 采样，哈希性能与真实传输明确区分。
 - SMB 三角色配置与主机/时间片证据；真实远程断线、录屏和大视频验收仍不计为通过。
-- 新增五程序 Windows 验收构建工作流和干净目录实际 EXE 冒烟；本地测试 112 项通过。发布与 CI 证据完成后追加进度记录。
+- 新增五程序 Windows 验收构建工作流和干净目录实际 EXE 冒烟；最终本地测试 117 项通过；发布与 CI 证据见 docs/ACCEPTANCE_RESULTS.md。
 - 增加无 Python 的 EXE 项目选择/性能命令、独立合成 ZXing 指标和中文指标表；SMB 配置仅在对应角色显示，重复冒烟不受历史报告影响。Windows GUI 600 秒与实际 Acceptance EXE 的 1GiB 哈希已测，完整硬件验收仍未完成。
 - 验收中心实例校验及请求标识防止端口占用时误操作其他任务；普通客户端和二维码 v1 兼容。
 - 最终本地 117 项测试与实际 EXE 隔离/恢复/性能项目通过；环境完整性失败时阻断后续可执行程序验收。
@@ -62,3 +62,8 @@
 - 修复 Windows 路径测试和模拟表结构，生成 uv.lock，锁定完整依赖 CI。
 - 实际测试和 CI 证据见 docs/STATUS.md，验收比例保持 1/10。
 - 新增 Web 管理入口；Decoder EXE 暴露 worker 子命令；Control EXE 构建和 HTTP 冒烟验证。
+
+
+## 0.3.0rc1 最终发行记录（2026-10-11）
+
+PR #5 合并提交 0ccc140 构建五程序候选版；main 七项 CI 与标签两项交付 CI 全绿。最终下载产物 1080 个文件校验匹配，实际 EXE 默认八项、独立合成 AVI、原生 Qt 启动及 Token/实例隔离复验通过。[Release](https://github.com/yunfei00/qrft/releases/tag/v0.3.0-rc.1) 与完整证据见 docs/ACCEPTANCE_RESULTS.md；原 7/10 口径不变。

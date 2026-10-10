@@ -18,11 +18,11 @@ QRFT 支持将任意二进制文件转换为二维码序列，通过录屏保存
 
 ## 五个 Windows 程序
 
-新增第五个独立工具 **QRFT-Acceptance.exe**，提供中文一键验收、真实 EXE 的单机/双 Worker/补传/故障恢复、性能采样与 HTML/JSON/CSV 报告。操作见 [一键验收手册](docs/ACCEPTANCE_RUNNER.md)。0.3.0rc1 正在验证与交付；以下 0.2.0rc1 下载仍保留。真实双机 SMB、实际录屏和大视频验收不能由本地模拟代替。
+新增第五个独立工具 **QRFT-Acceptance.exe**，提供中文一键验收、真实 EXE 的单机/双 Worker/补传/故障恢复、性能采样与 HTML/JSON/CSV 报告。操作见 [一键验收手册](docs/ACCEPTANCE_RUNNER.md)。0.3.0rc1 五程序候选版已发布，旧 0.2.0rc1 下载仍保留。真实双机 SMB、实际录屏和大视频验收不能由本地模拟代替。
 
 当前候选软件版本 **0.3.0rc1**，新增第五个验收工具。部署、操作、备份、升级和排障见 [Windows 运维手册](docs/OPERATIONS.md)，本轮测试证据见 [一键验收结果](docs/ACCEPTANCE_RESULTS.md)，原四程序的历史证据见 [0.2.0rc1 交付记录](docs/FINAL_DELIVERY.md)。候选版不代表真实双机 SMB 和大视频已验收。
 
-下载入口：[0.3.0rc1 五程序候选版（Release 开放后可用）](https://github.com/yunfei00/qrft/releases/tag/v0.3.0-rc.1)。[旧 0.2.0rc1](https://github.com/yunfei00/qrft/releases/tag/v0.2.0-rc.1) 保留。性能方法、结果和未测项目见 [性能报告](docs/PERFORMANCE.md) 与 [一键验收结果](docs/ACCEPTANCE_RESULTS.md)。
+下载入口：[0.3.0rc1 五程序候选版](https://github.com/yunfei00/qrft/releases/tag/v0.3.0-rc.1)。[旧 0.2.0rc1](https://github.com/yunfei00/qrft/releases/tag/v0.2.0-rc.1) 保留。性能方法、结果和未测项目见 [性能报告](docs/PERFORMANCE.md) 与 [一键验收结果](docs/ACCEPTANCE_RESULTS.md)。
 
 1. `QRFT-Encoder-CLI.exe`：命令行编码和二维码显示。
 2. `QRFT-Encoder-GUI.exe`：PySide6 图形编码器。
@@ -32,7 +32,8 @@ QRFT 支持将任意二进制文件转换为二维码序列，通过录屏保存
 
 ## 环境与部署
 
-- Python 3.12，**统一使用 uv** 管理虚拟环境、依赖和锁文件。
+- 使用 Release：完整解压五程序目录，无需安装 Python；请勿单独复制 EXE。
+- 源码开发：Python 3.12，**统一使用 uv** 管理虚拟环境、依赖和锁文件。
 - Windows 局域网；中心机保存可能达到数十 GB 的录屏文件。
 - 工作节点通过 SMB 共享按逻辑时间片读取原视频，不整体上传、复制或物理切片。
 - 恢复文件必须通过完整哈希校验，缺包列表可直接用于补传。
