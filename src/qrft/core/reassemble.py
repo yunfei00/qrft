@@ -96,7 +96,10 @@ class FileAssembler:
             for block in iter(lambda: stream.read(1024 * 1024), b""):
                 sha.update(block)
                 md5.update(block)
-        if sha.hexdigest() != self.manifest["sha256"] or md5.hexdigest() != self.manifest["md5"]:
+        if (
+            sha.hexdigest() != self.manifest["sha256"]
+            or md5.hexdigest() != self.manifest["md5"]
+        ):
             raise ProtocolError("reassembled file hash mismatch")
         filename = self.manifest.get("filename")
         if not isinstance(filename, str) or not filename or Path(filename).name != filename:
