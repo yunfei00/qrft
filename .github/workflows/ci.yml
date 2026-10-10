@@ -24,3 +24,7 @@ jobs:
         run: uv run --no-sync ruff check .
       - name: 单元测试
         run: uv run --no-sync pytest -q
+      - name: 二维码图片测试（含 encoder 可选依赖）
+        run: |
+          uv sync --extra encoder --group dev
+          uv run --no-sync pytest -q tests/test_qr_image.py
