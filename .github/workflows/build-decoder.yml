@@ -1,0 +1,34 @@
+name: Windows Decoder EXE
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+      - name: 安装 Python 3.12
+        run: uv python install 3.12
+      - name: 安装解码器与打包依赖
+        run: uv sync --extra decoder --group dev
+      - name: PyInstaller 打包解码器
+        run: |
+          uv run --no-sync pyinstaller --noconfirm --clean --onedir --console --name QRFT-Decoder --paths src src/qrft/decoder/main.py
+      - name: EXE 启动与命令行冒烟测试
+        shell: pwsh
+        run: |
+          $env:PYTHONIOENCODING = "utf-8"
+          & dist/QRFT-Decoder/QRFT-Decoder.exe --help
+          if ($LASTEXITCODE -ne 0) { throw "Decoder EXE --help failed" }
+      - name: 上传 Windows 解码器构件
+        uses: actions/upload-artifact@v4
+        with:
+          name: QRFT-Decoder-windows
+          path: dist/QRFT-Decoder/
+          if-no-files-found: error
