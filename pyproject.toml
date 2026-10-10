@@ -1,0 +1,30 @@
+[project]
+name = "qrft"
+version = "0.1.0"
+description = "Universal binary file transfer via QR codes and recorded video"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[project.optional-dependencies]
+encoder = ["qrcode>=8.0", "pillow>=11.0"]
+gui = ["pyside6>=6.8"]
+decoder = ["zxing-cpp>=2.2", "opencv-python-headless>=4.10"]
+control = ["fastapi>=0.115", "uvicorn>=0.34", "pyyaml>=6.0"]
+
+[dependency-groups]
+dev = ["pytest>=8.3", "ruff>=0.9", "hypothesis>=6.120", "build>=1.2", "pyinstaller>=6.11"]
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qrft"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
