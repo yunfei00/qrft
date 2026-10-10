@@ -7,7 +7,7 @@ import sys
 from collections.abc import Iterator
 from pathlib import Path
 
-from qrft.core.qr_image import qr_png
+from qrft.encoder_cli.prefetch import prefetch_png
 from qrft.encoder_cli.playback import iter_encoded_frames
 
 
@@ -21,6 +21,8 @@ def play(
     start_id: int = 0,
     end_id: int | None = None,
     fullscreen: bool = True,
+    workers: int = 2,
+    prefetch: int = 4,
 ) -> int:
     """延迟启动并按定时器显示二维码，数据帧在播放时才生成。"""
     if interval_ms < 1 or initial_delay_ms < 0:
@@ -37,6 +39,7 @@ def play(
         start_id=start_id,
         end_id=end_id,
     )
+    prepared = prefetch_png(frames, workers=workers, capacity=prefetch)
     app = QApplication.instance() or QApplication(sys.argv)
 
     class Player(QLabel):
@@ -54,13 +57,13 @@ def play(
             if self.paused:
                 return
             try:
-                packet_id, frame = next(frames)
+                packet_id, png = next(prepared)
             except StopIteration:
                 self.timer.stop()
                 self.setText("QRFT 播放完成，按 Esc 退出")
                 return
             image = QPixmap()
-            if not image.loadFromData(qr_png(frame), "PNG"):
+            if not image.loadFromData(png, "PNG"):
                 self.timer.stop()
                 self.setText(f"二维码生成失败：{packet_id}")
                 return
@@ -104,6 +107,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--retransmit", type=Path)
     parser.add_argument("--start-id", type=int, default=0)
     parser.add_argument("--end-id", type=int)
+    parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument("--prefetch", type=int, default=4)
     parser.add_argument("--windowed", action="store_true")
     args = parser.parse_args(argv)
     return play(
@@ -115,6 +120,8 @@ def main(argv: list[str] | None = None) -> int:
         start_id=args.start_id,
         end_id=args.end_id,
         fullscreen=not args.windowed,
+        workers=args.workers,
+        prefetch=args.prefetch,
     )
 
 
