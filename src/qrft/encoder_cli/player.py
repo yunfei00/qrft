@@ -78,7 +78,7 @@ def play(
             except StopIteration:
                 self.finish("QRFT 播放完成，按 Esc 退出")
                 return
-            except Exception as exc:
+            except (OSError, RuntimeError, ValueError) as exc:
                 self.finish(f"QRFT 播放失败：{exc}")
                 return
             image = QPixmap()
