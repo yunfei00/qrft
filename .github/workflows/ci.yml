@@ -14,13 +14,13 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - name: Install Python
+      - name: 安装 Python
         run: uv python install 3.12
-      - name: Resolve and sync
-        run: uv sync --all-extras --group dev
-      - name: Check formatting
-        run: uv run ruff format --check .
-      - name: Lint
-        run: uv run ruff check .
-      - name: Unit tests
-        run: uv run pytest -q
+      - name: 安装最小测试依赖
+        run: uv sync --group dev --no-default-groups
+      - name: 检查代码格式
+        run: uv run --no-sync ruff format --check .
+      - name: 静态检查
+        run: uv run --no-sync ruff check .
+      - name: 单元测试
+        run: uv run --no-sync pytest -q
