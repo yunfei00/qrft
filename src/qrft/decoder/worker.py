@@ -62,7 +62,9 @@ def process_slice(
     ):
         if frame.kind == "start":
             request_json(
-                base_url, token, "/tasks/manifest",
+                base_url,
+                token,
+                "/tasks/manifest",
                 {
                     "task_id": task_id,
                     "start_base64": base64.b64encode(encode_start(frame.metadata or {})).decode(
