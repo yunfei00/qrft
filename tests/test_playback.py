@@ -44,9 +44,7 @@ def test_retransmit_intersects_bounds(tmp_path: Path) -> None:
     missing = tmp_path / "missing.txt"
     missing.write_text("0\n1\n2\n", encoding="ascii")
     frames = list(
-        iter_encoded_frames(
-            source, chunk_size=2, retransmit=missing, start_id=1, end_id=2
-        )
+        iter_encoded_frames(source, chunk_size=2, retransmit=missing, start_id=1, end_id=2)
     )
     assert [name for name, _ in frames] == ["START", "00000001", "00000002", "FINISH"]
 
