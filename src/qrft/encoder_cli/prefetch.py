@@ -4,14 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import TypeVar
 
 from qrft.core.qr_image import qr_png
 
-T = TypeVar("T")
 
-
-def ordered_prefetch(
+def ordered_prefetch[T](
     items: Iterable[T],
     transform: Callable[[T], bytes],
     *,
