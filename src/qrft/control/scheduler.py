@@ -55,7 +55,7 @@ def claim(db: sqlite3.Connection, node_id: str, lease_seconds: int = 120) -> dic
     db.execute("BEGIN IMMEDIATE")
     row = db.execute(
         """
-        SELECT s.id, s.video_id, s.start_ms, s.end_ms, v.path, s.attempts
+        SELECT s.id, s.video_id, s.start_ms, s.end_ms, v.path, v.task_id, s.attempts
         FROM slices s JOIN videos v ON v.id=s.video_id
         WHERE s.state='pending' OR (s.state='leased' AND s.lease_until <= ?)
         ORDER BY s.id LIMIT 1
