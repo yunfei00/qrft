@@ -143,3 +143,11 @@
 - 新增 `tests/test_video_end_to_end.py`：生成真实 AVI 视频文件，使用 OpenCV 读帧、ZXing 识别原始字节、重组文件，并断言全部原始字节一致。
 - Windows CI 增加真实 AVI 视频闭环测试，**本轮新 CI 尚未确认通过**；若发生二维码失真、帧尺寸或采样问题须按日志修复。
 - **里程碑仍为 1/10（10%）**，在 CI 和实际录屏验收通过前不增加验收进度。
+
+### 本轮：编码端全屏实时播放（2026-10-10）
+- 用户确认真实 AVI 端到端 CI 已通过。
+- 新增 `src/qrft/encoder_cli/playback.py`：按需生成 START、DATA、FINISH 帧，支持 TXT 缺包补传列表，避免预生成全量二维码。
+- 新增 `src/qrft/encoder_cli/player.py`：PySide6 全屏/窗口播放，初始延迟、播放间隔、空格暂停/继续、Esc 退出；命令入口 `python -m qrft.encoder_cli.player`。
+- 新增 `tests/test_playback.py`：帧顺序、原始二进制内容、指定缺包补传测试；无图形界面依赖。
+- **本轮 CI 尚待验证，且真实 Windows 全屏显示尚待人工验收**；尚未实现有限队列并行预生成、开始/结束包号范围控制、最终 EXE。
+- **里程碑仍为 1/10（10%）**，不将代码提交等同于验收。
