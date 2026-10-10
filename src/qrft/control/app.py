@@ -258,9 +258,10 @@ def bind_manifest(item: ManifestBind) -> dict[str, str]:
             if existing["start_frame"] != raw:
                 raise HTTPException(status_code=409, detail="Conflicting START manifest")
             return {"status": "already_bound"}
-        if db.execute(
-            "SELECT 1 FROM packets WHERE task_id=? LIMIT 1", (item.task_id,)
-        ).fetchone() is not None:
+        if (
+            db.execute("SELECT 1 FROM packets WHERE task_id=? LIMIT 1", (item.task_id,)).fetchone()
+            is not None
+        ):
             raise HTTPException(status_code=409, detail="Packets already received")
         db.execute(
             "INSERT INTO task_manifests(task_id,start_frame,total_packets,chunk_size,file_size) "
