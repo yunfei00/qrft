@@ -169,3 +169,11 @@
 - 读取 Actions job 114141852198 日志，定位 `src/qrft/encoder_cli/playback.py:35` 的 Ruff 格式问题。
 - 严格按 Ruff 日志将 `parse_packet_list(...)` 列表推导式调用改为单行，修复提交 `db2a8e8`。
 - 静态检查、pytest、二维码及 AVI 测试均被格式门禁跳过；新 CI 尚待验证。总体验收仍为 1/10（10%）。
+
+### 本轮：有界并行二维码预生成队列（2026-10-10）
+- 用户确认上一轮 CI 已通过。
+- 新增 `src/qrft/encoder_cli/prefetch.py`：`ThreadPoolExecutor` 并行生成 PNG，`capacity` 限制待处理帧数量，按原始包号顺序消费，迭代结束时关闭线程池。
+- 全屏播放器接入预生成器，新增 `--workers`（默认 2）及 `--prefetch`（默认 4）参数。
+- 新增 `tests/test_prefetch.py`：保序、容量限制、参数边界测试。
+- 本轮 CI 尚未验证；真实 Windows 图形播放流畅度、线程退出及长视频性能尚待实测。
+- **总体验收进度仍为 1/10（10%）**；下一步继续完善播放器错误处理、打包与 Windows 验收。
