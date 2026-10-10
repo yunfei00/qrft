@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 from qrft.core.reassemble import FileAssembler
@@ -29,6 +30,11 @@ def restore_video(
 
 
 def main(argv: list[str] | None = None) -> int:
+    """兼容 Windows 非 UTF-8 控制台的中文输出。"""
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="backslashreplace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(errors="backslashreplace")
     parser = argparse.ArgumentParser(description="QRFT 录屏视频文件恢复")
     parser.add_argument("video", type=Path, help="视频路径，可为可访问的 SMB 路径")
     parser.add_argument("--output", required=True, type=Path, help="恢复文件输出目录")
