@@ -27,5 +27,8 @@ def iter_encoded_frames(
     )
     yield "START", encode_start(manifest)
     for packet_id in ids:
-        yield f"{packet_id:08d}", encode_data(packet_id, packet_bytes(source, chunk_size, packet_id))
+        yield (
+            f"{packet_id:08d}",
+            encode_data(packet_id, packet_bytes(source, chunk_size, packet_id)),
+        )
     yield "FINISH", encode_finish()
