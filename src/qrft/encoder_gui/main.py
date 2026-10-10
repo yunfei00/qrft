@@ -105,7 +105,9 @@ class EncoderWindow(QMainWindow):
         source = Path(self.source.text().strip())
         if not source.is_file():
             raise ValueError("请选择存在的源文件")
-        missing = Path(self.retransmit.text().strip()) if self.retransmit.text().strip() else None
+        missing = (
+            Path(self.retransmit.text().strip()) if self.retransmit.text().strip() else None
+        )
         if missing is not None and not missing.is_file():
             raise ValueError("缺包清单文件不存在")
         return source, missing
