@@ -19,3 +19,6 @@ results/
 recovered/
 temp/
 config.local.yaml
+
+# uv local environment; commit uv.lock once generated
+.venv/
