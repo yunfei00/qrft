@@ -39,3 +39,9 @@
 ## 交接约定
 
 新开发者或新会话先读 README、STATUS、ROADMAP、ARCHITECTURE、PROTOCOL、USER_ACTIONS。每个阶段必须记录：提交文件/Commit、测试命令和 PASS/FAIL、阻塞问题、下一项具体工作。不得用聊天记录代替 GitHub 文档。
+
+## 最新代码提交：缺包导出核心
+- 新增 `src/qrft/core/missing.py`：按包总数与已收到包号生成缺包列表，并同时输出 `missing.txt`、`missing.csv`、`missing.json`。
+- 新增 `tests/test_missing.py`：覆盖重复包、无缺包、越界包号、TXT 可直接回传编码端解析。
+- **验证状态：代码已提交，测试尚未实际执行；不得视为通过。**
+- 下一步仍是生成 uv.lock、验证 Windows CI 和真实二维码原始字节往返。
