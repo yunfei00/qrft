@@ -20,6 +20,8 @@ QRFT 支持将任意二进制文件转换为二维码序列，通过录屏保存
 
 当前候选版本 **0.2.0rc1**。部署、操作、备份、升级和排障见 [Windows 运维手册](docs/OPERATIONS.md)，真实测试证据与限制见 [交付记录](docs/FINAL_DELIVERY.md)。候选版不代表真实双机 SMB 和大视频已验收。
 
+下载入口：[0.2.0rc1 Windows 候选版](https://github.com/yunfei00/qrft/releases/tag/v0.2.0-rc.1)。性能方法、结果和未测项目见 [性能报告](docs/PERFORMANCE.md)。
+
 1. `QRFT-Encoder-CLI.exe`：命令行编码和二维码显示。
 2. `QRFT-Encoder-GUI.exe`：PySide6 图形编码器。
 3. `QRFT-Decoder.exe`：无界面分布式视频解码节点。

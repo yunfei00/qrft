@@ -1,5 +1,17 @@
 # 正式交付开发记录
 
+## 最终候选版交付
+
+- [PR #3](https://github.com/yunfei00/qrft/pull/3) 在六项 CI 全绿后合并；构建提交 ce516d4d422c4bb655f7fbf28f770046de63601b。
+- main Python CI 38040893758、Encoder CLI 38040893727、GUI 38040893732、Decoder 38040893778、Control 38040893748、Windows Delivery 38040893754 全部通过。版本标签交付运行 [38040936148](https://github.com/yunfei00/qrft/actions/runs/38040936148) 通过。
+- 实际 EXE：GUI 创建窗口/退出、CLI 播放/PNG 导出、AVI 本地恢复、两个 Worker EXE 并发处理不同时间片、HTTP 控制端、SQLite 合并、SHA256 与原始内容一致。GUI offscreen 与同机双进程不代表真实桌面/双机 SMB 验收。
+- 下载上述标签构件后，本机核对 801 个文件 SHA256 全部一致；普通环境及清除 PYTHONPATH/VIRTUAL_ENV、仅 Windows 系统 PATH 的环境均重复通过完整 EXE 冒烟。本机仍安装有 Python，这不是全新无 Python 设备验收；冻结 EXE 使用自身运行库。
+- [Release v0.2.0-rc.1](https://github.com/yunfei00/qrft/releases/tag/v0.2.0-rc.1) 已发布。ZIP 231,244,571 字节；SHA256 `22ac81d82ed5cd211f72607b2d85ab7d9d8f9f52635e1e552dfdbd2199c713d8`。Release 包含 ZIP 和校验文件；ZIP 内 VERSION/COMMIT/完整文件校验清单和部署文档。
+- 本地最终 104 项测试、Ruff 格式/静态检查通过，无跳过；一次 Starlette httpx 弃用警告，不影响结果。性能详见 PERFORMANCE.md。
+- 按原十项条件软件验收 7/10；第5真实录屏、第7双Windows/SMB、第10大视频可靠性未验收。UA-006/UA-007 是后续人工操作入口。
+
+以下为开发阶段历史记录，最后交付状态以上述记录为准。
+
 基线：main 58acb5f，已独立核对五条 Windows CI 全部成功，90 项测试基线。工作区干净，分支 feature/qrft-final-delivery。v1 二维码字节协议保持不变。
 
 剩余清单：GUI 非阻塞文件检查/导出、共享播放器完整控制；Web 表格与下载/设置；取消/租约围栏/扫描进度/配置文件；流式缺包与恢复、视频顺序扫描；真实并发端到端测试；四 EXE 功能冒烟及统一带校验清单的 Release；部署、维护和排障文档。
