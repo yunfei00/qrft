@@ -306,5 +306,7 @@
 - 最终本地门禁：58 个 Python 文件格式通过、Ruff check PASS、**90 passed，无跳过**（8.35s）；Web JavaScript `node --check` PASS；Control/Decoder worker 帮助启动 PASS。最终 PR CI 与构件结果将在推送后记录。
 - 第二阶段提交 `20405da`：[Windows CI 38036835026](https://github.com/yunfei00/qrft/actions/runs/38036835026) 全绿，90 passed（11.35s），图片 6 passed，ZXing 6 passed，真实 AVI 1 passed，Control/Worker 集成 27 passed，无跳过。
 - [Control EXE 38036835057](https://github.com/yunfei00/qrft/actions/runs/38036835057) 构建、EXE 帮助、真实 HTTP health/任务创建/Web 页面冒烟和构件上传全部通过。
-- [PR #1](https://github.com/yunfei00/qrft/pull/1) 待最终文档提交 CI 通过后正常合并；未强推或绕过检查。
+- [PR #1](https://github.com/yunfei00/qrft/pull/1) 的最终文档提交 `c96c372` 通过两项检查后于 2026-10-10 16:12（上海）正常合并，main 为 `da8c5f8`；未强推或绕过检查。
+- main 的五条流水线全部成功：[Python CI](https://github.com/yunfei00/qrft/actions/runs/38037055366)、[Encoder CLI](https://github.com/yunfei00/qrft/actions/runs/38037055399)、[Encoder GUI](https://github.com/yunfei00/qrft/actions/runs/38037055433)、[Decoder](https://github.com/yunfei00/qrft/actions/runs/38037055365)、[Control](https://github.com/yunfei00/qrft/actions/runs/38037055384)。四个 onedir 构件已上传。
+- EXE 自动化证据：Encoder CLI 帮助/PNG 导出；Decoder 本地/worker 帮助；Control 帮助/真实 HTTP health、创建任务及 Web 页面；GUI 仅构件存在检查，尚无实际交互验收。Python 全量仍为 90 passed，无跳过。
 - 下一步：UA-006 实际双设备与 SMB 故障验收；兼容现有协议的会话 ID 扩展设计、包数内存优化、增量临时文件恢复、真实录屏/大视频性能和四 EXE 人工启动验收。当前验收仍为 1/10。
