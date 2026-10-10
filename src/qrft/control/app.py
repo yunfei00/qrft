@@ -222,9 +222,9 @@ def ingest_batch(item: PacketBatch) -> dict[str, int]:
 @app.get("/packets/{task_id}/stats", dependencies=[Depends(require_token)])
 def packet_stats(task_id: int) -> dict[str, int]:
     with connection() as db:
-        stored = db.execute(
-            "SELECT COUNT(*) FROM packets WHERE task_id=?", (task_id,)
-        ).fetchone()[0]
+        stored = db.execute("SELECT COUNT(*) FROM packets WHERE task_id=?", (task_id,)).fetchone()[
+            0
+        ]
         conflicts = db.execute(
             "SELECT COUNT(*) FROM packet_conflicts WHERE task_id=?", (task_id,)
         ).fetchone()[0]
