@@ -7,7 +7,8 @@ import sqlite3
 import pytest
 
 from qrft.control.packets import ingest, init_schema
-from qrft.control.scheduler import add_slices, claim, complete, init_schema as init_slices, renew
+from qrft.control.scheduler import add_slices, claim, complete, renew
+from qrft.control.scheduler import init_schema as init_slices
 from qrft.core.protocol import ProtocolError, encode_data
 
 
