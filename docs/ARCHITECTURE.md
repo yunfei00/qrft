@@ -1,28 +1,32 @@
-# QRFT architecture
+# QRFT 系统架构
 
-QRFT transfers **arbitrary binary files**, not any particular engineering file format.
+QRFT 传输的是**任意二进制文件**，不依赖文件扩展名或文本编码。
 
-## Four deliverables
-1. `QRFT-Encoder-CLI.exe`: command-line file selection and controls, fullscreen QR display, selective retransmission.
-2. `QRFT-Encoder-GUI.exe`: PySide6 desktop encoder using the same core.
-3. `QRFT-Decoder.exe`: headless Windows worker; register, heartbeat, lease and decode time-range tasks.
-4. `QRFT-Control.exe`: bundled web server + UI, coordinator, packet merger and recovery.
+## 四个交付程序
 
-## Topology
-One Windows host stores recordings (potentially 10s of GB), exposing read-only SMB share to decoding workers. Control center registers video path without copying the recording. Workers poll authenticated HTTP API for logical time ranges, seek/decode using FFmpeg, crop QR ROI, identify valid packets and upload **batched** packet results. Control center stores packet blobs on disk, metadata in SQLite, deduplicates and merges sessions, exports missing packet lists, and verifies recovered file hash.
+1. `QRFT-Encoder-CLI.exe`：命令行编码器，文件分块、二维码全屏显示、指定包重传。
+2. `QRFT-Encoder-GUI.exe`：PySide6 本地图形编码器，复用公共编码核心。
+3. `QRFT-Decoder.exe`：无界面的 Windows 解码节点，注册、心跳、领取时间片、读取视频、批量提交结果。
+4. `QRFT-Control.exe`：内置 Web 服务和管理界面，任务调度、结果合并、文件恢复与缺包导出。
 
-## Reliability
-- Bounded memory for encoder pre-rendering and worker decoding.
-- Keyframe-aware video seeking and overlapping time-range boundaries.
-- Task lease expiry and retry, heartbeat, idempotent result commit.
-- Conflicting packet bytes quarantined rather than overwritten.
-- START metadata binds video data to session; orphan packets quarantined.
-- Every decode attempt updates missing.txt, missing.csv, missing.json.
-- Recovery is complete only when expected packet set is present and whole-file hashes match.
-- SMB disk/network throughput and decoding throughput measured before tuning parallelism.
+## 处理流程
 
-## Security
-Public repo: no credentials, production recordings, proprietary files or real infrastructure config. Restrict SMB permissions; use per-node API tokens and LAN firewall restrictions.
+编码器读取文件原始字节并显示二维码；外部录屏软件生成视频；中心机注册已有视频文件路径，不经浏览器上传整个大文件；调度器划分**逻辑时间片**；解码节点通过只读 SMB 共享直接读取对应视频范围，使用 FFmpeg 按关键帧定位、裁剪二维码区域并识别帧；节点批量上传包数据；中心机使用 SQLite 记录元数据、磁盘文件保存二进制包，去重并校验后恢复原文件。
 
-## Planned stack
-Python 3.12, pytest, PySide6, FastAPI, FFmpeg/ffprobe, binary-safe QR encoder/decoder, React, PyInstaller onedir, Windows GitHub Actions. Dependencies are provisional until binary QR interoperability tests pass.
+## 可靠性要求
+
+- 编码器和解码器均使用有界内存，不整体加载文件或录屏。
+- 时间片边界重叠，防止二维码跨边界丢失；按包号去重。
+- 任务租约超时重试，节点断线可恢复，批量结果幂等提交。
+- 同一包号不同内容进入冲突隔离区，不能静默覆盖。
+- START 元数据绑定会话，来源不明的数据不得直接合并。
+- 每次解码尝试生成 `missing.txt`、`missing.csv`、`missing.json`。
+- 只有全部包齐全且整体哈希一致，才标记恢复成功。
+
+## 安全和性能
+
+公开仓库不提交真实令牌、录屏、业务文件、内网地址。SMB 共享最小权限，工作节点使用 API 令牌。实际性能必须测量 CPU、内存、磁盘、SMB 网络与每秒有效包数。
+
+## 技术选型
+
+Python 3.12 + uv；pytest；PySide6；FastAPI；FFmpeg/ffprobe；需通过原始字节验证的二维码库；React；PyInstaller onedir；GitHub Actions Windows CI。
