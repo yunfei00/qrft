@@ -8,7 +8,9 @@ from qrft.encoder_cli.prefetch import ordered_prefetch
 
 
 def test_prefetch_keeps_original_order() -> None:
-    result = list(ordered_prefetch(range(10), lambda value: str(value).encode(), workers=3, capacity=4))
+    result = list(
+        ordered_prefetch(range(10), lambda value: str(value).encode(), workers=3, capacity=4)
+    )
     assert result == [(value, str(value).encode()) for value in range(10)]
 
 
