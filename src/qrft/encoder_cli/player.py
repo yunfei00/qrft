@@ -27,6 +27,8 @@ def play(
     """延迟启动并按定时器显示二维码，数据帧在播放时才生成。"""
     if interval_ms < 1 or initial_delay_ms < 0:
         raise ValueError("invalid interval or initial delay")
+    if workers < 1 or prefetch < workers:
+        raise ValueError("require 1 <= workers <= prefetch")
 
     from PySide6.QtCore import Qt, QTimer
     from PySide6.QtGui import QPixmap
@@ -51,21 +53,37 @@ def play(
             self.timer.setInterval(interval_ms)
             self.timer.timeout.connect(self.advance)
             self.paused = False
-            QTimer.singleShot(initial_delay_ms, self.advance)
+            self.finished = False
+            self.started = False
+            QTimer.singleShot(initial_delay_ms, self.start_playback)
+
+        def start_playback(self) -> None:
+            if self.finished or self.started:
+                return
+            self.started = True
+            if not self.paused:
+                self.advance()
+
+        def finish(self, message: str) -> None:
+            self.finished = True
+            self.timer.stop()
+            self.setText(message)
+            prepared.close()
 
         def advance(self) -> None:
-            if self.paused:
+            if self.paused or self.finished:
                 return
             try:
                 packet_id, png = next(prepared)
             except StopIteration:
-                self.timer.stop()
-                self.setText("QRFT 播放完成，按 Esc 退出")
+                self.finish("QRFT 播放完成，按 Esc 退出")
+                return
+            except Exception as exc:
+                self.finish(f"QRFT 播放失败：{exc}")
                 return
             image = QPixmap()
             if not image.loadFromData(png, "PNG"):
-                self.timer.stop()
-                self.setText(f"二维码生成失败：{packet_id}")
+                self.finish(f"二维码生成失败：{packet_id}")
                 return
             self.setPixmap(
                 image.scaled(
@@ -80,14 +98,21 @@ def play(
             key = event.key()
             if key == Qt.Key.Key_Escape:
                 self.close()
-            elif key == Qt.Key.Key_Space:
+            elif key == Qt.Key.Key_Space and not self.finished:
                 self.paused = not self.paused
                 if self.paused:
                     self.timer.stop()
-                else:
-                    self.timer.start()
+                elif self.started:
+                    self.advance()
             else:
                 super().keyPressEvent(event)
+
+        def closeEvent(self, event: object) -> None:
+            if not self.finished:
+                self.finished = True
+                self.timer.stop()
+                prepared.close()
+            super().closeEvent(event)
 
     window = Player()
     if fullscreen:
