@@ -1,5 +1,11 @@
 # QRFT 用户操作手册（唯一操作入口）
 
+## UA-007：候选版桌面与设备验收
+
+时机：候选版 Release 发布后；环境：两台 Windows、只读 SMB 共享和录屏软件。按 [运维手册](OPERATIONS.md) 解压完整四程序目录，核对 ZIP 与运行库校验清单，确认无需安装 Python。GUI 选择中文路径文件，分别测试范围/缺包补传、PNG、延迟、暂停/继续/停止、全屏/退出全屏、播放中关闭，连续播放至少一小时并记录内存。用真实录屏执行 UA-006 的双节点、断网、退出/租约重领、补传与哈希核对；记录系统版本、Release、视频规模、各节点日志及 PASS/FAIL。自动化 offscreen 和单机双进程测试不代替这些步骤。
+
+本轮补充：Worker 推荐将 Token 放在 `QRFT_API_TOKEN` 环境变量，JSON 配置只记录 server 和 node_id，用 `QRFT-Decoder.exe worker --config worker.json` 启动。浏览器新增鉴权 missing.txt/CSV/JSON 下载。GUI offscreen 与合成 AVI 自动测试不替代 UA-006 的真实双机/SMB/录屏验收；界面长时间播放、暂停、全屏切换仍需在 Windows 桌面手动确认并记录结果。
+
 **约定：所有需要用户执行的操作，必须先写入本文件，再在聊天中提示“请按照 [用户操作手册](USER_ACTIONS.md) 的 UA-XXX 执行”。** 命令统一使用 Windows PowerShell，确保可复制。每项必须写明执行时机、环境、命令、预期结果和反馈方式。CI 能自动完成的事情不要求用户重复执行。
 
 ## UA-001：Windows 本地 uv 环境验证

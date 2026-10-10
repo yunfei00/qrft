@@ -42,10 +42,11 @@ def prefetch_png(
     *,
     workers: int = 2,
     capacity: int = 4,
+    qr_options: dict | None = None,
 ) -> Iterator[tuple[str, bytes]]:
     """对原始 QRFT 帧进行有界并行 PNG 生成。"""
 
     def render(frame: tuple[str, bytes]) -> bytes:
-        return qr_png(frame[1])
+        return qr_png(frame[1], **(qr_options or {}))
 
     return ordered_prefetch(frames, render, workers=workers, capacity=capacity)

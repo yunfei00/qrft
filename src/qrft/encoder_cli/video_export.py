@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from itertools import chain
 from pathlib import Path
 
 from qrft.encoder_cli.main import export_frames
@@ -23,14 +24,20 @@ def export_video(
     import numpy as np
 
     output.parent.mkdir(parents=True, exist_ok=True)
+    if output.exists():
+        raise FileExistsError(output)
     frames_dir = output.parent / (output.stem + "-frames")
-    export_frames(source, frames_dir, chunk_size=chunk_size)
-    images = [
-        frames_dir / "00000000-start.png",
-        *sorted(frames_dir.glob("*-data.png")),
-        frames_dir / "99999999-finish.png",
-    ]
-    first = cv2.imread(str(images[0]))
+    meta = export_frames(source, frames_dir, chunk_size=chunk_size)
+    images = chain(
+        [frames_dir / "00000000-start.png"],
+        (frames_dir / f"{packet_id:08d}-data.png" for packet_id in range(meta["total_packets"])),
+        [frames_dir / "99999999-finish.png"],
+    )
+
+    def load(path):
+        return cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_COLOR)
+
+    first = load(frames_dir / "00000000-start.png")
     if first is None:
         raise OSError("cannot load START QR image")
     height, width = first.shape[:2]
@@ -45,7 +52,7 @@ def export_video(
         raise OSError(f"cannot create video: {output}")
     try:
         for path in images:
-            image = cv2.imread(str(path))
+            image = load(path)
             if image is None:
                 raise OSError(f"cannot read QR image: {path}")
             if image.shape[:2] != (height, width):

@@ -9,22 +9,24 @@ import os
 import sqlite3
 import time
 from contextlib import contextmanager
+from itertools import islice
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from qrft import __version__
 from qrft.control.packets import ingest
 from qrft.control.packets import init_schema as init_packets
 from qrft.control.recovery import recover
 from qrft.control.scheduler import add_slices, claim, complete, init_schema, renew
 from qrft.control.web import PAGE
-from qrft.core.missing import export_missing
+from qrft.core.missing import iter_missing, stream_missing
 from qrft.core.protocol import ProtocolError, decode_frame
 
-app = FastAPI(title="QRFT Control", version="0.1.0")
+app = FastAPI(title="QRFT Control", version=__version__)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -35,6 +37,14 @@ def management() -> HTMLResponse:
 
 def database_path() -> Path:
     return Path(os.environ.get("QRFT_DB_PATH", "qrft-control.sqlite3"))
+
+
+def task_output_directory(task_id: int) -> Path:
+    root = Path(os.environ.get("QRFT_OUTPUT_DIR", "recovered")).resolve()
+    directory = root / str(task_id)
+    if directory.resolve().parent != root:
+        raise HTTPException(status_code=409, detail="Unsafe task output path")
+    return directory
 
 
 @contextmanager
@@ -67,6 +77,11 @@ def connection():
         )
         init_schema(db)
         init_packets(db)
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS task_packet_stats(task_id INTEGER PRIMARY KEY, duplicates INTEGER NOT NULL DEFAULT 0)"
+        )
+        db.execute("CREATE INDEX IF NOT EXISTS videos_task ON videos(task_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS slices_video ON slices(video_id)")
         db.execute("CREATE TABLE IF NOT EXISTS task_finishes (task_id INTEGER PRIMARY KEY)")
         db.execute(
             "CREATE TABLE IF NOT EXISTS task_recoveries (task_id INTEGER PRIMARY KEY, "
@@ -96,6 +111,30 @@ def require_token(authorization: Annotated[str | None, Header()] = None) -> None
         raise HTTPException(status_code=401, detail="Invalid API token")
 
 
+def ensure_active(db, task_id):
+    if db.execute(
+        "SELECT 1 FROM task_controls WHERE task_id=? AND cancelled=1", (task_id,)
+    ).fetchone():
+        raise HTTPException(status_code=409, detail="Task cancelled")
+
+
+@app.post("/tasks/{task_id}/cancel", dependencies=[Depends(require_token)])
+def cancel_task(task_id: int):
+    with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        if not db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="Task not found")
+        db.execute(
+            "INSERT INTO task_controls VALUES (?,1) ON CONFLICT(task_id) DO UPDATE SET cancelled=1",
+            (task_id,),
+        )
+        db.execute(
+            "UPDATE slices SET state='cancelled',lease_until=NULL WHERE video_id IN (SELECT id FROM videos WHERE task_id=?) AND state!='done'",
+            (task_id,),
+        )
+    return {"status": "cancelled"}
+
+
 class TaskCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
 
@@ -103,7 +142,7 @@ class TaskCreate(BaseModel):
 class VideoCreate(BaseModel):
     task_id: int = Field(gt=0)
     path: str = Field(min_length=1, max_length=4096)
-    duration_seconds: float = Field(gt=0)
+    duration_seconds: float = Field(gt=0, allow_inf_nan=False)
 
 
 class SliceClaim(BaseModel):
@@ -112,6 +151,7 @@ class SliceClaim(BaseModel):
 
 
 class SliceRenew(BaseModel):
+    lease_token: str | None = None
     node_id: str = Field(min_length=1, max_length=128)
     lease_seconds: int = Field(default=120, ge=1, le=3600)
 
@@ -122,16 +162,47 @@ class ManifestBind(BaseModel):
 
 
 class PacketBatch(BaseModel):
+    slice_id: int | None = None
+    lease_token: str | None = None
     task_id: int = Field(gt=0)
     frames_base64: list[str] = Field(min_length=1, max_length=1000)
 
 
 class SliceComplete(BaseModel):
+    lease_token: str | None = None
     node_id: str = Field(min_length=1, max_length=128)
 
 
 class Heartbeat(BaseModel):
     node_id: str = Field(min_length=1, max_length=128)
+
+
+class ScanCheckpoint(BaseModel):
+    node_id: str
+    lease_token: str
+    checkpoint_ms: int = Field(ge=0)
+
+
+@app.post("/slices/{slice_id}/checkpoint", dependencies=[Depends(require_token)])
+def checkpoint_slice(slice_id: int, item: ScanCheckpoint):
+    with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute("SELECT * FROM slices WHERE id=?", (slice_id,)).fetchone()
+        if (
+            row is None
+            or row["state"] != "leased"
+            or row["owner"] != item.node_id
+            or row["lease_token"] != item.lease_token
+            or row["lease_until"] <= time.time()
+        ):
+            raise HTTPException(status_code=409, detail="lease_invalid")
+        if not row["start_ms"] <= item.checkpoint_ms <= row["end_ms"]:
+            raise HTTPException(status_code=422, detail="checkpoint outside slice")
+        db.execute(
+            "UPDATE slices SET checkpoint_ms=MAX(checkpoint_ms,?) WHERE id=?",
+            (item.checkpoint_ms, slice_id),
+        )
+    return {"status": "checkpointed"}
 
 
 @app.get("/health")
@@ -192,7 +263,58 @@ def heartbeat(item: Heartbeat) -> dict[str, str]:
 @app.get("/nodes", dependencies=[Depends(require_token)])
 def list_nodes() -> list[dict]:
     with connection() as db:
-        return [dict(row) for row in db.execute("SELECT * FROM nodes ORDER BY node_id")]
+        return [
+            dict(row)
+            for row in db.execute(
+                "SELECT n.*,CASE WHEN n.last_seen>? THEN 'online' ELSE 'offline' END AS status,(SELECT COUNT(*) FROM slices s WHERE s.owner=n.node_id AND s.state='leased' AND s.lease_until>?) AS processing FROM nodes n ORDER BY node_id",
+                (time.time() - 90, time.time()),
+            )
+        ]
+
+
+@app.get("/settings", dependencies=[Depends(require_token)])
+def settings():
+    return {
+        "protocol_version": 1,
+        "lease_seconds": 120,
+        "slice_seconds": 30,
+        "overlap_seconds": 1,
+        "online_timeout_seconds": 90,
+        "output_directory": str(Path(os.environ.get("QRFT_OUTPUT_DIR", "recovered")).resolve()),
+        "configuration": "服务端通过 QRFT_DB_PATH、QRFT_OUTPUT_DIR、QRFT_API_TOKEN 环境变量配置；重启生效",
+    }
+
+
+@app.get("/overview", dependencies=[Depends(require_token)])
+def overview():
+    with connection() as db:
+        return {
+            "tasks": db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0],
+            "online_nodes": db.execute(
+                "SELECT COUNT(*) FROM nodes WHERE last_seen>?", (time.time() - 90,)
+            ).fetchone()[0],
+            "processing_slices": db.execute(
+                "SELECT COUNT(*) FROM slices WHERE state='leased' AND lease_until>?", (time.time(),)
+            ).fetchone()[0],
+            "verified_tasks": db.execute(
+                "SELECT COUNT(*) FROM task_recoveries WHERE status='verified'"
+            ).fetchone()[0],
+        }
+
+
+@app.post("/videos/{video_id}/rescan", dependencies=[Depends(require_token)])
+def rescan_video(video_id: int):
+    with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        video = db.execute("SELECT task_id FROM videos WHERE id=?", (video_id,)).fetchone()
+        if video is None:
+            raise HTTPException(status_code=404, detail="Video not found")
+        ensure_active(db, video["task_id"])
+        db.execute(
+            "UPDATE slices SET state='pending',owner=NULL,lease_until=NULL,lease_token=NULL,checkpoint_ms=0 WHERE video_id=?",
+            (video_id,),
+        )
+    return {"status": "pending"}
 
 
 @app.post("/slices/claim", dependencies=[Depends(require_token)])
@@ -204,7 +326,7 @@ def claim_slice(item: SliceClaim) -> dict | None:
 @app.post("/slices/{slice_id}/complete", dependencies=[Depends(require_token)])
 def complete_slice(slice_id: int, item: SliceComplete) -> dict[str, str]:
     with connection() as db:
-        result = complete(db, slice_id, item.node_id)
+        result = complete(db, slice_id, item.node_id, item.lease_token)
         if result == "not_found":
             raise HTTPException(status_code=404, detail=result)
         if result == "lease_invalid":
@@ -225,7 +347,7 @@ def list_slices(video_id: int | None = None) -> list[dict]:
 @app.post("/slices/{slice_id}/renew", dependencies=[Depends(require_token)])
 def renew_slice(slice_id: int, item: SliceRenew) -> dict[str, str]:
     with connection() as db:
-        result = renew(db, slice_id, item.node_id, item.lease_seconds)
+        result = renew(db, slice_id, item.node_id, item.lease_seconds, item.lease_token)
         if result == "not_found":
             raise HTTPException(status_code=404, detail=result)
         if result == "lease_invalid":
@@ -265,6 +387,7 @@ def bind_manifest(item: ManifestBind) -> dict[str, str]:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     with connection() as db:
         db.execute("BEGIN IMMEDIATE")
+        ensure_active(db, item.task_id)
         if db.execute("SELECT 1 FROM tasks WHERE id=?", (item.task_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Task not found")
         existing = db.execute(
@@ -289,20 +412,74 @@ def bind_manifest(item: ManifestBind) -> dict[str, str]:
 
 
 @app.get("/tasks/{task_id}/missing", dependencies=[Depends(require_token)])
-def missing_packets(task_id: int) -> dict:
+def missing_packets(task_id: int, after: int = -1, limit: int = 1000) -> dict:
+    if after < -1 or not 1 <= limit <= 10000:
+        raise HTTPException(status_code=422, detail="Invalid missing page bounds")
     with connection() as db:
         manifest = db.execute(
             "SELECT total_packets FROM task_manifests WHERE task_id=?", (task_id,)
         ).fetchone()
         if manifest is None:
             raise HTTPException(status_code=404, detail="START manifest not bound")
-        received = {
-            row[0]
-            for row in db.execute("SELECT packet_id FROM packets WHERE task_id=?", (task_id,))
-        }
         total = manifest["total_packets"]
-        missing = [packet_id for packet_id in range(total) if packet_id not in received]
-        return {"total_packets": total, "received": len(received), "missing_ids": missing}
+        received = db.execute(
+            "SELECT COUNT(*) FROM packets WHERE task_id=?", (task_id,)
+        ).fetchone()[0]
+        start = min(after + 1, total)
+        rows = db.execute(
+            "SELECT packet_id FROM packets WHERE task_id=? AND packet_id>=? ORDER BY packet_id",
+            (task_id, start),
+        )
+        ids = list(islice(iter_missing(total - start, (row[0] - start for row in rows)), limit + 1))
+        return {
+            "total_packets": total,
+            "received": received,
+            "missing_count": total - received,
+            "missing_ids": [value + start for value in ids[:limit]],
+            "next_after": ids[limit - 1] + start if len(ids) > limit else None,
+        }
+
+
+@app.get("/tasks/{task_id}/missing/download", dependencies=[Depends(require_token)])
+def download_missing(task_id: int, format: str = "txt"):
+    if format not in {"txt", "csv", "json"}:
+        raise HTTPException(status_code=422, detail="Format must be txt, csv or json")
+    info = missing_packets(task_id, limit=1)
+
+    def content():
+        with connection() as db:
+            db.execute("BEGIN")
+            total = db.execute(
+                "SELECT total_packets FROM task_manifests WHERE task_id=?", (task_id,)
+            ).fetchone()[0]
+            rows = db.execute(
+                "SELECT packet_id FROM packets WHERE task_id=? ORDER BY packet_id", (task_id,)
+            )
+            if format == "csv":
+                yield "packet_id\r\n"
+            elif format == "json":
+                yield f'{{"schema_version":1,"total_packets":{total},"missing_ids":['
+            first = True
+            buffer = []
+            for packet_id in iter_missing(total, (row[0] for row in rows)):
+                if format == "json":
+                    buffer.append(("" if first else ",") + str(packet_id))
+                else:
+                    buffer.append(f"{packet_id:08d}\n")
+                first = False
+                if len(buffer) == 512:
+                    yield "".join(buffer)
+                    buffer.clear()
+            yield "".join(buffer)
+            if format == "json":
+                yield "]}\n"
+
+    del info
+    return StreamingResponse(
+        content(),
+        media_type={"txt": "text/plain", "csv": "text/csv", "json": "application/json"}[format],
+        headers={"Content-Disposition": f'attachment; filename="missing.{format}"'},
+    )
 
 
 @app.post("/packets/batch", dependencies=[Depends(require_token)])
@@ -312,6 +489,20 @@ def ingest_batch(item: PacketBatch) -> dict[str, int]:
         if db.execute("SELECT 1 FROM tasks WHERE id=?", (item.task_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Task not found")
         db.execute("BEGIN IMMEDIATE")
+        ensure_active(db, item.task_id)
+        if item.slice_id is not None or item.lease_token is not None:
+            row = db.execute(
+                "SELECT s.state,s.lease_until,s.lease_token,v.task_id FROM slices s JOIN videos v ON v.id=s.video_id WHERE s.id=?",
+                (item.slice_id,),
+            ).fetchone()
+            if (
+                row is None
+                or row["state"] != "leased"
+                or row["lease_until"] <= time.time()
+                or row["lease_token"] != item.lease_token
+                or row["task_id"] != item.task_id
+            ):
+                raise HTTPException(status_code=409, detail="lease_invalid")
         for encoded in item.frames_base64:
             try:
                 raw = base64.b64decode(encoded, validate=True)
@@ -342,6 +533,10 @@ def ingest_batch(item: PacketBatch) -> dict[str, int]:
             except (ValueError, binascii.Error, ProtocolError) as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
             counts[result] += 1
+        db.execute(
+            "INSERT INTO task_packet_stats VALUES (?,?) ON CONFLICT(task_id) DO UPDATE SET duplicates=duplicates+excluded.duplicates",
+            (item.task_id, counts["duplicate"]),
+        )
     return counts
 
 
@@ -354,7 +549,14 @@ def packet_stats(task_id: int) -> dict[str, int]:
         conflicts = db.execute(
             "SELECT COUNT(*) FROM packet_conflicts WHERE task_id=?", (task_id,)
         ).fetchone()[0]
-    return {"stored": stored, "conflicts": conflicts}
+        duplicate = db.execute(
+            "SELECT duplicates FROM task_packet_stats WHERE task_id=?", (task_id,)
+        ).fetchone()
+    return {
+        "stored": stored,
+        "conflicts": conflicts,
+        "duplicates": duplicate[0] if duplicate else 0,
+    }
 
 
 @app.get("/tasks/{task_id}/progress", dependencies=[Depends(require_token)])
@@ -371,6 +573,12 @@ def task_progress(task_id: int) -> dict:
             "SELECT status,path,updated_at FROM task_recoveries WHERE task_id=?", (task_id,)
         ).fetchone()
         stats["recovery"] = dict(recovery) if recovery else {"status": "not_started"}
+        stats["cancelled"] = (
+            db.execute(
+                "SELECT 1 FROM task_controls WHERE task_id=? AND cancelled=1", (task_id,)
+            ).fetchone()
+            is not None
+        )
         stats["slices"] = [
             dict(row)
             for row in db.execute(
@@ -389,24 +597,35 @@ def task_progress(task_id: int) -> dict:
 @app.post("/tasks/{task_id}/missing/export", dependencies=[Depends(require_token)])
 def export_task_missing(task_id: int) -> dict:
     missing = missing_packets(task_id)
-    directory = Path(os.environ.get("QRFT_OUTPUT_DIR", "recovered")) / str(task_id)
+    directory = task_output_directory(task_id)
     with connection() as db:
         received = (
             row[0]
-            for row in db.execute("SELECT packet_id FROM packets WHERE task_id=?", (task_id,))
+            for row in db.execute(
+                "SELECT packet_id FROM packets WHERE task_id=? ORDER BY packet_id", (task_id,)
+            )
         )
-        export_missing(directory, missing["total_packets"], received)
+        stream_missing(directory, missing["total_packets"], received)
     return {"directory": str(directory), **missing}
 
 
 @app.post("/tasks/{task_id}/recover", dependencies=[Depends(require_token)])
 def recover_task(task_id: int) -> dict:
-    directory = Path(os.environ.get("QRFT_OUTPUT_DIR", "recovered")) / str(task_id)
+    directory = task_output_directory(task_id)
     with connection() as db:
         db.execute("BEGIN")
+        ensure_active(db, task_id)
         try:
             result = recover(db, task_id, directory)
-        except (ProtocolError, FileExistsError) as exc:
+        except ProtocolError as exc:
+            db.rollback()
+            db.execute(
+                "INSERT INTO task_recoveries VALUES (?,'failed',NULL,?) ON CONFLICT(task_id) DO UPDATE SET status='failed',path=NULL,updated_at=excluded.updated_at",
+                (task_id, time.time()),
+            )
+            db.commit()
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except FileExistsError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
     with connection() as db:
         db.execute(

@@ -6,6 +6,7 @@ import argparse
 import base64
 import json
 import logging
+import os
 import threading
 import time
 import urllib.error
@@ -59,6 +60,7 @@ def process_slice(
     task_id = lease["task_id"]
     batch: list[str] = []
     sent = 0
+    fenced = {"lease_token": lease["lease_token"]} if "lease_token" in lease else {}
 
     def flush() -> None:
         nonlocal sent
@@ -67,7 +69,11 @@ def process_slice(
                 base_url,
                 token,
                 "/packets/batch",
-                {"task_id": task_id, "frames_base64": batch},
+                {
+                    "task_id": task_id,
+                    "frames_base64": batch,
+                    **({"slice_id": lease["id"], **fenced} if fenced else {}),
+                },
             )
             sent += len(batch)
             batch.clear()
@@ -83,7 +89,7 @@ def process_slice(
                     base_url,
                     token,
                     f"/slices/{lease['id']}/renew",
-                    {"node_id": node_id, "lease_seconds": 120},
+                    {"node_id": node_id, "lease_seconds": 120, **fenced},
                 )
             except (OSError, ValueError) as exc:
                 errors.append(exc)
@@ -91,12 +97,29 @@ def process_slice(
 
     thread = threading.Thread(target=maintain, name="qrft-lease", daemon=True)
     thread.start()
+    last_checkpoint = time.monotonic()
+
+    def sampled(checkpoint_ms):
+        nonlocal last_checkpoint
+        if errors:
+            raise errors[0]
+        if time.monotonic() - last_checkpoint >= 5:
+            flush()
+            request_json(
+                base_url,
+                token,
+                f"/slices/{lease['id']}/checkpoint",
+                {"node_id": node_id, **fenced, "checkpoint_ms": checkpoint_ms},
+            )
+            last_checkpoint = time.monotonic()
+
     try:
         for frame in iter_video_frames(
             video,
             sample_fps=sample_fps,
-            start_seconds=lease["start_ms"] / 1000,
+            start_seconds=max(lease["start_ms"], lease.get("checkpoint_ms", 0) - 1000) / 1000,
             end_seconds=lease["end_ms"] / 1000,
+            **({"on_sample": sampled} if fenced else {}),
         ):
             if errors:
                 raise errors[0]
@@ -127,7 +150,9 @@ def process_slice(
         thread.join()
         if errors:
             raise errors[0]
-        request_json(base_url, token, f"/slices/{lease['id']}/complete", {"node_id": node_id})
+        request_json(
+            base_url, token, f"/slices/{lease['id']}/complete", {"node_id": node_id, **fenced}
+        )
     finally:
         stop.set()
         thread.join()
@@ -170,12 +195,28 @@ def run_worker(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="QRFT 分布式 SMB 视频解码节点")
-    parser.add_argument("--server", required=True, help="控制中心 HTTP 地址")
-    parser.add_argument("--token", required=True, help="API Token")
-    parser.add_argument("--node-id", required=True)
+    parser.add_argument("--config", type=Path, help="UTF-8 JSON 配置文件")
+    parser.add_argument("--server", help="控制中心 HTTP 地址")
+    parser.add_argument("--token", help="API Token（推荐 QRFT_API_TOKEN 环境变量）")
+    parser.add_argument("--node-id")
     parser.add_argument("--poll-seconds", type=float, default=5.0)
     parser.add_argument("--once", action="store_true")
     args = parser.parse_args(argv)
+    config = {}
+    if args.config:
+        try:
+            config = json.loads(args.config.read_text(encoding="utf-8-sig"))
+            if not isinstance(config, dict):
+                raise TypeError("configuration must be an object")
+        except (OSError, ValueError, TypeError) as exc:
+            parser.error(f"Cannot read configuration: {type(exc).__name__}")
+    args.server = args.server or config.get("server")
+    args.node_id = args.node_id or config.get("node_id")
+    args.token = args.token or os.environ.get("QRFT_API_TOKEN") or config.get("token")
+    if not all(
+        isinstance(value, str) and value for value in (args.server, args.node_id, args.token)
+    ):
+        parser.error("server, node-id and token must be configured")
     logging.basicConfig(level=logging.INFO)
     try:
         run_worker(

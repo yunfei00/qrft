@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
+import threading
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
+    QComboBox,
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
@@ -21,8 +25,25 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from qrft.core.manifest import inspect_file
 from qrft.encoder_cli.main import export_frames
-from qrft.encoder_cli.player import play
+from qrft.encoder_gui.player import PlayerWindow
+
+
+class Job(QThread):
+    result = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, operation, parent):
+        super().__init__(parent)
+        self.operation = operation
+        self.cancel = threading.Event()
+
+    def run(self):
+        try:
+            self.result.emit(self.operation(self.cancel.is_set))
+        except (OSError, ValueError, RuntimeError) as exc:
+            self.failed.emit(str(exc))
 
 
 class EncoderWindow(QMainWindow):
@@ -31,7 +52,9 @@ class EncoderWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("QRFT 图形编码器")
-        self.resize(660, 340)
+        self.resize(760, 620)
+        self.jobs = []
+        self.player = None
         root = QWidget(self)
         layout = QVBoxLayout(root)
         form = QFormLayout()
@@ -71,14 +94,52 @@ class EncoderWindow(QMainWindow):
         self.delay_ms.setRange(0, 60000)
         self.delay_ms.setValue(3000)
         form.addRow("开始延迟（毫秒）", self.delay_ms)
+        self.start_id = QSpinBox()
+        self.start_id.setRange(0, 88888887)
+        self.end_id = QSpinBox()
+        self.end_id.setRange(-1, 88888887)
+        self.end_id.setValue(-1)
+        self.end_id.setSpecialValueText("末包")
+        range_row = QHBoxLayout()
+        range_row.addWidget(self.start_id)
+        range_row.addWidget(QLabel("至"))
+        range_row.addWidget(self.end_id)
+        form.addRow("数据包范围", range_row)
+        self.correction = QComboBox()
+        self.correction.addItems(["M", "L", "Q", "H"])
+        self.box_size = QSpinBox()
+        self.box_size.setRange(2, 16)
+        self.box_size.setValue(8)
+        qr_row = QHBoxLayout()
+        qr_row.addWidget(QLabel("纠错"))
+        qr_row.addWidget(self.correction)
+        qr_row.addWidget(QLabel("像素 / 模块"))
+        qr_row.addWidget(self.box_size)
+        form.addRow("二维码参数", qr_row)
+        self.fullscreen = QCheckBox("开始时全屏播放（F11 可切换）")
+        self.fullscreen.setChecked(True)
+        form.addRow(self.fullscreen)
         layout.addLayout(form)
+        self.metadata = QLabel("文件信息：选择文件后点击检查；哈希计算在后台运行。")
+        self.metadata.setWordWrap(True)
+        self.metadata.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        layout.addWidget(self.metadata)
         actions = QHBoxLayout()
+        inspect = QPushButton("检查文件")
+        inspect.clicked.connect(self.inspect_source)
+        actions.addWidget(inspect)
         export = QPushButton("导出二维码 PNG")
         export.clicked.connect(self.export_png)
         actions.addWidget(export)
-        playback = QPushButton("全屏播放二维码")
+        playback = QPushButton("开始播放")
         playback.clicked.connect(self.start_playback)
         actions.addWidget(playback)
+        pause = QPushButton("暂停 / 继续")
+        pause.clicked.connect(lambda: self.player.toggle_pause() if self.player else None)
+        actions.addWidget(pause)
+        stop = QPushButton("停止")
+        stop.clicked.connect(self.stop_jobs)
+        actions.addWidget(stop)
         layout.addLayout(actions)
         self.status = QLabel("就绪。播放时按空格暂停或继续，按 Esc 退出。")
         layout.addWidget(self.status)
@@ -88,6 +149,7 @@ class EncoderWindow(QMainWindow):
         name, _ = QFileDialog.getOpenFileName(self, "选择源文件")
         if name:
             self.source.setText(name)
+            self.inspect_source()
 
     def choose_output(self) -> None:
         name = QFileDialog.getExistingDirectory(self, "选择导出目录")
@@ -115,38 +177,102 @@ class EncoderWindow(QMainWindow):
             source, missing = self.paths()
             if not self.output.text().strip():
                 raise ValueError("请选择导出目录")
-            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            try:
-                result = export_frames(
-                    source,
-                    Path(self.output.text().strip()),
-                    chunk_size=self.chunk_size.value(),
-                    retransmit=missing,
-                )
-            finally:
-                QApplication.restoreOverrideCursor()
-            self.status.setText(f"导出完成：{result['exported_data_packets']} 个数据包")
+            output = Path(self.output.text().strip())
+            options = self.options(missing)
+            self.start_job(
+                lambda cancelled: export_frames(source, output, cancelled=cancelled, **options),
+                lambda result: self.status.setText(
+                    f"导出完成：{result['exported_data_packets']} 个数据包"
+                ),
+            )
         except (OSError, ValueError, RuntimeError) as exc:
             QMessageBox.critical(self, "导出失败", str(exc))
 
     def start_playback(self) -> None:
         try:
             source, missing = self.paths()
-            play(
+            if self.player and not self.player.finished:
+                raise ValueError("已有播放任务，请先停止")
+            self.player = PlayerWindow(
                 source,
-                chunk_size=self.chunk_size.value(),
                 interval_ms=self.interval_ms.value(),
                 initial_delay_ms=self.delay_ms.value(),
-                retransmit=missing,
+                fullscreen=self.fullscreen.isChecked(),
+                **self.options(missing),
             )
+            self.player.progress.connect(
+                lambda packet, count: self.status.setText(f"播放中：{packet}，已显示 {count} 帧")
+            )
+            self.player.stopped.connect(lambda: self.status.setText("播放已停止或完成"))
+            self.player.show()
         except (OSError, ValueError, RuntimeError) as exc:
             QMessageBox.critical(self, "播放失败", str(exc))
 
+    def options(self, missing):
+        return {
+            "chunk_size": self.chunk_size.value(),
+            "retransmit": missing,
+            "start_id": self.start_id.value(),
+            "end_id": None if self.end_id.value() == -1 else self.end_id.value(),
+            "qr_options": {
+                "correction": self.correction.currentText(),
+                "box_size": self.box_size.value(),
+            },
+        }
 
-def main() -> int:
+    def start_job(self, operation, finished):
+        if any(job.isRunning() for job in self.jobs):
+            raise ValueError("后台任务正在执行，请稍候或停止")
+        job = Job(operation, self)
+        self.jobs.append(job)
+        job.result.connect(finished)
+        job.failed.connect(lambda message: self.status.setText(f"任务失败：{message}"))
+        job.finished.connect(lambda: self.jobs.remove(job))
+        self.status.setText("后台处理中…")
+        job.start()
+
+    def inspect_source(self):
+        try:
+            source, _ = self.paths()
+            chunk = self.chunk_size.value()
+
+            def display(meta):
+                self.metadata.setText(
+                    f"{meta['filename']} · {meta['file_size']:,} 字节 · {meta['total_packets']:,} 包\n"
+                    f"SHA256 {meta['sha256']}\nMD5 {meta['md5']}"
+                )
+
+            self.start_job(
+                lambda cancelled: inspect_file(source, chunk, cancelled=cancelled), display
+            )
+        except (OSError, ValueError) as exc:
+            self.status.setText(str(exc))
+
+    def stop_jobs(self):
+        for job in self.jobs:
+            job.cancel.set()
+        if self.player:
+            self.player.close()
+
+    def closeEvent(self, event):
+        self.stop_jobs()
+        for job in list(self.jobs):
+            job.wait()
+        super().closeEvent(event)
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description="QRFT Encoder GUI")
+    parser.add_argument(
+        "--smoke-test", action="store_true", help="start Qt window and exit automatically"
+    )
+    args = parser.parse_args(argv)
     app = QApplication.instance() or QApplication(sys.argv)
     window = EncoderWindow()
     window.show()
+    if args.smoke_test:
+        QTimer.singleShot(300, window.close)
+        QTimer.singleShot(500, app.quit)
     return app.exec()
 
 
