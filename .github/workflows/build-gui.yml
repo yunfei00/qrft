@@ -1,0 +1,33 @@
+name: Windows Encoder GUI EXE
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+      - name: 安装 Python 3.12
+        run: uv python install 3.12
+      - name: 安装 GUI、二维码和打包依赖
+        run: uv sync --extra encoder --extra gui --group dev
+      - name: PyInstaller 打包 GUI
+        run: |
+          uv run --no-sync pyinstaller --noconfirm --clean --onedir --windowed --name QRFT-Encoder-GUI --paths src src/qrft/encoder_gui/main.py
+      - name: 验证 GUI EXE 构件存在
+        shell: pwsh
+        run: |
+          if (!(Test-Path dist/QRFT-Encoder-GUI/QRFT-Encoder-GUI.exe)) { throw "GUI EXE missing" }
+          if (!(Test-Path dist/QRFT-Encoder-GUI/_internal)) { throw "GUI runtime files missing" }
+      - name: 上传 Windows GUI 构件
+        uses: actions/upload-artifact@v4
+        with:
+          name: QRFT-Encoder-GUI-windows
+          path: dist/QRFT-Encoder-GUI/
+          if-no-files-found: error
