@@ -4,12 +4,43 @@ from __future__ import annotations
 
 import hashlib
 import os
+import sqlite3
 import tempfile
 from pathlib import Path
 from typing import Any
 
-from .missing import export_missing
+from .missing import stream_missing
 from .protocol import Frame, ProtocolError
+
+
+class PacketIds:
+    """Disk-backed receipt index with a fixed-size SQLite cache."""
+
+    def __init__(self):
+        # Objects can be finalized by GC in another thread; application access stays serial.
+        self.db = sqlite3.connect("", check_same_thread=False)
+        self.db.execute("PRAGMA cache_size=-2048")
+        self.db.execute("CREATE TABLE received(id INTEGER PRIMARY KEY)")
+
+    def __contains__(self, packet_id):
+        return (
+            self.db.execute("SELECT 1 FROM received WHERE id=?", (packet_id,)).fetchone()
+            is not None
+        )
+
+    def add(self, packet_id):
+        self.db.execute("INSERT OR IGNORE INTO received VALUES (?)", (packet_id,))
+
+    def __iter__(self):
+        return (row[0] for row in self.db.execute("SELECT id FROM received ORDER BY id"))
+
+    def close(self):
+        if getattr(self, "db", None) is not None:
+            self.db.close()
+            self.db = None
+
+    def __del__(self):
+        self.close()
 
 
 class FileAssembler:
@@ -19,7 +50,7 @@ class FileAssembler:
         self.directory = directory
         self.directory.mkdir(parents=True, exist_ok=True)
         self.manifest: dict[str, Any] | None = None
-        self.received: set[int] = set()
+        self.received = PacketIds()
         self._file: Path | None = None
         self.finished = False
 
@@ -96,7 +127,7 @@ class FileAssembler:
         reports = self.directory
         if self.manifest.get("filename") in {"missing.txt", "missing.csv", "missing.json"}:
             reports = self.directory / ".qrft-missing"
-        missing = export_missing(reports, total, self.received)
+        missing = stream_missing(reports, total, self.received)
         if missing or not self.finished:
             return None
         sha = hashlib.sha256()

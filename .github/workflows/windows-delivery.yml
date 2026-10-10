@@ -41,7 +41,9 @@ jobs:
         run: |
           Copy-Item README.md dist/
           Copy-Item docs dist/docs -Recurse
-          Get-ChildItem dist -Filter *.exe -Recurse | ForEach-Object {
+          uv run --no-sync python -c "from qrft import __version__; print(__version__)" | Set-Content dist/VERSION.txt -Encoding utf8
+          $env:GITHUB_SHA | Set-Content dist/COMMIT.txt -Encoding utf8
+          Get-ChildItem dist -File -Recurse | ForEach-Object {
             $hash = Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256
             "$($hash.Hash.ToLower())  $($_.FullName.Substring((Resolve-Path dist).Path.Length+1))"
           } | Set-Content dist/SHA256SUMS.txt -Encoding utf8

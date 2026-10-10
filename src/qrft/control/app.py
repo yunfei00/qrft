@@ -17,6 +17,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from qrft import __version__
 from qrft.control.packets import ingest
 from qrft.control.packets import init_schema as init_packets
 from qrft.control.recovery import recover
@@ -25,7 +26,7 @@ from qrft.control.web import PAGE
 from qrft.core.missing import iter_missing, stream_missing
 from qrft.core.protocol import ProtocolError, decode_frame
 
-app = FastAPI(title="QRFT Control", version="0.1.0")
+app = FastAPI(title="QRFT Control", version=__version__)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -36,6 +37,14 @@ def management() -> HTMLResponse:
 
 def database_path() -> Path:
     return Path(os.environ.get("QRFT_DB_PATH", "qrft-control.sqlite3"))
+
+
+def task_output_directory(task_id: int) -> Path:
+    root = Path(os.environ.get("QRFT_OUTPUT_DIR", "recovered")).resolve()
+    directory = root / str(task_id)
+    if directory.resolve().parent != root:
+        raise HTTPException(status_code=409, detail="Unsafe task output path")
+    return directory
 
 
 @contextmanager
@@ -588,7 +597,7 @@ def task_progress(task_id: int) -> dict:
 @app.post("/tasks/{task_id}/missing/export", dependencies=[Depends(require_token)])
 def export_task_missing(task_id: int) -> dict:
     missing = missing_packets(task_id)
-    directory = Path(os.environ.get("QRFT_OUTPUT_DIR", "recovered")) / str(task_id)
+    directory = task_output_directory(task_id)
     with connection() as db:
         received = (
             row[0]
@@ -602,12 +611,21 @@ def export_task_missing(task_id: int) -> dict:
 
 @app.post("/tasks/{task_id}/recover", dependencies=[Depends(require_token)])
 def recover_task(task_id: int) -> dict:
-    directory = Path(os.environ.get("QRFT_OUTPUT_DIR", "recovered")) / str(task_id)
+    directory = task_output_directory(task_id)
     with connection() as db:
         db.execute("BEGIN")
+        ensure_active(db, task_id)
         try:
             result = recover(db, task_id, directory)
-        except (ProtocolError, FileExistsError) as exc:
+        except ProtocolError as exc:
+            db.rollback()
+            db.execute(
+                "INSERT INTO task_recoveries VALUES (?,'failed',NULL,?) ON CONFLICT(task_id) DO UPDATE SET status='failed',path=NULL,updated_at=excluded.updated_at",
+                (task_id, time.time()),
+            )
+            db.commit()
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except FileExistsError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
     with connection() as db:
         db.execute(

@@ -1,6 +1,6 @@
 [project]
 name = "qrft"
-version = "0.1.0"
+version = "0.2.0rc1"
 description = "Universal binary file transfer via QR codes and recorded video"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"

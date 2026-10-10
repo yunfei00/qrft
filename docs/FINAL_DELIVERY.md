@@ -26,6 +26,8 @@
 
 ## 性能实测（Windows 本机）
 
+候选版版本 0.2.0rc1；新增本地解码磁盘包号索引及中文 PNG 路径读取，合成 AVI 回归覆盖空文件、中文文本、PDF/ZIP/EXE 扩展名二进制和全部字节值。本地最新 104 项测试通过，无跳过；发布及最终 CI 记录待实际完成后补充。部署/开发维护与排障见 OPERATIONS.md。
+
 运行：`uv run --no-sync python scripts/benchmark.py --output temp/benchmark-1g.json`。
 真实写入并读取 1,073,741,824 字节文件，哈希 2.82 秒，Python 分配峰值 2,106,646 字节。
 10 万包号中实际写入 SQLite 5 万个 256 字节数据包，1.53 秒；导出 5 万缺包的三份报告 1.40 秒，Python 分配峰值 376,165 字节。

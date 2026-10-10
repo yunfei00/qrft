@@ -21,6 +21,7 @@ def recover(db: sqlite3.Connection, task_id: int, directory: Path) -> dict:
     # A crash leaves SQLite intact; a fresh attempt reconstructs the staging file.
     with tempfile.TemporaryDirectory(dir=directory) as staging:
         assembler = FileAssembler(Path(staging))
+        assembler.received.close()
         assembler.accept(decode_frame(bytes(manifest["start_frame"])))
         meta = assembler.manifest
         received = 0
@@ -88,7 +89,7 @@ def recover(db: sqlite3.Connection, task_id: int, directory: Path) -> dict:
         files = directory / "files"
         files.mkdir(exist_ok=True)
         target = files / filename
-        if directory.is_symlink() or files.is_symlink():
+        if directory.is_symlink() or files.resolve().parent != directory.resolve():
             raise ProtocolError("unsafe output directory")
         os.link(assembler._file, target)
         return {"status": "verified", "path": str(target), "sha256": assembler.manifest["sha256"]}
