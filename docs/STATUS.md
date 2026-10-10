@@ -30,3 +30,10 @@ Update this document after every milestone with: implemented files and commit SH
 
 ## User operation documentation policy
 All future user-required steps must first be committed to [USER_ACTIONS.md](USER_ACTIONS.md) with copy/paste commands, expected output and tracking status. UA-001 local uv validation is pending and optional; later hardware/SMB/EXE checks are not yet required.
+
+## 2026-10-10 — Core protocol implementation checkpoint
+**Committed:** `src/qrft/core/protocol.py`, `src/qrft/core/manifest.py`, `tests/test_protocol.py`, `tests/test_manifest.py`.
+**Implemented:** raw byte DATA frames with trailing 8-digit ASCII ID and CRC32; START/FINISH control frames; file streaming hashes and chunk extraction; sparse packet-list parsing.
+**Not verified:** pytest and CI execution, QR image byte-mode roundtrip, video decoder, packaging. Protocol is not frozen yet.
+**Next:** generate uv.lock, run Windows CI, implement QR encode/decode byte-mode roundtrip tests, then video decoding and missing-list recovery.
+**Risk:** 7-day target is aggressive; do not claim progress without tests.
