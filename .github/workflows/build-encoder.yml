@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  pull_request:
 
 jobs:
   build:
@@ -16,7 +17,7 @@ jobs:
       - name: 安装 Python 3.12
         run: uv python install 3.12
       - name: 安装编码器与打包依赖
-        run: uv sync --extra encoder --extra gui --group dev
+        run: uv sync --locked --extra encoder --extra gui --group dev
       - name: PyInstaller 打包编码器
         run: |
           uv run --no-sync pyinstaller --noconfirm --clean --onedir --console --name QRFT-Encoder-CLI --paths src src/qrft/encoder_cli/entrypoint.py

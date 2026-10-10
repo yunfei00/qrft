@@ -9,11 +9,12 @@ import os
 import sqlite3
 import time
 from contextlib import contextmanager
+from itertools import islice
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from qrft.control.packets import ingest
@@ -21,7 +22,7 @@ from qrft.control.packets import init_schema as init_packets
 from qrft.control.recovery import recover
 from qrft.control.scheduler import add_slices, claim, complete, init_schema, renew
 from qrft.control.web import PAGE
-from qrft.core.missing import export_missing
+from qrft.core.missing import iter_missing, stream_missing
 from qrft.core.protocol import ProtocolError, decode_frame
 
 app = FastAPI(title="QRFT Control", version="0.1.0")
@@ -94,6 +95,30 @@ def require_token(authorization: Annotated[str | None, Header()] = None) -> None
         raise HTTPException(status_code=503, detail="QRFT_API_TOKEN is not configured")
     if authorization != f"Bearer {expected}":
         raise HTTPException(status_code=401, detail="Invalid API token")
+
+
+def ensure_active(db, task_id):
+    if db.execute(
+        "SELECT 1 FROM task_controls WHERE task_id=? AND cancelled=1", (task_id,)
+    ).fetchone():
+        raise HTTPException(status_code=409, detail="Task cancelled")
+
+
+@app.post("/tasks/{task_id}/cancel", dependencies=[Depends(require_token)])
+def cancel_task(task_id: int):
+    with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        if not db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="Task not found")
+        db.execute(
+            "INSERT INTO task_controls VALUES (?,1) ON CONFLICT(task_id) DO UPDATE SET cancelled=1",
+            (task_id,),
+        )
+        db.execute(
+            "UPDATE slices SET state='cancelled',lease_until=NULL WHERE video_id IN (SELECT id FROM videos WHERE task_id=?) AND state!='done'",
+            (task_id,),
+        )
+    return {"status": "cancelled"}
 
 
 class TaskCreate(BaseModel):
@@ -289,20 +314,74 @@ def bind_manifest(item: ManifestBind) -> dict[str, str]:
 
 
 @app.get("/tasks/{task_id}/missing", dependencies=[Depends(require_token)])
-def missing_packets(task_id: int) -> dict:
+def missing_packets(task_id: int, after: int = -1, limit: int = 1000) -> dict:
+    if after < -1 or not 1 <= limit <= 10000:
+        raise HTTPException(status_code=422, detail="Invalid missing page bounds")
     with connection() as db:
         manifest = db.execute(
             "SELECT total_packets FROM task_manifests WHERE task_id=?", (task_id,)
         ).fetchone()
         if manifest is None:
             raise HTTPException(status_code=404, detail="START manifest not bound")
-        received = {
-            row[0]
-            for row in db.execute("SELECT packet_id FROM packets WHERE task_id=?", (task_id,))
-        }
         total = manifest["total_packets"]
-        missing = [packet_id for packet_id in range(total) if packet_id not in received]
-        return {"total_packets": total, "received": len(received), "missing_ids": missing}
+        received = db.execute(
+            "SELECT COUNT(*) FROM packets WHERE task_id=?", (task_id,)
+        ).fetchone()[0]
+        start = min(after + 1, total)
+        rows = db.execute(
+            "SELECT packet_id FROM packets WHERE task_id=? AND packet_id>=? ORDER BY packet_id",
+            (task_id, start),
+        )
+        ids = list(islice(iter_missing(total - start, (row[0] - start for row in rows)), limit + 1))
+        return {
+            "total_packets": total,
+            "received": received,
+            "missing_count": total - received,
+            "missing_ids": [value + start for value in ids[:limit]],
+            "next_after": ids[limit - 1] + start if len(ids) > limit else None,
+        }
+
+
+@app.get("/tasks/{task_id}/missing/download", dependencies=[Depends(require_token)])
+def download_missing(task_id: int, format: str = "txt"):
+    if format not in {"txt", "csv", "json"}:
+        raise HTTPException(status_code=422, detail="Format must be txt, csv or json")
+    info = missing_packets(task_id, limit=1)
+
+    def content():
+        with connection() as db:
+            db.execute("BEGIN")
+            total = db.execute(
+                "SELECT total_packets FROM task_manifests WHERE task_id=?", (task_id,)
+            ).fetchone()[0]
+            rows = db.execute(
+                "SELECT packet_id FROM packets WHERE task_id=? ORDER BY packet_id", (task_id,)
+            )
+            if format == "csv":
+                yield "packet_id\r\n"
+            elif format == "json":
+                yield f'{{"schema_version":1,"total_packets":{total},"missing_ids":['
+            first = True
+            buffer = []
+            for packet_id in iter_missing(total, (row[0] for row in rows)):
+                if format == "json":
+                    buffer.append(("" if first else ",") + str(packet_id))
+                else:
+                    buffer.append(f"{packet_id:08d}\n")
+                first = False
+                if len(buffer) == 512:
+                    yield "".join(buffer)
+                    buffer.clear()
+            yield "".join(buffer)
+            if format == "json":
+                yield "]}\n"
+
+    del info
+    return StreamingResponse(
+        content(),
+        media_type={"txt": "text/plain", "csv": "text/csv", "json": "application/json"}[format],
+        headers={"Content-Disposition": f'attachment; filename="missing.{format}"'},
+    )
 
 
 @app.post("/packets/batch", dependencies=[Depends(require_token)])
@@ -312,6 +391,7 @@ def ingest_batch(item: PacketBatch) -> dict[str, int]:
         if db.execute("SELECT 1 FROM tasks WHERE id=?", (item.task_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Task not found")
         db.execute("BEGIN IMMEDIATE")
+        ensure_active(db, item.task_id)
         for encoded in item.frames_base64:
             try:
                 raw = base64.b64decode(encoded, validate=True)
@@ -393,9 +473,11 @@ def export_task_missing(task_id: int) -> dict:
     with connection() as db:
         received = (
             row[0]
-            for row in db.execute("SELECT packet_id FROM packets WHERE task_id=?", (task_id,))
+            for row in db.execute(
+                "SELECT packet_id FROM packets WHERE task_id=? ORDER BY packet_id", (task_id,)
+            )
         )
-        export_missing(directory, missing["total_packets"], received)
+        stream_missing(directory, missing["total_packets"], received)
     return {"directory": str(directory), **missing}
 
 

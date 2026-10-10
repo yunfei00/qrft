@@ -5,6 +5,8 @@
 **目标交付：2026-10-16**  
 **产品状态：四个 EXE 已构建；完整产品和真实设备验收未完成。当前事实见末尾记录及 FINAL_DELIVERY.md。**
 
+本轮 feature/qrft-final-delivery / PR #3：GUI 增强提交 aa255d3；最新本地 97 项测试通过，无跳过，Ruff 格式与静态检查通过。新增流式缺包/恢复、任务取消、Worker 配置和统一四 EXE 实际链路工作流。性能实测见 FINAL_DELIVERY.md；CI 待验证。里程碑保留原验收基线 1/10，不将合成视频、单机模拟计为真实双机 SMB 验收。
+
 ## 已提交 GitHub
 
 - 公开仓库 `yunfei00/qrft`。

@@ -37,8 +37,12 @@ def iter_video_frames(
         requested_end = total_frames if end_seconds is None else int(end_seconds * fps)
         end_index = min(total_frames, requested_end)
         step = max(1, round(fps / sample_fps))
-        for index in range(start_index, end_index, step):
-            capture.set(cv2.CAP_PROP_POS_FRAMES, index)
+        capture.set(cv2.CAP_PROP_POS_FRAMES, start_index)
+        for index in range(start_index, end_index):
+            if (index - start_index) % step:
+                if not capture.grab():
+                    break
+                continue
             ok, image = capture.read()
             if not ok:
                 continue

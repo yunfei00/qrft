@@ -8,6 +8,9 @@ import time
 
 def init_schema(db: sqlite3.Connection) -> None:
     db.execute(
+        "CREATE TABLE IF NOT EXISTS task_controls(task_id INTEGER PRIMARY KEY, cancelled INTEGER NOT NULL DEFAULT 0)"
+    )
+    db.execute(
         """
         CREATE TABLE IF NOT EXISTS slices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,7 +69,8 @@ def claim(db: sqlite3.Connection, node_id: str, lease_seconds: int = 120) -> dic
         """
         SELECT s.id, s.video_id, s.start_ms, s.end_ms, v.path, v.task_id, s.attempts
         FROM slices s JOIN videos v ON v.id=s.video_id
-        WHERE s.state='pending' OR (s.state='leased' AND s.lease_until <= ?)
+        WHERE (s.state='pending' OR (s.state='leased' AND s.lease_until <= ?))
+        AND NOT EXISTS (SELECT 1 FROM task_controls c WHERE c.task_id=v.task_id AND c.cancelled=1)
         ORDER BY s.id LIMIT 1
         """,
         (now,),

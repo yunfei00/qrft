@@ -6,6 +6,7 @@ import argparse
 import base64
 import json
 import logging
+import os
 import threading
 import time
 import urllib.error
@@ -170,12 +171,28 @@ def run_worker(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="QRFT 分布式 SMB 视频解码节点")
-    parser.add_argument("--server", required=True, help="控制中心 HTTP 地址")
-    parser.add_argument("--token", required=True, help="API Token")
-    parser.add_argument("--node-id", required=True)
+    parser.add_argument("--config", type=Path, help="UTF-8 JSON 配置文件")
+    parser.add_argument("--server", help="控制中心 HTTP 地址")
+    parser.add_argument("--token", help="API Token（推荐 QRFT_API_TOKEN 环境变量）")
+    parser.add_argument("--node-id")
     parser.add_argument("--poll-seconds", type=float, default=5.0)
     parser.add_argument("--once", action="store_true")
     args = parser.parse_args(argv)
+    config = {}
+    if args.config:
+        try:
+            config = json.loads(args.config.read_text(encoding="utf-8-sig"))
+            if not isinstance(config, dict):
+                raise TypeError("configuration must be an object")
+        except (OSError, ValueError, TypeError) as exc:
+            parser.error(f"Cannot read configuration: {type(exc).__name__}")
+    args.server = args.server or config.get("server")
+    args.node_id = args.node_id or config.get("node_id")
+    args.token = args.token or os.environ.get("QRFT_API_TOKEN") or config.get("token")
+    if not all(
+        isinstance(value, str) and value for value in (args.server, args.node_id, args.token)
+    ):
+        parser.error("server, node-id and token must be configured")
     logging.basicConfig(level=logging.INFO)
     try:
         run_worker(

@@ -1,5 +1,7 @@
 # QRFT 用户操作手册（唯一操作入口）
 
+本轮补充：Worker 推荐将 Token 放在 `QRFT_API_TOKEN` 环境变量，JSON 配置只记录 server 和 node_id，用 `QRFT-Decoder.exe worker --config worker.json` 启动。浏览器新增鉴权 missing.txt/CSV/JSON 下载。GUI offscreen 与合成 AVI 自动测试不替代 UA-006 的真实双机/SMB/录屏验收；界面长时间播放、暂停、全屏切换仍需在 Windows 桌面手动确认并记录结果。
+
 **约定：所有需要用户执行的操作，必须先写入本文件，再在聊天中提示“请按照 [用户操作手册](USER_ACTIONS.md) 的 UA-XXX 执行”。** 命令统一使用 Windows PowerShell，确保可复制。每项必须写明执行时机、环境、命令、预期结果和反馈方式。CI 能自动完成的事情不要求用户重复执行。
 
 ## UA-001：Windows 本地 uv 环境验证

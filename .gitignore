@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 dist/
 build/
+*.spec
 node_modules/
 .env
 .env.*
