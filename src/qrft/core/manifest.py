@@ -69,7 +69,7 @@ def packet_bytes(path: Path, chunk_size: int, packet_id: int) -> bytes:
     return payload
 
 
-def selected_ranges(total, *, start_id=0, end_id=None, retransmit=None):
+def selected_ranges(total, *, start_id=0, end_id=None, retransmit=None, cancelled=None):
     """External-sort missing entries without expanding ranges into a packet-ID set."""
     last = total - 1 if end_id is None else end_id
     if start_id < 0 or start_id > total or last < -1 or last >= total:
@@ -87,6 +87,8 @@ def selected_ranges(total, *, start_id=0, end_id=None, retransmit=None):
         db.execute("CREATE TABLE ranges(first INTEGER,last INTEGER,PRIMARY KEY(first,last))")
         with Path(retransmit).open(encoding="utf-8-sig") as stream:
             for number, raw in enumerate(stream, 1):
+                if cancelled is not None and cancelled():
+                    raise InterruptedError("operation cancelled")
                 line = raw.strip()
                 if not line or line.startswith("#"):
                     continue

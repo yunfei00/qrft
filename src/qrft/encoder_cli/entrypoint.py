@@ -23,6 +23,10 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument("--output", type=Path, required=True)
     export.add_argument("--chunk-size", type=int, default=256)
     export.add_argument("--retransmit", type=Path)
+    export.add_argument("--start-id", type=int, default=0)
+    export.add_argument("--end-id", type=int)
+    export.add_argument("--correction", choices=["L", "M", "Q", "H"], default="M")
+    export.add_argument("--box-size", type=int, default=8)
     player = sub.add_parser("play", help="全屏实时播放二维码")
     player.add_argument("source", type=Path)
     player.add_argument("--chunk-size", type=int, default=256)
@@ -34,6 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     player.add_argument("--workers", type=int, default=2)
     player.add_argument("--prefetch", type=int, default=4)
     player.add_argument("--windowed", action="store_true")
+    player.add_argument("--exit-when-finished", action="store_true", help="播放全部包后自动退出")
     args = parser.parse_args(argv)
     if args.command == "export":
         options = [
@@ -45,6 +50,18 @@ def main(argv: list[str] | None = None) -> int:
         ]
         if args.retransmit is not None:
             options.extend(["--retransmit", str(args.retransmit)])
+        options.extend(
+            [
+                "--start-id",
+                str(args.start_id),
+                "--correction",
+                args.correction,
+                "--box-size",
+                str(args.box_size),
+            ]
+        )
+        if args.end_id is not None:
+            options.extend(["--end-id", str(args.end_id)])
         return export_main(options)
     return play(
         args.source,
@@ -57,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         workers=args.workers,
         prefetch=args.prefetch,
         fullscreen=not args.windowed,
+        exit_when_finished=args.exit_when_finished,
     )
 
 

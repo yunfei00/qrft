@@ -10,6 +10,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 
@@ -45,6 +46,17 @@ def main():
         images = root / "png"
         run("QRFT-Encoder-CLI", "export", source, "--output", images, "--chunk-size", 64)
         run("QRFT-Encoder-GUI", "--smoke-test")
+        run(
+            "QRFT-Encoder-CLI",
+            "play",
+            source,
+            "--interval-ms",
+            10,
+            "--initial-delay-ms",
+            0,
+            "--windowed",
+            "--exit-when-finished",
+        )
         import cv2
         import numpy as np
 
@@ -66,7 +78,7 @@ def main():
         try:
             for path in paths:
                 image = cv2.resize(load(path), (width, height), interpolation=cv2.INTER_NEAREST)
-                for _ in range(3):
+                for _ in range(30):
                     writer.write(image)
         finally:
             writer.release()
@@ -110,13 +122,31 @@ def main():
             task = api("/tasks", {"name": "Frozen EXE binary roundtrip"})["id"]
             api(
                 "/videos",
-                {"task_id": task, "path": str(video), "duration_seconds": len(paths) * 3 / 5},
+                {"task_id": task, "path": str(video), "duration_seconds": len(paths) * 30 / 5},
             )
             config = root / "worker.json"
             config.write_text(
                 json.dumps({"server": base, "node_id": "frozen-worker"}), encoding="utf-8"
             )
-            run("QRFT-Decoder", "worker", "--config", config, "--once")
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [
+                    pool.submit(
+                        run,
+                        "QRFT-Decoder",
+                        "worker",
+                        "--config",
+                        config,
+                        "--node-id",
+                        f"frozen-worker-{index}",
+                        "--once",
+                    )
+                    for index in range(2)
+                ]
+                for future in futures:
+                    future.result()
+            slices = api("/slices")
+            assert len(slices) == 2 and all(item["state"] == "done" for item in slices)
+            assert len({item["owner"] for item in slices}) == 2
             restored = api(f"/tasks/{task}/recover", {})
             assert restored["status"] == "verified"
             assert Path(restored["path"]).read_bytes() == payload

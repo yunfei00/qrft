@@ -64,9 +64,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, required=True, help="二维码 PNG 输出目录")
     parser.add_argument("--chunk-size", type=int, default=256, help="每包数据字节数（默认 256）")
     parser.add_argument("--retransmit", type=Path, help="缺包列表 TXT 文件，指定后仅导出所列包")
+    parser.add_argument("--start-id", type=int, default=0)
+    parser.add_argument("--end-id", type=int)
+    parser.add_argument("--correction", choices=["L", "M", "Q", "H"], default="M")
+    parser.add_argument("--box-size", type=int, default=8)
     args = parser.parse_args(argv)
     result = export_frames(
-        args.source, args.output, chunk_size=args.chunk_size, retransmit=args.retransmit
+        args.source,
+        args.output,
+        chunk_size=args.chunk_size,
+        retransmit=args.retransmit,
+        start_id=args.start_id,
+        end_id=args.end_id,
+        qr_options={"correction": args.correction, "box_size": args.box_size},
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0

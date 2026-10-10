@@ -19,6 +19,7 @@ def play(
     fullscreen: bool = True,
     workers: int = 2,
     prefetch: int = 4,
+    exit_when_finished: bool = False,
 ) -> int:
     """延迟启动并按定时器显示二维码，数据帧在播放时才生成。"""
     if interval_ms < 1 or initial_delay_ms < 0:
@@ -43,6 +44,7 @@ def play(
         fullscreen=fullscreen,
         workers=workers,
         prefetch=prefetch,
+        exit_when_finished=exit_when_finished,
     )
     window.show()
     if existing_app is not None:

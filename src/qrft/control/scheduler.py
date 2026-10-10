@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import time
+import uuid
 
 
 def init_schema(db: sqlite3.Connection) -> None:
@@ -25,6 +26,11 @@ def init_schema(db: sqlite3.Connection) -> None:
         )
         """
     )
+    columns = {row[1] for row in db.execute("PRAGMA table_info(slices)")}
+    for column, kind in (("checkpoint_ms", "INTEGER NOT NULL DEFAULT 0"), ("lease_token", "TEXT")):
+        if column not in columns:
+            db.execute(f"ALTER TABLE slices ADD COLUMN {column} {kind}")
+    db.execute("CREATE INDEX IF NOT EXISTS slices_state_lease ON slices(state, lease_until)")
 
 
 def add_slices(
@@ -67,7 +73,7 @@ def claim(db: sqlite3.Connection, node_id: str, lease_seconds: int = 120) -> dic
         return None
     row = db.execute(
         """
-        SELECT s.id, s.video_id, s.start_ms, s.end_ms, v.path, v.task_id, s.attempts
+        SELECT s.id, s.video_id, s.start_ms, s.end_ms, v.path, v.task_id, s.attempts, s.checkpoint_ms
         FROM slices s JOIN videos v ON v.id=s.video_id
         WHERE (s.state='pending' OR (s.state='leased' AND s.lease_until <= ?))
         AND NOT EXISTS (SELECT 1 FROM task_controls c WHERE c.task_id=v.task_id AND c.cancelled=1)
@@ -78,23 +84,34 @@ def claim(db: sqlite3.Connection, node_id: str, lease_seconds: int = 120) -> dic
     if row is None:
         db.commit()
         return None
+    lease_token = uuid.uuid4().hex
     db.execute(
-        "UPDATE slices SET state='leased', owner=?, lease_until=?, attempts=attempts+1 WHERE id=?",
-        (node_id, now + lease_seconds, row["id"]),
+        "UPDATE slices SET state='leased', owner=?, lease_until=?, attempts=attempts+1, lease_token=? WHERE id=?",
+        (node_id, now + lease_seconds, lease_token, row["id"]),
     )
     db.commit()
-    return {**dict(row), "owner": node_id, "lease_until": now + lease_seconds}
+    return {
+        **dict(row),
+        "owner": node_id,
+        "lease_until": now + lease_seconds,
+        "lease_token": lease_token,
+    }
 
 
-def complete(db: sqlite3.Connection, slice_id: int, node_id: str) -> str:
+def complete(
+    db: sqlite3.Connection, slice_id: int, node_id: str, lease_token: str | None = None
+) -> str:
     now = time.time()
     db.execute("BEGIN IMMEDIATE")
     row = db.execute(
-        "SELECT state, owner, lease_until FROM slices WHERE id=?", (slice_id,)
+        "SELECT state, owner, lease_until, lease_token FROM slices WHERE id=?", (slice_id,)
     ).fetchone()
     if row is None:
         db.commit()
         return "not_found"
+    if lease_token is not None and row["lease_token"] != lease_token:
+        db.commit()
+        return "lease_invalid"
     if row["state"] == "done":
         db.commit()
         return "already_done"
@@ -106,19 +123,30 @@ def complete(db: sqlite3.Connection, slice_id: int, node_id: str) -> str:
     return "done"
 
 
-def renew(db: sqlite3.Connection, slice_id: int, node_id: str, lease_seconds: int = 120) -> str:
+def renew(
+    db: sqlite3.Connection,
+    slice_id: int,
+    node_id: str,
+    lease_seconds: int = 120,
+    lease_token: str | None = None,
+) -> str:
     """仅允许当前有效租约的持有者续期，不复活过期任务。"""
     if lease_seconds <= 0:
         raise ValueError("lease_seconds must be positive")
     now = time.time()
     db.execute("BEGIN IMMEDIATE")
     row = db.execute(
-        "SELECT state, owner, lease_until FROM slices WHERE id=?", (slice_id,)
+        "SELECT state, owner, lease_until, lease_token FROM slices WHERE id=?", (slice_id,)
     ).fetchone()
     if row is None:
         db.commit()
         return "not_found"
-    if row["state"] != "leased" or row["owner"] != node_id or row["lease_until"] <= now:
+    if (
+        row["state"] != "leased"
+        or row["owner"] != node_id
+        or row["lease_until"] <= now
+        or (lease_token is not None and row["lease_token"] != lease_token)
+    ):
         db.commit()
         return "lease_invalid"
     db.execute(

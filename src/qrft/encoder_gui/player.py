@@ -31,6 +31,7 @@ class PlayerWindow(QWidget):
         workers=2,
         prefetch=4,
         qr_options=None,
+        exit_when_finished=False,
         **options,
     ):
         super().__init__()
@@ -38,6 +39,7 @@ class PlayerWindow(QWidget):
             raise ValueError("invalid playback timing/cache settings")
         self.setWindowTitle("QRFT 二维码播放")
         self.resize(900, 900)
+        self.exit_when_finished = exit_when_finished
         self.setStyleSheet("background:white;color:black")
         layout = QVBoxLayout(self)
         self.image = QLabel("准备二维码…")
@@ -86,6 +88,7 @@ class PlayerWindow(QWidget):
                                 start_id=options.get("start_id", 0),
                                 end_id=options.get("end_id"),
                                 retransmit=options.get("retransmit"),
+                                cancelled=self.stop_event.is_set,
                             )
                         )
                         if not put({"selected": count + 2}):
@@ -143,6 +146,8 @@ class PlayerWindow(QWidget):
             self.bar.setRange(0, 100)
             self.bar.setValue(100 if item is None else 0)
             self.stopped.emit()
+            if self.exit_when_finished and item is None:
+                self.close()
             return
         (packet_id, _raw), png = item
         if not self.pixmap.loadFromData(png, "PNG"):

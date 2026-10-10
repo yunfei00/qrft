@@ -60,6 +60,7 @@ def process_slice(
     task_id = lease["task_id"]
     batch: list[str] = []
     sent = 0
+    fenced = {"lease_token": lease["lease_token"]} if "lease_token" in lease else {}
 
     def flush() -> None:
         nonlocal sent
@@ -68,7 +69,11 @@ def process_slice(
                 base_url,
                 token,
                 "/packets/batch",
-                {"task_id": task_id, "frames_base64": batch},
+                {
+                    "task_id": task_id,
+                    "frames_base64": batch,
+                    **({"slice_id": lease["id"], **fenced} if fenced else {}),
+                },
             )
             sent += len(batch)
             batch.clear()
@@ -84,7 +89,7 @@ def process_slice(
                     base_url,
                     token,
                     f"/slices/{lease['id']}/renew",
-                    {"node_id": node_id, "lease_seconds": 120},
+                    {"node_id": node_id, "lease_seconds": 120, **fenced},
                 )
             except (OSError, ValueError) as exc:
                 errors.append(exc)
@@ -92,12 +97,29 @@ def process_slice(
 
     thread = threading.Thread(target=maintain, name="qrft-lease", daemon=True)
     thread.start()
+    last_checkpoint = time.monotonic()
+
+    def sampled(checkpoint_ms):
+        nonlocal last_checkpoint
+        if errors:
+            raise errors[0]
+        if time.monotonic() - last_checkpoint >= 5:
+            flush()
+            request_json(
+                base_url,
+                token,
+                f"/slices/{lease['id']}/checkpoint",
+                {"node_id": node_id, **fenced, "checkpoint_ms": checkpoint_ms},
+            )
+            last_checkpoint = time.monotonic()
+
     try:
         for frame in iter_video_frames(
             video,
             sample_fps=sample_fps,
-            start_seconds=lease["start_ms"] / 1000,
+            start_seconds=max(lease["start_ms"], lease.get("checkpoint_ms", 0) - 1000) / 1000,
             end_seconds=lease["end_ms"] / 1000,
+            **({"on_sample": sampled} if fenced else {}),
         ):
             if errors:
                 raise errors[0]
@@ -128,7 +150,9 @@ def process_slice(
         thread.join()
         if errors:
             raise errors[0]
-        request_json(base_url, token, f"/slices/{lease['id']}/complete", {"node_id": node_id})
+        request_json(
+            base_url, token, f"/slices/{lease['id']}/complete", {"node_id": node_id, **fenced}
+        )
     finally:
         stop.set()
         thread.join()

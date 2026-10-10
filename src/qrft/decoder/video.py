@@ -14,6 +14,7 @@ def iter_video_frames(
     sample_fps: float = 10.0,
     start_seconds: float = 0.0,
     end_seconds: float | None = None,
+    on_sample=None,
 ) -> Iterator[Frame]:
     """顺序扫描选定时间范围；损坏/非 QR 画面忽略，合法帧按出现顺序返回。"""
     if sample_fps <= 0 or start_seconds < 0:
@@ -51,5 +52,7 @@ def iter_video_frames(
                     yield decode_frame(bytes(barcode.bytes))
                 except ProtocolError:
                     continue
+            if on_sample is not None:
+                on_sample(min(int((index + step) / fps * 1000), int(end_index / fps * 1000)))
     finally:
         capture.release()

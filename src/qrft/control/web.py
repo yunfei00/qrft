@@ -19,6 +19,7 @@ label{display:inline-block}#message{min-height:1.5rem}h1,h2{margin:.5rem 0}
 <button>创建任务</button></form><label>当前任务 <select id="task"></select></label>
 <button id="progress">查看进度</button><button id="missing">导出缺包</button>
 <button id="recover">恢复文件</button><pre id="details"></pre></section>
+<section><button id="cancel">取消当前任务</button><p>停止领取和提交，保留已收数据包。</p></section>
 <section><h2>缺包下载</h2><p>下载结果可用于编码端选择性补传。</p>
 <button data-format="txt">missing.txt</button><button data-format="csv">CSV</button>
 <button data-format="json">JSON</button></section>
@@ -26,7 +27,10 @@ label{display:inline-block}#message{min-height:1.5rem}h1,h2{margin:.5rem 0}
 <form id="newvideo"><label>视频路径 <input id="path" required maxlength="4096"></label>
 <label>时长（秒）<input id="duration" required type="number" min="0.001" step="any"></label>
 <button>登记并划分时间片</button></form><pre id="videos"></pre><pre id="slices"></pre></section>
+<section><label>重新扫描视频 ID <input id="rescanid" type="number" min="1"></label>
+<button id="rescan">重新扫描</button><p>保留已收包，重新扫描全部时间片。</p></section>
 <section><h2>节点</h2><pre id="nodes"></pre></section>
+<section><h2>系统设置</h2><pre id="settings"></pre></section>
 <script>
 const el=id=>document.getElementById(id);
 const show=(id,value)=>el(id).textContent=JSON.stringify(value,null,2);
@@ -35,7 +39,11 @@ function table(id,rows){
  if(!rows.length){container.textContent='暂无记录';return;}
  const grid=document.createElement('table');grid.style.width='100%';
  const keys=Object.keys(rows[0]);const head=document.createElement('tr');
- for(const key of keys){const cell=document.createElement('th');cell.textContent=key;head.append(cell);}
+ const labels={id:'ID',task_id:'任务',video_id:'视频',path:'路径',duration_seconds:'时长（秒）',
+  created_at:'创建时间',node_id:'节点',last_seen:'最后心跳',status:'状态',processing:'处理中',
+  start_ms:'开始（毫秒）',end_ms:'结束（毫秒）',state:'状态',owner:'节点',lease_until:'租约期限',
+  attempts:'尝试次数',checkpoint_ms:'扫描位置（毫秒）',lease_token:'租约代次'};
+ for(const key of keys){const cell=document.createElement('th');cell.textContent=labels[key]||key;head.append(cell);}
  grid.append(head);
  for(const row of rows){const tr=document.createElement('tr');
   for(const key of keys){const cell=document.createElement('td');cell.textContent=row[key]??'—';tr.append(cell);}
@@ -67,8 +75,10 @@ async function refresh(){
    option.textContent=task.id+' · '+task.name;el('task').append(option);}
  if(tasks.some(t=>String(t.id)===prior))el('task').value=prior;
  const nodes=await api('/nodes');table('nodes',nodes);
- const online=nodes.filter(n=>Date.now()/1000-n.last_seen<90).length;
- el('overview').textContent='任务 '+tasks.length+' · 在线节点 '+online+' / '+nodes.length;
+ show('settings',await api('/settings'));
+ const overview=await api('/overview');
+ el('overview').textContent='任务 '+overview.tasks+' · 在线节点 '+overview.online_nodes+
+  ' · 处理中时间片 '+overview.processing_slices+' · 已验证恢复 '+overview.verified_tasks;
  if(tasks.length)await progress();
 }
 el('refresh').onclick=()=>action(refresh);
@@ -82,6 +92,10 @@ el('newvideo').onsubmit=event=>{event.preventDefault();action(async()=>{
 el('missing').onclick=()=>action(async()=>show('details',await api('/tasks/'+selected()+'/missing/export',{})));
 el('recover').onclick=()=>action(async()=>{const result=await api('/tasks/'+selected()+'/recover',{});
  await progress();show('details',result);});
+el('cancel').onclick=()=>action(async()=>{await api('/tasks/'+selected()+'/cancel',{});await progress();});
+el('rescan').onclick=()=>action(async()=>{const id=Number(el('rescanid').value);
+ if(!Number.isInteger(id)||id<1)throw new Error('请输入有效的视频 ID');
+ await api('/videos/'+id+'/rescan',{});await progress();});
 for(const button of document.querySelectorAll('[data-format]'))button.onclick=()=>action(async()=>{
  const format=button.dataset.format;
  const response=await fetch('/tasks/'+selected()+'/missing/download?format='+format,

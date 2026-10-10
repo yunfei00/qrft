@@ -28,7 +28,9 @@ def iter_encoded_frames(
     last = total - 1 if end_id is None else end_id
     if last < -1 or last >= total or (last < start_id and not (total == 0 and last == -1)):
         raise ValueError("end_id outside packet range")
-    ranges = selected_ranges(total, start_id=start_id, end_id=last, retransmit=retransmit)
+    ranges = selected_ranges(
+        total, start_id=start_id, end_id=last, retransmit=retransmit, cancelled=cancelled
+    )
     yield "START", encode_start(manifest)
     with source.open("rb") as stream:
         for first, end in ranges:
