@@ -248,3 +248,8 @@
 - 实际日志确认 Windows Python CI 在 Ruff 格式检查失败，45 个文件已格式化，唯一问题文件 `tests/test_control_api.py` 两处跨行 assert 表达式。
 - 已按 Ruff 输出精确修改并提交 `55bcb72`。静态检查、pytest、Control API 测试在失败运行中均未执行；新 CI 结果待验证。
 - 验收进度保持 1/10（10%）。
+
+### 两次 Windows Python CI 静态检查失败修复（2026-10-10）
+- 运行 `38032797339` 和 `38032801239` 均已核实：Ruff format 通过，Ruff check 因 `tests/test_control_api.py` 两处未启用的 `# noqa: E402` 触发 `RUF100` 失败；后续测试被跳过。
+- 已移除两处无效 noqa 并提交 `39ae1c6`。用户反馈其余 CI 通过；此修复后的新 CI 尚待验证。
+- 里程碑验收维持 1/10（10%）。
