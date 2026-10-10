@@ -17,6 +17,10 @@ jobs:
         run: uv python install 3.12
       - name: 安装解码器与打包依赖
         run: uv sync --extra decoder --group dev
+      - name: 真实 AVI 端到端恢复回归测试
+        run: |
+          uv sync --extra encoder --extra decoder --group dev
+          uv run --no-sync pytest -q tests/test_video_end_to_end.py
       - name: PyInstaller 打包解码器
         run: |
           uv run --no-sync pyinstaller --noconfirm --clean --onedir --console --name QRFT-Decoder --paths src src/qrft/decoder/main.py
