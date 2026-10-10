@@ -91,3 +91,28 @@ def complete(db: sqlite3.Connection, slice_id: int, node_id: str) -> str:
     )
     db.commit()
     return "done"
+
+
+def renew(
+    db: sqlite3.Connection, slice_id: int, node_id: str, lease_seconds: int = 120
+) -> str:
+    """仅允许当前有效租约的持有者续期，不复活过期任务。"""
+    if lease_seconds <= 0:
+        raise ValueError("lease_seconds must be positive")
+    now = time.time()
+    db.execute("BEGIN IMMEDIATE")
+    row = db.execute(
+        "SELECT state, owner, lease_until FROM slices WHERE id=?", (slice_id,)
+    ).fetchone()
+    if row is None:
+        db.commit()
+        return "not_found"
+    if row["state"] != "leased" or row["owner"] != node_id or row["lease_until"] <= now:
+        db.commit()
+        return "lease_invalid"
+    db.execute(
+        "UPDATE slices SET lease_until=? WHERE id=?",
+        (max(now, row["lease_until"]) + lease_seconds, slice_id),
+    )
+    db.commit()
+    return "renewed"
