@@ -277,3 +277,11 @@
 - 新增 `GET /tasks/{task_id}/missing`：返回总包数、已接收数和缺包 ID 列表。
 - `tests/test_control_api.py` 新增 API 回归测试：批量失败不留部分数据、缺包计算和完整接收。
 - **本轮 CI 尚待验证**；尚未实现 START/FINISH 帧从视频节点自动提交、缺包文件导出及恢复。验收保持 1/10（10%）。
+
+### 本轮：分布式 Worker 初版（2026-10-10）
+- 用户确认上一轮 CI 通过。
+- 新增 `src/qrft/decoder/worker.py`：无界面 Worker，HTTP Token 认证、心跳、领取时间片、按范围直接扫描可访问 SMB 视频、批量提交 QRFT DATA 帧、完成租约。
+- `scheduler.claim` 返回 `task_id`，使 Worker 提交到正确任务。
+- 新增 `tests/test_worker.py`：模拟视频帧与控制端，覆盖时间片范围、批次提交、心跳及领取流程。
+- **当前限制**：Worker 尚未实现扫描期间续租、START 不在当前时间片时的可靠会话引导、FINISH 标记、请求失败重试和真实双机 SMB 验收；不能标记分布式里程碑完成。
+- **本轮 CI 尚待验证；总验收仍为 1/10（10%）。**
