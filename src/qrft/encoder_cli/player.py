@@ -58,11 +58,13 @@ def play(
                 self.timer.stop()
                 self.setText(f"二维码生成失败：{packet_id}")
                 return
-            self.setPixmap(image.scaled(
-                self.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.FastTransformation,
-            ))
+            self.setPixmap(
+                image.scaled(
+                    self.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.FastTransformation,
+                )
+            )
             self.timer.start()
 
         def keyPressEvent(self, event: object) -> None:
