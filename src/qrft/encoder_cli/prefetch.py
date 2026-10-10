@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import TypeVar
 
@@ -13,7 +13,7 @@ T = TypeVar("T")
 
 def ordered_prefetch(
     items: Iterable[T],
-    transform: object,
+    transform: Callable[[T], bytes],
     *,
     workers: int = 2,
     capacity: int = 4,
@@ -47,6 +47,7 @@ def prefetch_png(
     capacity: int = 4,
 ) -> Iterator[tuple[str, bytes]]:
     """对原始 QRFT 帧进行有界并行 PNG 生成。"""
+
     def render(frame: tuple[str, bytes]) -> bytes:
         return qr_png(frame[1])
 
