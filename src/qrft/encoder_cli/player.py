@@ -42,7 +42,8 @@ def play(
         end_id=end_id,
     )
     prepared = prefetch_png(frames, workers=workers, capacity=prefetch)
-    app = QApplication.instance() or QApplication(sys.argv)
+    existing_app = QApplication.instance()
+    app = existing_app or QApplication(sys.argv)
 
     class Player(QLabel):
         def __init__(self) -> None:
@@ -120,6 +121,12 @@ def play(
     else:
         window.resize(900, 900)
         window.show()
+    if existing_app is not None:
+        windows = app.property("qrft_players") or []
+        windows.append(window)
+        app.setProperty('qrft_players', windows)
+        window.destroyed.connect(lambda: windows.remove(window) if window in windows else None)
+        return 0
     return app.exec()
 
 
