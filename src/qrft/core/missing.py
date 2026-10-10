@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import csv
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
-from .protocol import ProtocolError, START_ID
+from .protocol import START_ID, ProtocolError
 
 
 def missing_ids(total_packets: int, received_ids: Iterable[int]) -> list[int]:
