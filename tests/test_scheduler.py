@@ -17,19 +17,21 @@ def test_slice_coverage_and_idempotent_registration() -> None:
     assert [tuple(row) for row in rows] == [(0, 30000), (29000, 59000), (58000, 65000)]
 
 
-def test_claim_lease_and_completion(tmp_path, monkeypatch) -> None:
+def test_claim_lease_and_completion(tmp_path) -> None:
     db = sqlite3.connect(tmp_path / "leases.db")
     db.row_factory = sqlite3.Row
     db.execute("CREATE TABLE videos(id INTEGER PRIMARY KEY, path TEXT)")
     db.execute("INSERT INTO videos VALUES (1, 'share/video.avi')")
     init_schema(db)
     add_slices(db, 1, 2)
+    db.commit()
     first = claim(db, "node-a", 10)
     assert first is not None
     assert first["path"] == "share/video.avi"
     assert claim(db, "node-b", 10) is None
     assert complete(db, first["id"], "node-b") == "lease_invalid"
     db.execute("UPDATE slices SET lease_until=0 WHERE id=?", (first["id"],))
+    db.commit()
     second = claim(db, "node-b", 10)
     assert second is not None
     assert second["id"] == first["id"]
