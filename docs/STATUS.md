@@ -235,3 +235,11 @@
 - 实际作业日志：格式检查 FAIL，Ruff 指出 `encoder_cli/player.py:127` 单引号以及 `encoder_gui/main.py:108` 条件表达式多行格式；其余 42 个文件格式通过，后续静态检查/测试未执行。
 - 按 Ruff 给出的精确修改修复两处格式：提交 `edcb791`、`3d106e4`；不涉及业务逻辑变更。
 - 修复后的 CI 尚未确认；总体验收维持 1/10（10%）。
+
+### 本轮：Control 控制中心基础 API（2026-10-10）
+- 用户确认 GUI 阶段 CI 已通过。
+- 新增 `src/qrft/control/app.py`：FastAPI `/health`、带 Bearer Token 鉴权的任务创建/列表、视频路径登记/列表、节点心跳/列表；SQLite WAL 持久化。
+- 新增 `tests/test_control_api.py`：鉴权、任务视频关系、心跳幂等、SQLite 重连持久化；Windows CI 添加 control 可选依赖与 httpx 测试。
+- 当前服务默认仅绑定 `127.0.0.1:8787`；通过 `QRFT_API_TOKEN` 配置鉴权，未配置时保护接口返回 503。
+- **未实现**逻辑时间片调度、租约、二进制包接收、缺包合并、Web 管理页面及 Control EXE 打包；本轮 CI 尚未验证，不能计入里程碑 6 完成。
+- 总体验收保持 1/10（10%）。下一步先修复/确认 CI，再补时间片与租约调度。
