@@ -253,3 +253,10 @@
 - 运行 `38032797339` 和 `38032801239` 均已核实：Ruff format 通过，Ruff check 因 `tests/test_control_api.py` 两处未启用的 `# noqa: E402` 触发 `RUF100` 失败；后续测试被跳过。
 - 已移除两处无效 noqa 并提交 `39ae1c6`。用户反馈其余 CI 通过；此修复后的新 CI 尚待验证。
 - 里程碑验收维持 1/10（10%）。
+
+### 本轮：Control 时间片调度和租约机制（2026-10-10）
+- 用户确认上一轮 CI 通过。
+- 新增 `src/qrft/control/scheduler.py`：默认 30 秒切片/1 秒重叠、SQLite 唯一约束去重、BEGIN IMMEDIATE 原子领取、租约超时重领、归属检查、幂等完成。
+- `src/qrft/control/app.py` 在登记视频时自动生成切片，提供 `POST /slices/claim`、`POST /slices/{slice_id}/complete`、`GET /slices`（均需 API Token）。
+- 新增 `tests/test_scheduler.py`，覆盖切片覆盖范围、重复登记、租约到期重领、归属检查与完成幂等。
+- **本轮尚未通过 CI**；节点实际解码、租约续期、结果包批量上传与恢复尚未实现。验收仍为 1/10（10%）。
