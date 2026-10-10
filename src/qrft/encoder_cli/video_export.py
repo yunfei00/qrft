@@ -49,9 +49,7 @@ def export_video(
             if image is None:
                 raise OSError(f"cannot read QR image: {path}")
             if image.shape[:2] != (height, width):
-                image = cv2.resize(
-                    image, (width, height), interpolation=cv2.INTER_NEAREST
-                )
+                image = cv2.resize(image, (width, height), interpolation=cv2.INTER_NEAREST)
             for _ in range(repeats):
                 writer.write(np.ascontiguousarray(image))
     finally:
