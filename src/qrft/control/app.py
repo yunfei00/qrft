@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import base64
 import binascii
 import os
@@ -12,16 +13,24 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from qrft.control.packets import ingest
 from qrft.control.packets import init_schema as init_packets
 from qrft.control.recovery import recover
 from qrft.control.scheduler import add_slices, claim, complete, init_schema, renew
+from qrft.control.web import PAGE
 from qrft.core.missing import export_missing
 from qrft.core.protocol import ProtocolError, decode_frame
 
 app = FastAPI(title="QRFT Control", version="0.1.0")
+
+
+@app.get("/", response_class=HTMLResponse)
+def management() -> HTMLResponse:
+    # Public login shell contains no task, node, path or token data.
+    return HTMLResponse(PAGE, headers={"Cache-Control": "no-store"})
 
 
 def database_path() -> Path:
@@ -409,10 +418,14 @@ def recover_task(task_id: int) -> dict:
     return result
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8787)
+    parser = argparse.ArgumentParser(description="QRFT Control")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", default=8787, type=int)
+    args = parser.parse_args(argv)
+    uvicorn.run(app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

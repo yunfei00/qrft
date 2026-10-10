@@ -296,8 +296,11 @@
 - 增加任务进度、恢复状态、缺包导出和恢复 API；从 SQLite 流式重建临时文件，CRC32/SHA256/MD5 校验后原子发布，拒绝覆盖和 Windows 非法文件名。
 - 中断后可以重新从 SQLite 重建；尚未实现复用临时文件的增量恢复。缺包集合与已收包号集合仍占与包数相关的内存，大文件性能待实测。
 - v1 DATA/FINISH 没有会话 ID：不同来源同长度包不能由单包鉴别；START 冲突、包冲突隔离和最终哈希防止静默输出错误文件，不能声称彻底解决串包。协议升级需兼容方案。
-- 生成 AVI 测试不等于真实录屏或真实双 Windows SMB 验收。Web 业务界面、四 EXE 完整交付、大视频性能尚未验收。
+- 生成 AVI 测试不等于真实录屏或真实双 Windows SMB 验收。Web 管理入口已补齐任务/视频登记、进度/节点/时间片查看、缺包导出和恢复；四 EXE 完整交付、大视频性能尚未验收。
 - 本地 Windows Python 3.12.13：Ruff format/check PASS；pytest **82 passed，无跳过**（7.31s）；二维码/ZXing/AVI/Control/Worker 专项 **31 passed**（4.50s）；全部关键依赖导入 PASS。Starlette/httpx 弃用警告 1 条，非失败。
 - 本机旧 pytest 临时目录 ACL 拒绝访问，使用 `PYTEST_DEBUG_TEMPROOT=D:/code_2026/qrft/temp` 后全部通过；没有修改用户临时目录权限。环境下载通过 NO_PROXY=* 绕过本机慢代理，Python 原版归档由 uv 安装。
 - 修改文件：pyproject.toml、uv.lock、ci.yml、control/app.py、control/recovery.py、control/scheduler.py、decoder/worker.py、core/reassemble.py、相关测试与文档。
-- 提交和 GitHub CI 链接在推送后补充。总验收基线保持 **1/10（10%）**。
+- 功能提交 `fc98925`，PR #1；Windows CI [38036564566](https://github.com/yunfei00/qrft/actions/runs/38036564566) 已全绿。
+- 后续补充 Web 管理入口、报告/临时文件同名恢复回归、[14 类测试覆盖说明](DISTRIBUTED_TESTING.md)。最终验证记录随提交补充。总验收基线保持 **1/10（10%）**。
+- 新增 Decoder EXE 的 worker 子命令并保留本地恢复；新增 Control EXE 构建、HTTP 服务/任务 API/Web 登录页面冒烟流水线。构建成功不等于真实设备验收。
+- 最终本地门禁：58 个 Python 文件格式通过、Ruff check PASS、**90 passed，无跳过**（8.35s）；Web JavaScript `node --check` PASS；Control/Decoder worker 帮助启动 PASS。最终 PR CI 与构件结果将在推送后记录。

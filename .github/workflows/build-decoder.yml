@@ -23,13 +23,15 @@ jobs:
           uv run --no-sync pytest -q tests/test_video_end_to_end.py
       - name: PyInstaller 打包解码器
         run: |
-          uv run --no-sync pyinstaller --noconfirm --clean --onedir --console --name QRFT-Decoder --paths src src/qrft/decoder/main.py
+          uv run --no-sync pyinstaller --noconfirm --clean --onedir --console --name QRFT-Decoder --paths src src/qrft/decoder/entrypoint.py
       - name: EXE 启动与命令行冒烟测试
         shell: pwsh
         run: |
           $env:PYTHONIOENCODING = "utf-8"
           & dist/QRFT-Decoder/QRFT-Decoder.exe --help
           if ($LASTEXITCODE -ne 0) { throw "Decoder EXE --help failed" }
+          & dist/QRFT-Decoder/QRFT-Decoder.exe worker --help
+          if ($LASTEXITCODE -ne 0) { throw "Decoder EXE worker --help failed" }
       - name: 上传 Windows 解码器构件
         uses: actions/upload-artifact@v4
         with:

@@ -43,8 +43,11 @@ def bind(client, task, meta):
 
 
 @pytest.mark.parametrize("content", [b"", bytes(range(256)) * 3])
-def test_data_before_start_retransmission_and_restart(control, tmp_path, content):
-    source = tmp_path / "all-bytes.bin"
+@pytest.mark.parametrize(
+    "filename", ["all-bytes.bin", "missing.txt", "received.part", "no-extension"]
+)
+def test_data_before_start_retransmission_and_restart(control, tmp_path, content, filename):
+    source = tmp_path / filename
     source.write_bytes(content)
     meta = inspect_file(source, 64)
     task = control.post("/tasks", json={"name": "binary"}).json()["id"]
@@ -89,7 +92,7 @@ def test_hash_failure_does_not_publish(control, tmp_path):
     assert bind(control, task, inspect_file(source, 3)).status_code == 200
     assert submit(control, task, [encode_data(0, b"xyz"), encode_finish()]).status_code == 200
     assert control.post(f"/tasks/{task}/recover").status_code == 409
-    assert not (tmp_path / "output" / str(task) / source.name).exists()
+    assert not (tmp_path / "output" / str(task) / "files" / source.name).exists()
 
 
 @pytest.mark.parametrize("workers", [1, 2])
@@ -191,6 +194,11 @@ def test_new_operations_require_token(control):
         ("post", "/tasks/1/missing/export"),
     ):
         assert getattr(unauthenticated, method)(path).status_code == 401
+    page = unauthenticated.get("/")
+    assert page.status_code == 200
+    assert "Bearer " in page.text
+    assert "localStorage" not in page.text
+    assert "test-token" not in page.text
 
 
 def test_finish_batch_rollback_and_manifest_conflict(control, tmp_path):

@@ -29,6 +29,8 @@ def recover(db: sqlite3.Connection, task_id: int, directory: Path) -> dict:
         export_missing(directory, assembler.manifest["total_packets"], assembler.received)
         if restored is None:
             return {"status": "incomplete"}
-        target = directory / restored.name
+        files = directory / "files"
+        files.mkdir(exist_ok=True)
+        target = files / restored.name
         os.link(restored, target)
         return {"status": "verified", "path": str(target), "sha256": assembler.manifest["sha256"]}

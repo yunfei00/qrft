@@ -93,7 +93,10 @@ class FileAssembler:
         if self.manifest is None or self._file is None:
             raise ProtocolError("no START frame")
         total = int(self.manifest["total_packets"])
-        missing = export_missing(self.directory, total, self.received)
+        reports = self.directory
+        if self.manifest.get("filename") in {"missing.txt", "missing.csv", "missing.json"}:
+            reports = self.directory / ".qrft-missing"
+        missing = export_missing(reports, total, self.received)
         if missing or not self.finished:
             return None
         sha = hashlib.sha256()

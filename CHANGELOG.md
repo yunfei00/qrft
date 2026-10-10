@@ -32,3 +32,4 @@
 - SQLite 文件恢复、缺包文件导出和任务进度 API；最终哈希校验及拒绝覆盖。
 - 修复 Windows 路径测试和模拟表结构，生成 uv.lock，锁定完整依赖 CI。
 - 实际测试和 CI 证据见 docs/STATUS.md，验收比例保持 1/10。
+- 新增 Web 管理入口；Decoder EXE 暴露 worker 子命令；Control EXE 构建和 HTTP 冒烟验证。

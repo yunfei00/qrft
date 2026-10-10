@@ -98,7 +98,9 @@ uv run --no-sync python -m qrft.decoder.worker --server http://SERVER:8787 --tok
 
 ```powershell
 Get-FileHash 'C:\Temp\original.bin' -Algorithm SHA256
-Get-FileHash 'C:\Temp\qrft-recovered\TASK_ID\original.bin' -Algorithm SHA256
+Get-FileHash 'C:\Temp\qrft-recovered\TASK_ID\files\original.bin' -Algorithm SHA256
 ```
 
 预期哈希相同；再次恢复返回 409，既有文件不覆盖。记录 Windows 版本、节点 ID、视频时长、包统计、故障重领和哈希证据，反馈 UA-006 PASS/FAIL。当前无真实双机验收结果。
+
+控制端根路径 `/` 提供 Web 管理入口：输入 Token 后连接，创建/选择任务、登记视频、查看进度/节点/时间片、导出缺包及恢复文件。登录页面本身不含业务数据，所有数据请求继续验证 Authorization；Token 不写入浏览器持久存储。`/docs` 保留 API 调试入口。

@@ -1,6 +1,6 @@
 # QRFT — 二维码二进制文件传输与视频恢复系统
 
-**当前状态：协议原型与工程骨架，尚未完成可运行产品。** 目标交付日期：2026-10-16（7 天紧凑排期）。
+**当前状态：Python 编码/视频恢复闭环、控制中心和分布式 Worker 已实现；完整产品与真实双机验收尚未完成。** 目标交付日期：2026-10-16（7 天紧凑排期）。
 
 QRFT 支持将任意二进制文件转换为二维码序列，通过录屏保存，再使用单机或多台 Windows 解码节点从视频中恢复文件。
 
@@ -35,6 +35,17 @@ QRFT 支持将任意二进制文件转换为二维码序列，通过录屏保存
 **GitHub 是唯一事实来源，不依赖 ChatGPT 聊天记录。** 任何需要用户亲自操作的任务，必须先写入 [USER_ACTIONS.md](docs/USER_ACTIONS.md)，聊天中只需提示按照对应操作编号执行。能够通过 CI 自动验证的工作不要求用户重复操作。
 
 本仓库公开，请勿提交真实令牌、生产配置、录屏或业务文件。
+
+## 本地启动
+
+```powershell
+uv sync --locked --python 3.12 --all-extras --group dev
+$env:QRFT_API_TOKEN = Read-Host 'API Token'
+uv run --no-sync python -m qrft.control.app
+```
+
+打开 `http://127.0.0.1:8787/`，输入同一 Token，创建任务并登记节点可访问的视频路径。分布式节点使用 `python -m qrft.decoder.worker --server URL --token TOKEN --node-id NODE_ID`；打包解码器对应 `QRFT-Decoder.exe worker` 子命令，本地视频恢复参数仍兼容。
+真实双机步骤、故障验收和哈希验证见 UA-006；测试覆盖与已知协议限制见 [分布式测试说明](docs/DISTRIBUTED_TESTING.md)。
 
 ## 许可证
 
