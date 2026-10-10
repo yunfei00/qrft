@@ -6,7 +6,6 @@ import argparse
 import base64
 import json
 import time
-import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -47,7 +46,9 @@ def process_slice(
         nonlocal sent
         if batch:
             request_json(
-                base_url, token, "/packets/batch",
+                base_url,
+                token,
+                "/packets/batch",
                 {"task_id": task_id, "frames_base64": batch},
             )
             sent += len(batch)
@@ -62,18 +63,21 @@ def process_slice(
         if frame.kind == "start":
             request_json(
                 base_url, token, "/tasks/manifest",
-                {"task_id": task_id, "start_base64": base64.b64encode(
-                    encode_start(frame.metadata or {})
-                ).decode("ascii")},
+                {
+                    "task_id": task_id,
+                    "start_base64": base64.b64encode(encode_start(frame.metadata or {})).decode(
+                        "ascii"
+                    ),
+                },
             )
         elif frame.kind == "data":
-            batch.append(base64.b64encode(encode_data(frame.packet_id, frame.payload)).decode("ascii"))
+            batch.append(
+                base64.b64encode(encode_data(frame.packet_id, frame.payload)).decode("ascii")
+            )
             if len(batch) >= batch_size:
                 flush()
     flush()
-    request_json(
-        base_url, token, f"/slices/{lease['id']}/complete", {"node_id": node_id}
-    )
+    request_json(base_url, token, f"/slices/{lease['id']}/complete", {"node_id": node_id})
     return sent
 
 
@@ -108,8 +112,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--once", action="store_true")
     args = parser.parse_args(argv)
     run_worker(
-        args.server, args.token, args.node_id,
-        poll_seconds=args.poll_seconds, once=args.once,
+        args.server,
+        args.token,
+        args.node_id,
+        poll_seconds=args.poll_seconds,
+        once=args.once,
     )
     return 0
 
