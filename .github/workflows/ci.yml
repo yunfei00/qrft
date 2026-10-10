@@ -28,3 +28,7 @@ jobs:
         run: |
           uv sync --extra encoder --group dev
           uv run --no-sync pytest -q tests/test_qr_image.py tests/test_encoder_cli.py
+      - name: 真实二维码字节往返测试（ZXing）
+        run: |
+          uv sync --extra encoder --extra decoder --group dev
+          uv run --no-sync pytest -q tests/test_qr_roundtrip.py
