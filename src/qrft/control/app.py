@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from qrft.control.packets import ingest
 from qrft.control.packets import init_schema as init_packets
 from qrft.control.scheduler import add_slices, claim, complete, init_schema, renew
-from qrft.core.protocol import ProtocolError
+from qrft.core.protocol import ProtocolError, decode_frame
 
 app = FastAPI(title="QRFT Control", version="0.1.0")
 
@@ -56,8 +56,18 @@ def connection():
         )
         init_schema(db)
         init_packets(db)
-        yield db
-        db.commit()
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS task_manifests ("
+            "task_id INTEGER PRIMARY KEY, start_frame BLOB NOT NULL, "
+            "total_packets INTEGER NOT NULL, chunk_size INTEGER NOT NULL, "
+            "file_size INTEGER NOT NULL)"
+        )
+        try:
+            yield db
+            db.commit()
+        except BaseException:
+            db.rollback()
+            raise
     finally:
         db.close()
 
@@ -88,6 +98,11 @@ class SliceClaim(BaseModel):
 class SliceRenew(BaseModel):
     node_id: str = Field(min_length=1, max_length=128)
     lease_seconds: int = Field(default=120, ge=1, le=3600)
+
+
+class ManifestBind(BaseModel):
+    task_id: int = Field(gt=0)
+    start_base64: str
 
 
 class PacketBatch(BaseModel):
@@ -202,17 +217,103 @@ def renew_slice(slice_id: int, item: SliceRenew) -> dict[str, str]:
         return {"status": result}
 
 
+@app.post("/tasks/manifest", dependencies=[Depends(require_token)])
+def bind_manifest(item: ManifestBind) -> dict[str, str]:
+    try:
+        raw = base64.b64decode(item.start_base64, validate=True)
+        if len(raw) > 8192:
+            raise ValueError("START frame exceeds size limit")
+        frame = decode_frame(raw)
+        if frame.kind != "start" or frame.metadata is None:
+            raise ProtocolError("START frame required")
+        meta = frame.metadata
+        size, chunk, total = (meta.get(k) for k in ("file_size", "chunk_size", "total_packets"))
+        if (
+            type(size) is not int
+            or type(chunk) is not int
+            or type(total) is not int
+            or size < 0
+            or chunk <= 0
+            or total != (size + chunk - 1) // chunk
+            or total > 88888888
+        ):
+            raise ProtocolError("invalid START manifest sizes")
+        if not all(
+            isinstance(meta.get(key), str)
+            and len(meta[key]) == length
+            and all(ch in "0123456789abcdefABCDEF" for ch in meta[key])
+            for key, length in (("sha256", 64), ("md5", 32))
+        ):
+            raise ProtocolError("invalid manifest hashes")
+    except (ValueError, binascii.Error, ProtocolError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        if db.execute("SELECT 1 FROM tasks WHERE id=?", (item.task_id,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+        existing = db.execute(
+            "SELECT start_frame FROM task_manifests WHERE task_id=?", (item.task_id,)
+        ).fetchone()
+        if existing is not None:
+            if existing["start_frame"] != raw:
+                raise HTTPException(status_code=409, detail="Conflicting START manifest")
+            return {"status": "already_bound"}
+        if db.execute(
+            "SELECT 1 FROM packets WHERE task_id=? LIMIT 1", (item.task_id,)
+        ).fetchone() is not None:
+            raise HTTPException(status_code=409, detail="Packets already received")
+        db.execute(
+            "INSERT INTO task_manifests(task_id,start_frame,total_packets,chunk_size,file_size) "
+            "VALUES (?,?,?,?,?)",
+            (item.task_id, raw, total, chunk, size),
+        )
+    return {"status": "bound"}
+
+
+@app.get("/tasks/{task_id}/missing", dependencies=[Depends(require_token)])
+def missing_packets(task_id: int) -> dict:
+    with connection() as db:
+        manifest = db.execute(
+            "SELECT total_packets FROM task_manifests WHERE task_id=?", (task_id,)
+        ).fetchone()
+        if manifest is None:
+            raise HTTPException(status_code=404, detail="START manifest not bound")
+        received = {
+            row[0]
+            for row in db.execute("SELECT packet_id FROM packets WHERE task_id=?", (task_id,))
+        }
+        total = manifest["total_packets"]
+        missing = [packet_id for packet_id in range(total) if packet_id not in received]
+        return {"total_packets": total, "received": len(received), "missing_ids": missing}
+
+
 @app.post("/packets/batch", dependencies=[Depends(require_token)])
 def ingest_batch(item: PacketBatch) -> dict[str, int]:
     counts = {"inserted": 0, "duplicate": 0, "conflict": 0}
     with connection() as db:
         if db.execute("SELECT 1 FROM tasks WHERE id=?", (item.task_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Task not found")
+        db.execute("BEGIN IMMEDIATE")
         for encoded in item.frames_base64:
             try:
                 raw = base64.b64decode(encoded, validate=True)
                 if len(raw) > 8192:
                     raise ValueError("frame exceeds size limit")
+                frame = decode_frame(raw)
+                manifest = db.execute(
+                    "SELECT total_packets,chunk_size,file_size FROM task_manifests WHERE task_id=?",
+                    (item.task_id,),
+                ).fetchone()
+                if manifest is not None and (
+                    frame.kind != "data"
+                    or frame.packet_id >= manifest["total_packets"]
+                    or len(frame.payload)
+                    != min(
+                        manifest["chunk_size"],
+                        manifest["file_size"] - frame.packet_id * manifest["chunk_size"],
+                    )
+                ):
+                    raise ProtocolError("DATA frame does not match bound manifest")
                 result = ingest(db, item.task_id, raw)
             except (ValueError, binascii.Error, ProtocolError) as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
