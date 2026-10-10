@@ -1,23 +1,25 @@
-# QRFT v1.0 — One-week delivery plan
+# QRFT 一周交付计划
 
-Target: 2026-10-10 through 2026-10-16. Seven calendar days, aggressive target rather than guaranteed release.
+**计划周期：2026-10-10 至 2026-10-16。** 时间紧，必须以可验证的文件无损恢复闭环为优先目标，未测试功能不能标记完成。
 
-| Date | Phase | Acceptance |
+| 日期 | 阶段 | 验收目标 |
 |---|---|---|
-| 10/10 | Phase 0: repository, docs, protocol, CI | Reproducible repo baseline and binary QR test plan |
-| 10/11 | Phase 1: core + CLI encoder | Arbitrary binary file displayed as numbered QR frames |
-| 10/12 | Phase 2: video decoder + recovery | Recorded-video round trip, missing list, retransmission |
-| 10/13 | Phase 3: web control center | EXE launches website; jobs, sessions and downloads |
-| 10/14 | Phase 4: distributed worker | Two Windows workers read shared SMB video by logical time ranges |
-| 10/15 | Phase 5: GUI encoder | GUI/CLI interoperability and four Windows packages |
-| 10/16 | Phase 6: reliability, performance, release | Documented acceptance evidence and release artifacts |
+| 10/10 | Phase 0：工程、uv、协议、CI | 可复现工程与二进制协议测试 |
+| 10/11 | Phase 1：共享核心与 CLI 编码器 | 任意二进制文件显示二维码 |
+| 10/12 | Phase 2：视频解码与恢复 | 录屏还原、缺包列表、补传 |
+| 10/13 | Phase 3：Web 控制端 | EXE 启动管理网站和任务 |
+| 10/14 | Phase 4：分布式解码节点 | 两台 Windows 节点分段读取 SMB 视频 |
+| 10/15 | Phase 5：GUI 编码器 | GUI/CLI 协议兼容，四模块集成 |
+| 10/16 | Phase 6：可靠性、性能与发布 | Windows 安装包/绿色版及真实验收记录 |
 
-Prioritize correctness and a usable end-to-end workflow. Do not claim large-video throughput, distributed scaling, or Windows packaging until measured. If schedule slips, publish exact unfinished items rather than inventing completion.
+## 核心决策
 
-## Decisions
-- New implementation; no legacy migration.
-- Repository: public github.com/yunfei00/qrft.
-- Four executable modules; one shared internal core.
-- Windows LAN; one Windows video storage host; SMB direct video reads.
-- Video files can be tens of GB; do not upload or replicate whole recordings.
-- GitHub docs, tests, issues and commits are the source of truth, never chat history.
+- 仓库：公开的 `yunfei00/qrft`，从零开发。
+- 四个独立交付程序，共享一套核心库。
+- Windows 局域网，中心机保存大体积视频，节点通过 SMB 按逻辑时间片读取，不复制整个视频。
+- 代码、架构决策、操作手册、测试记录和交接信息全部保存在 GitHub。
+- Python 3.12，使用 uv 管理环境和依赖。
+
+## 进度纪律
+
+每个阶段都同步更新 `docs/STATUS.md` 和 `CHANGELOG.md`。若进度延迟，先确保单机端到端正确，再完成分布式扩展；不得虚报完成。
