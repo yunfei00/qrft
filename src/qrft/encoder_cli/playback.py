@@ -14,16 +14,29 @@ def iter_encoded_frames(
     *,
     chunk_size: int = 256,
     retransmit: Path | None = None,
+    start_id: int = 0,
+    end_id: int | None = None,
 ) -> Iterator[tuple[str, bytes]]:
     """START、选定 DATA、FINISH；每次迭代仅读取一个数据包。"""
     if not source.is_file():
         raise FileNotFoundError(source)
     manifest = inspect_file(source, chunk_size)
     total = int(manifest["total_packets"])
+    if start_id < 0 or start_id > total:
+        raise ValueError("start_id outside packet range")
+    last = total - 1 if end_id is None else end_id
+    if last < -1 or last >= total or (last < start_id and not (total == 0 and last == -1)):
+        raise ValueError("end_id outside packet range")
     ids = (
-        range(total)
+        range(start_id, last + 1)
         if retransmit is None
-        else parse_packet_list(retransmit.read_text(encoding="utf-8-sig"), total)
+        else [
+            packet_id
+            for packet_id in parse_packet_list(
+                retransmit.read_text(encoding="utf-8-sig"), total
+            )
+            if start_id <= packet_id <= last
+        ]
     )
     yield "START", encode_start(manifest)
     for packet_id in ids:
