@@ -17,3 +17,7 @@
 
 ### 缺包管理
 - 新增缺包列表 TXT/CSV/JSON 导出核心，TXT 格式与补传包号解析器兼容；已提交测试但尚未验证执行结果。
+
+### 编码器 CLI 子功能
+- 新增二进制文件流式二维码 PNG 帧导出，支持 `--chunk-size` 和 `--retransmit`，导出 START/FINISH 控制帧及 manifest.json。
+- 新增 CLI 导出、缺包重传和空文件测试；新 CI 尚待验证。
