@@ -1,22 +1,12 @@
-# User actions — copy/paste runbook
+# QRFT 用户操作手册（唯一操作入口）
 
-This is the single place for **all operations that require the user's Windows computer, GitHub account, or physical recording hardware**. Every future user action must be documented here *before* asking the user to execute it. Never depend on chat messages for commands.
+**约定：所有需要用户执行的操作，必须先写入本文件，再在聊天中提示“请按照 [用户操作手册](USER_ACTIONS.md) 的 UA-XXX 执行”。** 命令统一使用 Windows PowerShell，确保可复制。每项必须写明执行时机、环境、命令、预期结果和反馈方式。CI 能自动完成的事情不要求用户重复执行。
 
-## Rules
-- Each action includes **when**, **where**, **prerequisites**, **copy/paste command**, **expected output**, and **what to send back**.
-- Use PowerShell commands for Windows unless explicitly labeled otherwise.
-- Mark actions `PENDING`, `VERIFIED`, `FAILED` or `NOT REQUIRED`; do not claim verification without evidence.
-- Commands must not contain real credentials or private host addresses.
-- After an action is verified, retain it as a reproducible historical runbook and link its evidence in `STATUS.md`.
-- All new user-side checks (CI, actual video recordings, multi-machine tests, EXE smoke tests) go in this document first.
+## UA-001：Windows 本地 uv 环境验证
 
-## UA-001 — Verify uv workspace locally
+**状态：待执行；仅在需要本机复现或 CI 失败时执行。当前无需操作。**
 
-**Status:** PENDING — optional local validation; GitHub Windows CI should do the automated part first.
-
-**Where:** Windows PowerShell with Git and uv installed.
-
-**Prerequisites:** Access to https://github.com/yunfei00/qrft and an internet connection. Install uv from https://docs.astral.sh/uv/getting-started/installation/ if needed.
+环境：已安装 Git 和 uv 的 Windows PowerShell。uv 安装指南：https://docs.astral.sh/uv/getting-started/installation/
 
 ```powershell
 git clone https://github.com/yunfei00/qrft.git
@@ -28,24 +18,20 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-**Expected:** uv resolves dependencies, creates a local `.venv`, pytest passes, ruff checks pass. If a command fails, save the complete output rather than retrying blindly.
+预期：自动建立 `.venv`；测试和静态检查通过。若失败，反馈出错命令及完整输出；成功则反馈 `UA-001 PASS`。
 
-**Report:** Paste the failing command and its full error output, or report `UA-001 PASS`. Do not send credentials.
+## UA-002：真实二维码录屏验证
 
-## UA-002 — Record real QR video (later stage)
+**状态：暂不需要。** 编码器完成后，将在这里补充录屏软件设置、示例文件、操作命令、预期哈希及反馈格式。
 
-**Status:** NOT REQUIRED YET — encoder not implemented.
+## UA-003：Windows 局域网 SMB 分布式解码验证
 
-When the encoder becomes available, this section will contain the exact executable path, sample file, capture settings, recording steps, and expected hashes. Do not perform this action until the instructions are completed.
+**状态：暂不需要。** 工作节点和控制端完成后，将在这里补充共享权限配置、节点命令、测试数据与预期结果。不得提交真实密码或令牌。
 
-## UA-003 — Validate distributed SMB decoding (later stage)
+## UA-004：四个 Windows EXE 验收
 
-**Status:** NOT REQUIRED YET — decoder/control not implemented.
+**状态：暂不需要。** 打包完成后，将在这里补充下载地址、四个程序的启动命令及验收标准。
 
-This section will contain exact PowerShell commands for storage share setup, least-privilege accounts, worker config and two-node validation. Never commit secrets or machine-specific configuration.
+## 状态维护
 
-## UA-004 — Verify packaged Windows EXEs (later stage)
-
-**Status:** NOT REQUIRED YET — packaging not implemented.
-
-This section will include four EXE paths, launch commands, expected UI/log outputs, and verification steps.
+执行完成后在 GitHub 记录：执行日期、命令、PASS/FAIL、日志位置。未验证不得标为通过。
