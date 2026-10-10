@@ -14,7 +14,8 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from qrft.control.packets import ingest, init_schema as init_packets
+from qrft.control.packets import ingest
+from qrft.control.packets import init_schema as init_packets
 from qrft.control.scheduler import add_slices, claim, complete, init_schema, renew
 from qrft.core.protocol import ProtocolError
 
