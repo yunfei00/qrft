@@ -30,7 +30,13 @@ def main(argv: list[str] | None = None) -> int:
     player.add_argument("--windowed", action="store_true")
     args = parser.parse_args(argv)
     if args.command == "export":
-        options = [str(args.source), "--output", str(args.output), "--chunk-size", str(args.chunk_size)]
+        options = [
+            str(args.source),
+            "--output",
+            str(args.output),
+            "--chunk-size",
+            str(args.chunk_size),
+        ]
         if args.retransmit is not None:
             options.extend(["--retransmit", str(args.retransmit)])
         return export_main(options)
