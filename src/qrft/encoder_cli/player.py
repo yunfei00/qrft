@@ -4,11 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Iterator
 from pathlib import Path
-
-from qrft.encoder_cli.playback import iter_encoded_frames
-from qrft.encoder_cli.prefetch import prefetch_png
 
 
 def play(
@@ -30,102 +26,30 @@ def play(
     if workers < 1 or prefetch < workers:
         raise ValueError("require 1 <= workers <= prefetch")
 
-    from PySide6.QtCore import Qt, QTimer
-    from PySide6.QtGui import QPixmap
-    from PySide6.QtWidgets import QApplication, QLabel
+    from PySide6.QtWidgets import QApplication
 
-    frames: Iterator[tuple[str, bytes]] = iter_encoded_frames(
+    from qrft.encoder_gui.player import PlayerWindow
+
+    existing_app = QApplication.instance()
+    app = existing_app or QApplication(sys.argv)
+    window = PlayerWindow(
         source,
         chunk_size=chunk_size,
+        interval_ms=interval_ms,
+        initial_delay_ms=initial_delay_ms,
         retransmit=retransmit,
         start_id=start_id,
         end_id=end_id,
+        fullscreen=fullscreen,
+        workers=workers,
+        prefetch=prefetch,
     )
-    prepared = prefetch_png(frames, workers=workers, capacity=prefetch)
-    existing_app = QApplication.instance()
-    app = existing_app or QApplication(sys.argv)
-
-    class Player(QLabel):
-        def __init__(self) -> None:
-            super().__init__("QRFT 准备播放，空格暂停 / 继续，Esc 退出")
-            self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.setStyleSheet("background: white; color: black; font-size: 24px;")
-            self.timer = QTimer(self)
-            self.timer.setInterval(interval_ms)
-            self.timer.timeout.connect(self.advance)
-            self.paused = False
-            self.finished = False
-            self.started = False
-            QTimer.singleShot(initial_delay_ms, self.start_playback)
-
-        def start_playback(self) -> None:
-            if self.finished or self.started:
-                return
-            self.started = True
-            if not self.paused:
-                self.advance()
-
-        def finish(self, message: str) -> None:
-            self.finished = True
-            self.timer.stop()
-            self.setText(message)
-            prepared.close()
-
-        def advance(self) -> None:
-            if self.paused or self.finished:
-                return
-            try:
-                packet_id, png = next(prepared)
-            except StopIteration:
-                self.finish("QRFT 播放完成，按 Esc 退出")
-                return
-            except (OSError, RuntimeError, ValueError) as exc:
-                self.finish(f"QRFT 播放失败：{exc}")
-                return
-            image = QPixmap()
-            if not image.loadFromData(png, "PNG"):
-                self.finish(f"二维码生成失败：{packet_id}")
-                return
-            self.setPixmap(
-                image.scaled(
-                    self.size(),
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.FastTransformation,
-                )
-            )
-            self.timer.start()
-
-        def keyPressEvent(self, event: object) -> None:
-            key = event.key()
-            if key == Qt.Key.Key_Escape:
-                self.close()
-            elif key == Qt.Key.Key_Space and not self.finished:
-                self.paused = not self.paused
-                if self.paused:
-                    self.timer.stop()
-                elif self.started:
-                    self.advance()
-            else:
-                super().keyPressEvent(event)
-
-        def closeEvent(self, event: object) -> None:
-            if not self.finished:
-                self.finished = True
-                self.timer.stop()
-                prepared.close()
-            super().closeEvent(event)
-
-    window = Player()
-    if fullscreen:
-        window.showFullScreen()
-    else:
-        window.resize(900, 900)
-        window.show()
+    window.show()
     if existing_app is not None:
         windows = app.property("qrft_players") or []
         windows.append(window)
         app.setProperty("qrft_players", windows)
-        window.destroyed.connect(lambda: windows.remove(window) if window in windows else None)
+        window.stopped.connect(lambda: windows.remove(window) if window in windows else None)
         return 0
     return app.exec()
 
