@@ -18,6 +18,8 @@ def play(
     interval_ms: int = 300,
     initial_delay_ms: int = 3000,
     retransmit: Path | None = None,
+    start_id: int = 0,
+    end_id: int | None = None,
     fullscreen: bool = True,
 ) -> int:
     """延迟启动并按定时器显示二维码，数据帧在播放时才生成。"""
@@ -29,7 +31,11 @@ def play(
     from PySide6.QtWidgets import QApplication, QLabel
 
     frames: Iterator[tuple[str, bytes]] = iter_encoded_frames(
-        source, chunk_size=chunk_size, retransmit=retransmit
+        source,
+        chunk_size=chunk_size,
+        retransmit=retransmit,
+        start_id=start_id,
+        end_id=end_id,
     )
     app = QApplication.instance() or QApplication(sys.argv)
 
@@ -96,6 +102,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--interval-ms", type=int, default=300)
     parser.add_argument("--initial-delay-ms", type=int, default=3000)
     parser.add_argument("--retransmit", type=Path)
+    parser.add_argument("--start-id", type=int, default=0)
+    parser.add_argument("--end-id", type=int)
     parser.add_argument("--windowed", action="store_true")
     args = parser.parse_args(argv)
     return play(
@@ -104,6 +112,8 @@ def main(argv: list[str] | None = None) -> int:
         interval_ms=args.interval_ms,
         initial_delay_ms=args.initial_delay_ms,
         retransmit=args.retransmit,
+        start_id=args.start_id,
+        end_id=args.end_id,
         fullscreen=not args.windowed,
     )
 
