@@ -20,8 +20,8 @@ def test_slice_coverage_and_idempotent_registration() -> None:
 def test_claim_lease_and_completion(tmp_path) -> None:
     db = sqlite3.connect(tmp_path / "leases.db")
     db.row_factory = sqlite3.Row
-    db.execute("CREATE TABLE videos(id INTEGER PRIMARY KEY, path TEXT)")
-    db.execute("INSERT INTO videos VALUES (1, 'share/video.avi')")
+    db.execute("CREATE TABLE videos(id INTEGER PRIMARY KEY, path TEXT, task_id INTEGER)")
+    db.execute("INSERT INTO videos VALUES (1, 'share/video.avi', 1)")
     init_schema(db)
     add_slices(db, 1, 2)
     db.commit()

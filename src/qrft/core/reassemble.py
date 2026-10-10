@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -49,7 +51,11 @@ class FileAssembler:
             ):
                 raise ProtocolError("missing manifest hashes")
             self.manifest = dict(meta)
-            self._file = self.directory / "received.part"
+            descriptor, temporary = tempfile.mkstemp(
+                prefix=".qrft-", suffix=".part", dir=self.directory
+            )
+            os.close(descriptor)
+            self._file = Path(temporary)
             with self._file.open("wb") as stream:
                 stream.truncate(size)
             return
@@ -87,7 +93,10 @@ class FileAssembler:
         if self.manifest is None or self._file is None:
             raise ProtocolError("no START frame")
         total = int(self.manifest["total_packets"])
-        missing = export_missing(self.directory, total, self.received)
+        reports = self.directory
+        if self.manifest.get("filename") in {"missing.txt", "missing.csv", "missing.json"}:
+            reports = self.directory / ".qrft-missing"
+        missing = export_missing(reports, total, self.received)
         if missing or not self.finished:
             return None
         sha = hashlib.sha256()
@@ -101,8 +110,24 @@ class FileAssembler:
         filename = self.manifest.get("filename")
         if not isinstance(filename, str) or not filename or Path(filename).name != filename:
             raise ProtocolError("unsafe filename")
+        if (
+            any(ch in filename for ch in '<>:"/\\|?*')
+            or any(ord(ch) < 32 for ch in filename)
+            or filename.endswith((" ", "."))
+            or filename.split(".")[0].upper()
+            in {
+                "CON",
+                "PRN",
+                "AUX",
+                "NUL",
+                *(f"COM{i}" for i in range(1, 10)),
+                *(f"LPT{i}" for i in range(1, 10)),
+            }
+        ):
+            raise ProtocolError("unsafe filename")
         target = self.directory / filename
         if target.exists():
             raise FileExistsError(target)
-        self._file.replace(target)
+        os.link(self._file, target)
+        self._file.unlink()
         return target

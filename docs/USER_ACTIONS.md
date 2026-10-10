@@ -69,3 +69,38 @@ uv run ruff format --check .
    录屏必须真实存在；程序输出成功并核对 SHA-256 后才算视频恢复验收通过。尚未准备录屏时可跳过第 5 步。
 
 > UA-002 为构件成功后可选的本地人工验收；当前 CI 可自动完成编码器 PNG 导出冒烟测试、解码器帮助启动测试及真实 AVI 端到端 Python 回归测试，无须现在执行。
+
+## UA-006：真实双 Windows / SMB 验收
+
+状态：待外部设备；模拟测试不替代本项。两台节点须能读取中心机同一只读 SMB 共享，防火墙允许控制端端口。
+
+中心机设置测试 Token、数据库和恢复目录并启动控制端：
+
+```powershell
+$env:QRFT_API_TOKEN = Read-Host '测试 API Token'
+$env:QRFT_DB_PATH = 'C:\Temp\qrft-control.sqlite3'
+$env:QRFT_OUTPUT_DIR = 'C:\Temp\qrft-recovered'
+uv run --no-sync uvicorn qrft.control.app:app --host 0.0.0.0 --port 8787
+```
+
+在 /docs 页面设置 Authorization Header，通过 POST /tasks 创建任务，通过 POST /videos 登记任务 ID、UNC 视频路径和真实时长。每个任务只登记同一原始文件的录屏与补传视频，v1 DATA 没有文件 ID，不可混用文件。
+
+两台节点分别运行，替换 SERVER 和各自唯一 NODE_ID：
+
+```powershell
+$token = Read-Host '测试 API Token'
+uv run --no-sync python -m qrft.decoder.worker --server http://SERVER:8787 --token $token --node-id NODE_ID
+```
+
+检查 /nodes、/slices、/tasks/{task_id}/progress。长片扫描时确认心跳及续租；中途 Ctrl+C 退出一个节点，等待 120 秒租约到期后确认另一台接管。断网后恢复，确认重试和已收包持久化。无效共享路径必须报错且不得标记 done。
+
+调用 POST /tasks/{task_id}/missing/export，返回目录包含 missing.txt、missing.csv、missing.json；使用 missing.txt 执行编码端 --retransmit，再登记补传视频到同一任务。调用 POST /tasks/{task_id}/recover：
+
+```powershell
+Get-FileHash 'C:\Temp\original.bin' -Algorithm SHA256
+Get-FileHash 'C:\Temp\qrft-recovered\TASK_ID\files\original.bin' -Algorithm SHA256
+```
+
+预期哈希相同；再次恢复返回 409，既有文件不覆盖。记录 Windows 版本、节点 ID、视频时长、包统计、故障重领和哈希证据，反馈 UA-006 PASS/FAIL。当前无真实双机验收结果。
+
+控制端根路径 `/` 提供 Web 管理入口：输入 Token 后连接，创建/选择任务、登记视频、查看进度/节点/时间片、导出缺包及恢复文件。登录页面本身不含业务数据，所有数据请求继续验证 Authorization；Token 不写入浏览器持久存储。`/docs` 保留 API 调试入口。

@@ -28,6 +28,10 @@ uv sync --locked --all-extras --group dev
 
 `pyproject.toml` 是依赖声明，`uv.lock` 是 uv 生成的锁文件，必须提交 GitHub。不得手写锁文件。CI 使用 `uv sync --locked` 确保依赖一致。
 
+本地环境已生成锁文件，日常执行 `uv sync --locked --python 3.12 --all-extras --group dev`。
+若本机旧 pytest 临时目录 ACL 拒绝访问，可设置 `$env:PYTEST_DEBUG_TEMPROOT = "$PWD/temp"` 后执行原测试命令；temp 已被 Git 忽略。
+若本机代理下载极慢，可仅在当前 PowerShell 设置 `$env:NO_PROXY = '*'` 后重试 uv；不修改全局网络配置。
+
 ## 项目状态
 
 当前是工程骨架和协议原型，不代表编码器、视频解码器或 EXE 已完成。实际验证以 CI 和 `docs/STATUS.md` 为准。
