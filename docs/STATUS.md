@@ -99,3 +99,12 @@
 - Windows CI 新增 encoder 可选依赖安装和二维码 PNG 测试步骤；新提交尚未验证通过。
 - **进度：1/10 已验收（10%，按用户反馈 CI 通过计），协议与缺包模块仍为已实现待验证，二维码 PNG 生成模块已实现待验证。**
 - 重要：PNG 可生成并不等于已验证扫码后字节一致；下一步必须接入 `zxing-cpp` 原始字节读取进行往返测试。
+
+### 本轮：CLI 二维码帧导出及指定缺包补传（2026-10-10）
+- 用户确认上一轮 CI 已通过。
+- 新增 `src/qrft/encoder_cli/main.py`：提供 `python -m qrft.encoder_cli.main 文件 --output 目录 [--chunk-size 256] [--retransmit missing.txt]`；流式生成 START、DATA、FINISH PNG 帧和 JSON 清单。
+- 新增 `tests/test_encoder_cli.py`：覆盖二进制分包、中文文件名、指定缺包补传和空文件。
+- Windows CI 新增 CLI 测试；**本轮新 CI 尚未确认通过**。
+- 这是 **PNG 帧导出子功能**，还不具备全屏播放、暂停、预生成缓存、真实视频解码和 EXE 打包，不能把 CLI 里程碑算作验收完成。
+- **里程碑进度维持 1/10（10%）**；新增 CLI 导出子功能为已实现待验证。
+- 下一步：二维码原始字节往返验证、实时播放和端到端文件恢复。
