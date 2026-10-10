@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import threading
+import time
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
@@ -266,14 +268,63 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--smoke-test", action="store_true", help="start Qt window and exit automatically"
     )
+    parser.add_argument("--stability-file", type=Path, help="验收：连续播放指定测试文件")
+    parser.add_argument("--stability-seconds", type=int, default=600)
+    parser.add_argument("--stability-evidence", type=Path)
     args = parser.parse_args(argv)
+    if not 1 <= args.stability_seconds <= 3600:
+        parser.error("stability-seconds must be between 1 and 3600")
     app = QApplication.instance() or QApplication(sys.argv)
     window = EncoderWindow()
     window.show()
+    evidence = {"displayed_frames": 0, "completed_cycles": 0, "error": None}
+    started = time.perf_counter()
+    if args.stability_file:
+        if not args.stability_file.is_file():
+            parser.error("stability-file does not exist")
+
+        def progress(*args):
+            evidence["displayed_frames"] += 1
+
+        def replay():
+            window.player = PlayerWindow(
+                args.stability_file, interval_ms=100, initial_delay_ms=0, fullscreen=False
+            )
+            window.player.show()
+            window.player.progress.connect(progress)
+
+        replay()
+        repeat = QTimer(window)
+
+        def check_playback():
+            if time.perf_counter() - started >= args.stability_seconds:
+                repeat.stop()
+                window.close()
+                app.quit()
+                return
+            if window.player.finished:
+                if window.player.error:
+                    evidence["error"] = window.player.error
+                    repeat.stop()
+                    window.close()
+                    app.exit(1)
+                    return
+                evidence["completed_cycles"] += 1
+                window.player.close()
+                replay()
+
+        repeat.timeout.connect(check_playback)
+        repeat.start(200)
     if args.smoke_test:
         QTimer.singleShot(300, window.close)
         QTimer.singleShot(500, app.quit)
-    return app.exec()
+    code = app.exec()
+    if args.stability_file and args.stability_evidence:
+        evidence["elapsed_seconds"] = time.perf_counter() - started
+        evidence["qt_platform"] = app.platformName()
+        with args.stability_evidence.open("x", encoding="utf-8") as stream:
+            json.dump(evidence, stream, ensure_ascii=False, indent=2)
+    return code
 
 
 if __name__ == "__main__":

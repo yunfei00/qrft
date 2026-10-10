@@ -52,6 +52,7 @@ def process_slice(
     sample_fps: float = 10.0,
     batch_size: int = 50,
     maintenance_seconds: float = 30.0,
+    lease_seconds: int = 120,
 ) -> int:
     """直接访问租约提供的视频路径，不复制或上传视频。"""
     if batch_size <= 0 or maintenance_seconds <= 0:
@@ -89,7 +90,7 @@ def process_slice(
                     base_url,
                     token,
                     f"/slices/{lease['id']}/renew",
-                    {"node_id": node_id, "lease_seconds": 120, **fenced},
+                    {"node_id": node_id, "lease_seconds": lease_seconds, **fenced},
                 )
             except (OSError, ValueError) as exc:
                 errors.append(exc)
@@ -166,14 +167,23 @@ def run_worker(
     *,
     poll_seconds: float = 5.0,
     once: bool = False,
+    lease_seconds: int = 120,
+    maintenance_seconds: float = 30.0,
 ) -> None:
-    if poll_seconds <= 0:
-        raise ValueError("poll_seconds must be positive")
+    if (
+        poll_seconds <= 0
+        or not 1 <= lease_seconds <= 3600
+        or not 0 < maintenance_seconds < lease_seconds
+    ):
+        raise ValueError("invalid poll/lease/maintenance timing")
     while True:
         try:
             request_json(base_url, token, "/nodes/heartbeat", {"node_id": node_id})
             lease = request_json(
-                base_url, token, "/slices/claim", {"node_id": node_id, "lease_seconds": 120}
+                base_url,
+                token,
+                "/slices/claim",
+                {"node_id": node_id, "lease_seconds": lease_seconds},
             )
         except OSError:
             logger.exception("Control request failed")
@@ -183,7 +193,14 @@ def run_worker(
             continue
         if lease is not None:
             try:
-                process_slice(base_url, token, node_id, lease)
+                process_slice(
+                    base_url,
+                    token,
+                    node_id,
+                    lease,
+                    lease_seconds=lease_seconds,
+                    maintenance_seconds=maintenance_seconds,
+                )
             except (OSError, ValueError):
                 logger.exception("Slice %s failed; lease will expire for reassignment", lease["id"])
                 if once:
@@ -201,6 +218,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--node-id")
     parser.add_argument("--poll-seconds", type=float, default=5.0)
     parser.add_argument("--once", action="store_true")
+    parser.add_argument("--lease-seconds", type=int, default=120)
+    parser.add_argument("--maintenance-seconds", type=float, default=30)
     args = parser.parse_args(argv)
     config = {}
     if args.config:
@@ -225,6 +244,8 @@ def main(argv: list[str] | None = None) -> int:
             args.node_id,
             poll_seconds=args.poll_seconds,
             once=args.once,
+            lease_seconds=args.lease_seconds,
+            maintenance_seconds=args.maintenance_seconds,
         )
     except KeyboardInterrupt:
         logger.info("Worker stopped; unfinished lease will expire")

@@ -63,6 +63,7 @@ class PlayerWindow(QWidget):
         layout.addLayout(buttons)
         self.paused = False
         self.finished = False
+        self.error = None
         self.displayed = 0
         self.interval = interval_ms / 1000
         self.deadline = time.monotonic() + initial_delay_ms / 1000
@@ -140,6 +141,7 @@ class PlayerWindow(QWidget):
             self.bar.setRange(0, item["selected"])
             return
         if item is None or isinstance(item, BaseException):
+            self.error = str(item) if isinstance(item, BaseException) else None
             self.finished = True
             self.timer.stop()
             self.status.setText("播放完成" if item is None else f"播放失败：{item}")
@@ -151,6 +153,7 @@ class PlayerWindow(QWidget):
             return
         (packet_id, _raw), png = item
         if not self.pixmap.loadFromData(png, "PNG"):
+            self.error = "二维码图像加载失败"
             self.status.setText("二维码图像加载失败")
             self.close()
             return

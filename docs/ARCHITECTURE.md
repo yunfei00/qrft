@@ -1,5 +1,9 @@
 # QRFT 系统架构
 
+## 当前实现补充（0.3.0rc1）
+
+原四程序保留职责，新增第五个独立 `QRFT-Acceptance.exe` 作为验收编排器，通过实际 EXE/鉴权 HTTP API 测试，不复制协议实现。当前视频读取为 OpenCV + ZXing 原始字节解码；控制中心使用 FastAPI、SQLite BLOB 包存储和原生中文 HTML/JavaScript 页面，没有 React 前端。以下初期选型记录保留为历史；实现以 src/qrft 为准。一键验收与现场范围见 ACCEPTANCE_RUNNER.md，v1 DATA 无会话 ID 的来源限制仍存在。
+
 QRFT 传输的是**任意二进制文件**，不依赖文件扩展名或文本编码。
 
 ## 四个交付程序

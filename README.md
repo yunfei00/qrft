@@ -18,6 +18,8 @@ QRFT 支持将任意二进制文件转换为二维码序列，通过录屏保存
 
 ## 四个 Windows 程序
 
+新增第五个独立工具 **QRFT-Acceptance.exe**，提供中文一键验收、真实 EXE 的单机/双 Worker/补传/故障恢复、性能采样与 HTML/JSON/CSV 报告。操作见 [一键验收手册](docs/ACCEPTANCE_RUNNER.md)。0.3.0rc1 正在验证与交付；以下 0.2.0rc1 下载仍保留。真实双机 SMB、实际录屏和大视频验收不能由本地模拟代替。
+
 当前候选版本 **0.2.0rc1**。部署、操作、备份、升级和排障见 [Windows 运维手册](docs/OPERATIONS.md)，真实测试证据与限制见 [交付记录](docs/FINAL_DELIVERY.md)。候选版不代表真实双机 SMB 和大视频已验收。
 
 下载入口：[0.2.0rc1 Windows 候选版](https://github.com/yunfei00/qrft/releases/tag/v0.2.0-rc.1)。性能方法、结果和未测项目见 [性能报告](docs/PERFORMANCE.md)。

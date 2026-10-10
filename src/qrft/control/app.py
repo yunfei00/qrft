@@ -18,6 +18,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from qrft import __version__
+from qrft.control.acceptance import register_routes
 from qrft.control.packets import ingest
 from qrft.control.packets import init_schema as init_packets
 from qrft.control.recovery import recover
@@ -84,6 +85,14 @@ def connection():
         db.execute("CREATE INDEX IF NOT EXISTS slices_video ON slices(video_id)")
         db.execute("CREATE TABLE IF NOT EXISTS task_finishes (task_id INTEGER PRIMARY KEY)")
         db.execute(
+            "CREATE TABLE IF NOT EXISTS slice_receipts (lease_token TEXT PRIMARY KEY, "
+            "slice_id INTEGER NOT NULL, node_id TEXT NOT NULL, started_at REAL NOT NULL, "
+            "completed_at REAL, frames INTEGER NOT NULL DEFAULT 0, "
+            "inserted INTEGER NOT NULL DEFAULT 0, duplicates INTEGER NOT NULL DEFAULT 0, "
+            "conflicts INTEGER NOT NULL DEFAULT 0)"
+        )
+        db.execute("CREATE INDEX IF NOT EXISTS slice_receipts_slice ON slice_receipts(slice_id)")
+        db.execute(
             "CREATE TABLE IF NOT EXISTS task_recoveries (task_id INTEGER PRIMARY KEY, "
             "status TEXT NOT NULL, path TEXT, updated_at REAL NOT NULL)"
         )
@@ -109,6 +118,9 @@ def require_token(authorization: Annotated[str | None, Header()] = None) -> None
         raise HTTPException(status_code=503, detail="QRFT_API_TOKEN is not configured")
     if authorization != f"Bearer {expected}":
         raise HTTPException(status_code=401, detail="Invalid API token")
+
+
+register_routes(app, connection, require_token)
 
 
 def ensure_active(db, task_id):
@@ -320,7 +332,13 @@ def rescan_video(video_id: int):
 @app.post("/slices/claim", dependencies=[Depends(require_token)])
 def claim_slice(item: SliceClaim) -> dict | None:
     with connection() as db:
-        return claim(db, item.node_id, item.lease_seconds)
+        result = claim(db, item.node_id, item.lease_seconds)
+        if result:
+            db.execute(
+                "INSERT INTO slice_receipts(lease_token,slice_id,node_id,started_at) VALUES (?,?,?,?)",
+                (result["lease_token"], result["id"], item.node_id, time.time()),
+            )
+        return result
 
 
 @app.post("/slices/{slice_id}/complete", dependencies=[Depends(require_token)])
@@ -331,6 +349,11 @@ def complete_slice(slice_id: int, item: SliceComplete) -> dict[str, str]:
             raise HTTPException(status_code=404, detail=result)
         if result == "lease_invalid":
             raise HTTPException(status_code=409, detail=result)
+        db.execute(
+            "UPDATE slice_receipts SET completed_at=COALESCE(completed_at,?) "
+            "WHERE lease_token=(SELECT lease_token FROM slices WHERE id=?)",
+            (time.time(), slice_id),
+        )
         return {"status": result}
 
 
@@ -537,7 +560,32 @@ def ingest_batch(item: PacketBatch) -> dict[str, int]:
             "INSERT INTO task_packet_stats VALUES (?,?) ON CONFLICT(task_id) DO UPDATE SET duplicates=duplicates+excluded.duplicates",
             (item.task_id, counts["duplicate"]),
         )
+        if item.lease_token:
+            db.execute(
+                "UPDATE slice_receipts SET frames=frames+?,inserted=inserted+?,"
+                "duplicates=duplicates+?,conflicts=conflicts+? WHERE lease_token=?",
+                (
+                    len(item.frames_base64),
+                    counts["inserted"],
+                    counts["duplicate"],
+                    counts["conflict"],
+                    item.lease_token,
+                ),
+            )
     return counts
+
+
+@app.get("/acceptance/slices", dependencies=[Depends(require_token)])
+def acceptance_slice_metrics(video_id: int):
+    with connection() as db:
+        return [
+            dict(row)
+            for row in db.execute(
+                "SELECT r.* FROM slice_receipts r JOIN slices s ON s.id=r.slice_id "
+                "WHERE s.video_id=? ORDER BY r.started_at LIMIT 1000",
+                (video_id,),
+            )
+        ]
 
 
 @app.get("/packets/{task_id}/stats", dependencies=[Depends(require_token)])
