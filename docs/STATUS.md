@@ -209,3 +209,10 @@
 - `entrypoint.py` 在 CLI 入口配置 stdout/stderr 的 `backslashreplace` 编码错误处理，避免不可表示字符导致崩溃；构建工作流的冒烟测试显式设置 `PYTHONIOENCODING=utf-8`。
 - 修复提交 `c802d1c`、`3e7b582`；新构建运行尚未验证，不能声称 EXE 已通过冒烟测试或已上传。
 - 总体验收进度仍为 1/10（10%）。
+
+### 本轮：第二个 Windows EXE（Decoder）打包（2026-10-10）
+- 用户确认 Windows Encoder EXE 上轮 CI 已通过；本轮未独立读取该通过作业的日志。
+- 新增 `.github/workflows/build-decoder.yml`：Windows + uv + Python 3.12，先运行真实 AVI 端到端恢复测试，再用 PyInstaller 打包 `QRFT-Decoder.exe`，运行 `--help` 冒烟测试，成功后上传 `QRFT-Decoder-windows` 构件。
+- `docs/USER_ACTIONS.md` 新增 UA-002：构件下载、保留 `_internal`、Windows 本地验证及视频恢复验证指引。无需现在人工操作。
+- **Decoder 构建 CI 尚未验证**；四个 EXE 中仅推进到第二个，未完成 GUI/Control，也未验收双节点 SMB 分布式解码。
+- 总体已验收仍为 **1/10（10%）**，待对应里程碑全部达到验收标准再调整。
