@@ -1,12 +1,16 @@
-# Changelog
+# QRFT 更新日志
 
-## Unreleased
-- Initialized the public QRFT repository documentation baseline.
-- Established four deliverables, Windows LAN + SMB architecture, one-week schedule and GitHub-only handoff discipline.
+## 尚未发布
 
-No functional application implementation is claimed yet.
+### 工程与文档
+- 初始化公开 GitHub 仓库及一周交付计划。
+- 确定四个交付程序、Windows 局域网和 SMB 分布式视频解码架构。
+- 建立 uv 工程骨架、Python 3.12 版本约束和 Windows CI 工作流。
+- 统一中文文档，新增用户操作手册，所有人工步骤必须先入库。
 
-### Core implementation
-- Added first binary frame encoder/decoder with CRC32 and fixed-width ASCII packet IDs.
-- Added file manifest hashing, chunk reads and retransmission packet-list parser.
-- Added unit tests (not yet verified by CI).
+### 核心协议原型
+- 实现 DATA/START/FINISH 二进制帧和 CRC32 校验。
+- 实现文件分块、MD5/SHA-256 计算、指定包列表解析。
+- 新增协议与文件分块单元测试，**尚未验证 CI 结果**。
+
+**未完成：** uv 锁文件、真实二维码往返、视频解码、Web 控制、GUI 和 EXE 打包。
