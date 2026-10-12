@@ -1,5 +1,11 @@
 # Windows 中文一键验收手册
 
+## 当前推荐的 v2 验收方式
+
+Windows 11 的真实 v2 MP4 验收目前推荐在 Python 3.12 + uv 环境下运行本地源码，不使用打包 EXE。完整分支切换、环境同步、v2 GUI 检查、OpenCV 播放、截图工具录屏、源码解码、缺包选择性补传及 MD5 对比命令，见 [V2_USER_GUIDE.md 的“Windows 11 本地源码验收（uv）”](V2_USER_GUIDE.md)。人工 MP4 录制仍待操作者完成。
+
+下方一键验收器说明、开发分支 EXE 补充及绿色版步骤保留作为先前 0.3.0rc1 / EXE 自动化流程的历史参考，不是本轮推荐的 v2 人工验收方式。自动 AVI 与 EXE 冒烟结果不能代替真实录屏。
+
 ## v2 开发分支补充（2026-10-12）
 
 本分支0.4.0.dev0新增可选“v2 HEX + MD5 完整链路”。保持默认八项v1不变，先勾选环境检查，再勾选v2；实际CLI导出1400字节/50%二维码，20fps合成AVI，实际Decoder恢复，两个真实Worker EXE领取不同短时间片，可控缺包后实际CLI补传，再恢复并核对MD5/SHA256。报告范围明确为合成视频，不代表真实录屏/双机。缺少新EXE或仍选旧0.3构建会失败，不能冒充v2通过。无Python时可运行 `QRFT-Acceptance.exe --headless --items environment v2`。

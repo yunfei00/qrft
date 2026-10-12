@@ -1,8 +1,10 @@
 # QRFT 用户操作手册（唯一操作入口）
 
-## UA-009：QRFT v2 与 Windows 11 真实录屏验收
+## UA-009：QRFT v2 Windows 11 本地源码录屏验收
 
-时机：使用 feature/qrft-v2-hex-md5 的0.4.0.dev0开发构建或Draft PR构件，旧0.3.0rc1不支持v2。本轮不合并、不发布。按 [完整中文v2操作与录屏手册](V2_USER_GUIDE.md) 执行12步：选文件/v2、10秒延迟、Win+Shift+R录制完整播放区、保存MP4、选择视频到明确任务、查看缺包、补传到同一目录、核对MD5。真实录屏/双机尚未验收，反馈Commit、系统/DPI/录制参数、原始/恢复MD5和日志。
+**当前推荐方式：用 Python 3.12 + uv 直接运行源码，不使用打包 EXE。** 执行 [V2_USER_GUIDE.md 的“Windows 11 本地源码验收（uv）”](V2_USER_GUIDE.md) 全章；所有源码命令、变量定义、预期结果、失败处理和通过条件均在该节。准备可运行 Windows 桌面、Git、网络、Python 3.12（uv 可自动安装）、uv 和 Windows 11 截图工具。请在同一个 PowerShell 窗口依序执行，保留自动生成的独占 temp 工作目录。
+
+本操作包含真实人工 MP4 录制，当前尚待执行，不能由自动 AVI 测试替代。验收反馈分支 Commit、Windows 版本、显示器/DPI、截图工具录像 FPS、原始与恢复 MD5、缺包列表及失败日志。当前操作仅支持同机本地录像/恢复；真实双机 SMB 仍按 UA-008 单独验收。旧打包 EXE 流程仅作历史参考。
 
 
 ## UA-008：第五程序与真实双机验收

@@ -1,8 +1,168 @@
 # QRFT v2 中文操作与 Windows 11 真实录屏验收
 
-日期：2026-10-12。本分支 0.4.0.dev0 是开发构建，未合并 main、未发布 Release。必须使用本分支构建或 Draft PR 的 CI 构件；旧 0.3.0rc1 EXE 不支持 v2。完整解压所有程序及运行库，不能只拷贝 EXE。协议见 PROTOCOL.md。
+日期：2026-10-12。本分支 feature/qrft-v2-hex-md5 的软件版本为 0.4.0.dev0，尚未合并 main、未发布 Release。**当前推荐使用下文“Windows 11 本地源码验收（uv）”**，直接从本分支运行 Python 源码，不使用打包 EXE。后面的 EXE 流程保留作历史参考。协议参数见 PROTOCOL.md。
 
-## Windows 11 真实录屏验收操作步骤（UA-009）
+## Windows 11 本地源码验收（uv）
+
+在同一个 PowerShell 窗口依次执行以下代码块。示例工作区为 D:\code_2026\qrft；如仓库位于其他位置，只需修改第一块中的 $repo。切换前检查工作区是否干净，发现未提交修改即停止，不会覆盖或清理它们。自动生成的测试数据放在 Git 忽略的 temp 子目录。
+
+### 1. 获取并切换开发分支
+
+首次运行会克隆指定分支；已有工作区会检查本地修改、获取远端并快进更新。验收条件是当前分支为 feature/qrft-v2-hex-md5 且 git status --short 无输出。网络或 Git 错误先修复后重跑；检测到本地修改时先自行备份或提交，命令会停止保护这些内容。
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$repo = 'D:\\code_2026\\qrft'
+$branch = 'feature/qrft-v2-hex-md5'
+$remote = 'https://github.com/yunfei00/qrft.git'
+if (-not (Test-Path -LiteralPath (Join-Path $repo '.git'))) {
+    if (Test-Path -LiteralPath $repo) { throw "目录已存在但不是Git工作区，请修改 repo 路径：$repo" }
+    New-Item -ItemType Directory -Path (Split-Path -Parent $repo) -Force | Out-Null
+    git clone --single-branch --branch $branch $remote $repo
+    if ($LASTEXITCODE -ne 0) { throw 'git clone 失败' }
+} else {
+    if (git -C $repo status --porcelain) { throw "工作区有修改，为保护文件已停止：$repo" }
+    git -C $repo fetch origin
+    if ($LASTEXITCODE -ne 0) { throw 'git fetch 失败' }
+    if (git -C $repo branch --list $branch) {
+        git -C $repo switch $branch
+    } else {
+        git -C $repo switch --track -c $branch "origin/$branch"
+    }
+    if ($LASTEXITCODE -ne 0) { throw "切换到 $branch 失败" }
+    git -C $repo pull --ff-only origin $branch
+    if ($LASTEXITCODE -ne 0) { throw '快进同步失败' }
+}
+Set-Location $repo
+if ((git branch --show-current) -ne $branch) { throw "当前分支不是 $branch" }
+git status --short
+git log -1 --oneline
+```
+
+### 2. 安装 Python 3.12 并同步 uv 依赖
+
+项目使用 encoder、GUI、decoder、control、acceptance 全部 extras 及 dev 测试组。通过条件是 Python 显示 3.12.x，且 OpenCV、qrcode、ZXing、PySide6 均可导入。下载或导入失败时检查网络/索引并重试；不要删除或手工改写 uv.lock。
+
+```powershell
+Set-Location $repo
+uv python install 3.12
+if ($LASTEXITCODE -ne 0) { throw 'uv Python 3.12 安装失败' }
+uv sync --locked --python 3.12 --all-extras --group dev
+if ($LASTEXITCODE -ne 0) { throw 'uv 依赖同步失败' }
+uv run --no-sync python --version
+if ($LASTEXITCODE -ne 0) { throw 'Python 环境启动失败' }
+uv run --no-sync python -c "import cv2, qrcode, zxingcpp, PySide6; print('核心依赖导入成功')"
+if ($LASTEXITCODE -ne 0) { throw '依赖导入失败，请重跑 uv sync' }
+```
+
+### 3. 验证源码模块入口和实际参数
+
+实际入口是 qrft.encoder_gui.main、qrft.encoder_cli.entrypoint 和 qrft.decoder.entrypoint。帮助应显示 GUI 选项、OpenCV 的 play 参数，以及解码器 --protocol、--sample-fps、--output。命令失败时确认在仓库根目录且第 2 步同步成功。
+
+```powershell
+Set-Location $repo
+uv run --no-sync python -m qrft.encoder_gui.main --help
+if ($LASTEXITCODE -ne 0) { throw 'GUI 源码入口失败' }
+uv run --no-sync python -m qrft.encoder_cli.entrypoint play --help
+if ($LASTEXITCODE -ne 0) { throw '编码器/OpenCV 源码入口失败' }
+uv run --no-sync python -m qrft.decoder.entrypoint --help
+if ($LASTEXITCODE -ne 0) { throw 'Decoder 源码入口失败' }
+```
+
+### 4. 创建二进制样本和本次任务路径
+
+样本大小 65536 字节，内容循环覆盖 00–FF，中文逗号文件名；按 1400 字节分块共 47 包，末包保留实际长度。唯一目录不会覆盖已有文件。后续命令在此 PowerShell 窗口执行，以保留已定义变量。
+
+```powershell
+Set-Location $repo
+$work = Join-Path $repo (Join-Path 'temp' ('manual-v2-uv-' + [guid]::NewGuid().ToString('N')))
+New-Item -ItemType Directory -Path $work | Out-Null
+$source = Join-Path $work '测试文件,全部字节.bin'
+$partialMp4 = Join-Path $work '第一段.mp4'
+$repairMp4 = Join-Path $work '补传段.mp4'
+$task = Join-Path $work '恢复任务'
+$sample = [byte[]]::new(65536)
+for ($i = 0; $i -lt $sample.Length; $i++) { $sample[$i] = [byte]($i % 256) }
+[System.IO.File]::WriteAllBytes($source, $sample)
+$sourceMd5 = (Get-FileHash -LiteralPath $source -Algorithm MD5).Hash
+Get-Item -LiteralPath $source | Select-Object FullName, Length
+Write-Output "原始MD5：$sourceMd5；预期数据包数：47"
+```
+
+若文件大小或包数不符，停止并创建新样本。通过条件是大小 65536 字节并记下源 MD5。
+
+### 5. 启动源码 v2 GUI 编码器
+
+```powershell
+Set-Location $repo
+uv run --no-sync python -m qrft.encoder_gui.main
+if ($LASTEXITCODE -ne 0) { throw 'GUI 编码器退出失败' }
+```
+
+在 GUI 选择本步骤输出的源文件，选择“v2 HEX + MD5”，点击“检查文件”。预期总块数 47、文件 MD5 与上一步一致，v2 参数显示 1400 字节、50 ms、L/10/4。此步检查 GUI 源码入口与参数；关闭 GUI 后再运行 OpenCV 播放，避免两个二维码窗口同时显示。GUI 无法启动时检查依赖和 Windows 桌面会话；字段不符即失败，不要修改协议参数。通过条件是文件信息与固定 v2 参数正确。
+
+### 6. OpenCV 播放并用 Windows 11 截图工具录制第一段 MP4
+
+先打开 Windows 11 截图工具录像功能，准备框选二维码显示区域。下面命令让 OpenCV 先显示空白画布并等待 15 秒，再按 50 ms 播放。此验收段故意只发包 0–9 来稳定产生缺包；START/FINISH 仍各重复 20 次。
+
+```powershell
+Set-Location $repo
+uv run --no-sync python -m qrft.encoder_cli.entrypoint play $source --protocol v2 --player opencv --initial-delay-ms 15000 --start-id 0 --end-id 9
+if ($LASTEXITCODE -ne 0) { throw 'v2 OpenCV 播放失败或被取消' }
+```
+
+在空白等待期开始录制，完整框选二维码及留白，播放结束后停止录制，将原始 MP4 保存到上一步的 partialMp4 路径（当前 work 下第一段.mp4）。不要裁剪、缩放或编辑录像。若未能在 15 秒内启动录制，可把等待参数调大后重做；播放器容量/窗口错误或没有生成 MP4 即失败。通过条件是播放器正常退出且 MP4 可打开。
+
+### 7. 从源码解码第一段并检查 missing.txt
+
+```powershell
+Set-Location $repo
+if (-not (Test-Path -LiteralPath $partialMp4)) { throw "找不到录像：$partialMp4" }
+uv run --no-sync python -m qrft.decoder.entrypoint $partialMp4 --protocol v2 --sample-fps 60 --output $task
+$decodeExit = $LASTEXITCODE
+if ($decodeExit -notin @(0, 2)) { throw "源码 Decoder 失败，退出码：$decodeExit" }
+if ($decodeExit -ne 2) { throw '第一段意外完整；请用新 work 重做首段，保留仅发包0–9的范围' }
+$missing = Join-Path $task 'missing.txt'
+if (-not (Test-Path -LiteralPath $missing)) { throw '缺少 missing.txt；检查录像是否捕获 START' }
+$missingIds = @(Get-Content -LiteralPath $missing | Where-Object { $_.Trim() })
+Get-Content -LiteralPath $missing
+Write-Output "缺包数：$($missingIds.Count)；任务目录：$task"
+```
+
+预期退出码 2（数据不全），任务数据库保留已识别帧，missing.txt 非空，至少包含 00000010–00000046；额外录屏漏帧也会列入。没有 START 或清单为空时用新 work 重做第 6 步。通过条件是缺包编号都在 0–46 且没有发布恢复文件。
+
+### 8. 用缺包清单生成补传二维码并录制
+
+```powershell
+Set-Location $repo
+uv run --no-sync python -m qrft.encoder_cli.entrypoint play $source --protocol v2 --player opencv --initial-delay-ms 15000 --retransmit $missing
+if ($LASTEXITCODE -ne 0) { throw '选择性补传播放失败或被取消' }
+```
+
+在空白等待期间用截图工具重新开始录制，播放结束后把原始 MP4 保存为 repairMp4（当前 work 下补传段.mp4）。编码器读取 missing.txt，使用未改变的源文件、1400 字节分块和原包号。若文件、清单或播放失败，核对第 4、7 步路径后重做本步。通过条件是退出码 0 且补传 MP4 已保存。
+
+### 9. 将补传视频导入同一任务并核对 MD5
+
+```powershell
+Set-Location $repo
+if (-not (Test-Path -LiteralPath $repairMp4)) { throw "找不到补传录像：$repairMp4" }
+uv run --no-sync python -m qrft.decoder.entrypoint $repairMp4 --protocol v2 --sample-fps 60 --output $task
+if ($LASTEXITCODE -ne 0) { throw "补传未完成；检查 $task\\missing.txt 后继续第 8 步" }
+$restored = Join-Path (Join-Path $task 'files') ([System.IO.Path]::GetFileName($source))
+if (-not (Test-Path -LiteralPath $restored)) { throw "恢复文件不存在：$restored" }
+$restoredMd5 = (Get-FileHash -LiteralPath $restored -Algorithm MD5).Hash
+Write-Output "原始 MD5：$sourceMd5"
+Write-Output "恢复 MD5：$restoredMd5"
+if ($restoredMd5 -ne $sourceMd5) { throw 'MD5 不一致；保留本次 work 和日志，验收失败' }
+Get-Content -LiteralPath (Join-Path $task 'verification.json') -Encoding UTF8
+Write-Output 'PASS：源码编码、录屏、缺包、补传、合并及MD5校验成功。'
+```
+
+通过条件是退出码 0、恢复文件位于 task 下 files 子目录、missing.txt 为空、verification.json 状态为 verified 且两项 MD5 一致。仍有缺包时可用更新后的同一清单重复第 8–9 步；MD5 不同或数据包冲突时停止验收并保留独占 work 排查，不覆盖文件或导入不明来源视频。
+
+自动测试覆盖源码二维码和 AVI 视频链路；**本地自动测试没有执行 Windows 11 截图工具 MP4 录制**，真实屏幕录制须由操作者完成以上步骤后另行验收。按 USER_ACTIONS.md 的 UA-009 记录 Windows/显示器/DPI、录像帧率、缺包数及原始/恢复 MD5。
+
+## Windows 11 EXE 录屏验收步骤（历史参考）
 
 准备原生1080p及以上显示器、Windows11 更新后的“截图工具”。二维码数据区可能达到785×785或更大，必须录制整个固定播放区和四周留白，不只框选最初较小的 START。请关闭遮挡二维码的通知和光标提示；不使用视频裁剪、二次缩放或有损编辑。
 
