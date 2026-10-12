@@ -8,7 +8,9 @@
 
 文档入口 DECODER_USER_GUIDE、索引 UA-011；新 GUI 实际用户录像桌面操作与真实双 Windows/SMB 待人工，P8 用户 PASS 保留，里程碑 7/10 不变。提交使用 `[skip ci]` 避免旧 PR 构建工作流打包 EXE，随后手动 dispatch 源码 `ci.yml`，不绕过格式/静态/测试。最终测试与当前提交 CI 证据见下方补充记录。
 
-本地最终门禁：Ruff format 103 文件、Ruff check 均通过；pytest **209 passed，1 项既有 Starlette/httpx 弃用警告，159.05 秒，无跳过**。新增 13 项自动用例，含真实 Worker 进程退出、过期重领和真实 HTTP 503 重试；GUI Qt 应用隔离，刷新不覆盖重要状态。原生 Windows 中文窗口已启动、截取并检查布局、安全退出；源码 GUI/Control/Worker/原有解码 CLI 的实际参数入口均运行核对。新手册 8 个及既有编码手册 17 个 PowerShell 块语法检查无错误。当前源码 CI 将随本提交手动触发，实际链接以 PR #7 的 P9 记录为准；不引用 P8 旧 CI 作为 P9 通过证据。
+本地最终门禁：Ruff format 103 文件、Ruff check 均通过；pytest **209 passed，1 项既有 Starlette/httpx 弃用警告，159.05 秒，无跳过**。新增 13 项自动用例，含真实 Worker 进程退出、过期重领和真实 HTTP 503 重试；GUI Qt 应用隔离，刷新不覆盖重要状态。原生 Windows 中文窗口已启动、截取并检查布局、安全退出；源码 GUI/Control/Worker/原有解码 CLI 的实际参数入口均运行核对。新手册 8 个及既有编码手册 17 个 PowerShell 块语法检查无错误。代码提交的实际 CI 链接见下段，后续文档提交同步执行源码门禁；不引用 P8 旧 CI 作为 P9 通过证据。
+
+代码交付 Commit：`69c7b48d5fe2863dc6798731caf9282c24ef5218`，已推送当前分支。[Windows 源码 CI 38261515130](https://github.com/yunfei00/qrft/actions/runs/38261515130) **成功**：209 项 / 152.08 秒，原生解码 GUI 源码启动/关闭、二维码/ZXing/AVI/API 集成步骤全部成功；旧 EXE 工作流未触发。干净代码提交的最终 64 KiB 性能原始报告已保存 `P9_DECODER_BENCHMARK.json`（47 包、无缺包、MD5 一致，扫描 3.547 秒），不同轮次波动不宣称优化。PR #7 仍 OPEN / Draft，无 Tag、合并或 Release；文档证据补充提交的最新 CI 另见该 PR 对应手动运行。
 
 ## v2-P8 正式收尾：用户报告源码人工验收 PASS（2026-10-12）
 
