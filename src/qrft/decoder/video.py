@@ -38,7 +38,9 @@ def iter_video_frames(
         start_index = max(0, int(start_seconds * fps))
         requested_end = total_frames if end_seconds is None else int(end_seconds * fps)
         end_index = min(total_frames, requested_end)
-        step = max(1, round(fps / sample_fps))
+        # Rounding 30/20 to 2 sampled only 15fps and lost a single-frame DATA.
+        # Floor the step so the actual scan rate cannot undershoot the requested rate.
+        step = max(1, int(fps / sample_fps))
         capture.set(cv2.CAP_PROP_POS_FRAMES, start_index)
         for index in range(start_index, end_index):
             if (index - start_index) % step:

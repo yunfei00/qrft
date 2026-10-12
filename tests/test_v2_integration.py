@@ -411,3 +411,34 @@ def test_v1_output_location_and_report_filenames_preserved(tmp_path, filename):
     restored = restore_video(video, directory)
     assert restored == directory / filename
     assert restored.read_bytes() == source.read_bytes()
+
+
+@pytest.mark.parametrize("sample_fps", [20, 60])
+def test_30fps_capture_phase_does_not_undersample_requested_rate(tmp_path, sample_fps):
+    import cv2
+    import numpy as np
+
+    source = tmp_path / "phase.bin"
+    source.write_bytes(b"z" * 1401)
+    original = export_video(source, tmp_path / "20fps.avi", protocol_version=2)
+    reader = cv2.VideoCapture(str(original))
+    frames = []
+    try:
+        while True:
+            ok, image = reader.read()
+            if not ok:
+                break
+            frames.append(image)
+    finally:
+        reader.release()
+    video = tmp_path / "30fps.avi"
+    writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"MJPG"), 30, (926, 926))
+    assert writer.isOpened()
+    try:
+        writer.write(np.full_like(frames[0], 255))  # Capture begins one frame before START.
+        for index in range(len(frames) * 3 // 2):
+            writer.write(frames[index * 2 // 3])
+    finally:
+        writer.release()
+    ids = {f.packet_id for f in iter_video_frames(video, sample_fps=sample_fps) if f.kind == "data"}
+    assert ids == {0, 1}

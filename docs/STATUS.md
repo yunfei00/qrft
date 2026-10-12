@@ -6,11 +6,11 @@
 
 实现指定三段大写HEX格式、正文MD5、1400字节分块、START/FINISH各20次。CLI/GUI协议选择，Qt共享渲染，固定926画布OpenCV播放，自动二维码模式与50%最近邻缩放；视频默认60fps扫描。Control协议锁、旧数据库v1迁移、Worker保留原始帧；本地SQLite跨视频补传，末包确定长度、最终MD5验证，混合版本/冲突/非法帧拒绝。v1直接输出文件的位置与CRC/SHA256功能保留。
 
-本地Ruff格式/静态检查及 **168项pytest通过**（117旧测试+51新增），无跳过，有1条既有Starlette弃用警告。实际1400随机块QR version33、785×785与ZXing往返通过；20fps合成AVI序列、中文逗号文件名、空文件、全字节、截断/漏帧、补传、START晚到、协议混用、MD5错误、冲突、旧DB与文件保护通过。
+本地Ruff格式/静态检查及 **170项pytest通过**（117旧测试+53新增），无跳过，有1条既有Starlette弃用警告。实际1400随机块QR version33、785×785与ZXing往返通过；20fps合成AVI序列、中文逗号文件名、空文件、全字节、截断/漏帧、补传、START晚到、协议混用、MD5错误、冲突、旧DB与文件保护通过。
 
 五个开发EXE构建成功；旧v1四EXE完整链路通过。干净中文目录、仅系统PATH的实际Acceptance EXE：默认v1八项全通过，v2专用环境+链路两项通过，独立合成ZXing通过；HTML/JSON/CSV保存完整证据。v2实际两个Worker处理不同时间片、丢包1、实际CLI缺包补传后MD5/SHA256一致，原始/恢复MD5 `E3F26EE6ED0FF5BB48711D3833500363`。本地未提交构建明确标dirty，不伪称最终Git SHA。原生OpenCV/Qt实际EXE显示1400字节二维码并正常退出（3.360/3.334秒含启动，不能当作真实传输率）。一次本地验收过早读取未完成清单而失败，已按顺序重新验证清单1109文件与完整链路通过；保留失败证据。
 
-主要修改：core/protocol_v2.py、validation.py、协议分发/渲染/重组；encoder_cli与encoder_gui选择/播放/视频；decoder本地持久化与Worker；control任务绑定/协议锁/恢复/Web；acceptance/v2.py与冻结冒烟；新增protocol_v2/v2_integration测试；中文PROTOCOL、V2_USER_GUIDE、USER_ACTIONS、ACCEPTANCE_RUNNER及架构/README/锁文件。CI及提交记录待本分支推送后追加，不能以基线CI冒充v2CI。
+主要修改：core/protocol_v2.py、validation.py、协议分发/渲染/重组；encoder_cli与encoder_gui选择/播放/视频；decoder本地持久化与Worker；control任务绑定/协议锁/恢复/Web；acceptance/v2.py与冻结冒烟；新增protocol_v2/v2_integration测试；中文PROTOCOL、V2_USER_GUIDE、USER_ACTIONS、ACCEPTANCE_RUNNER及架构/README/锁文件。首个实现提交 `af3910aa76902ffd58c25c2d04366342cd61763d` 已推送，Draft PR #7保持未合并，分支CI正在验证。另发现并复现30fps视频请求20fps时四舍五入步幅导致仅15fps、漏掉单帧DATA的问题；改为向下取整并用真实重采样AVI回归，20/60fps均通过。最终CI结果后续追加，不以基线CI冒充v2CI。
 
 真实Windows11 MP4录屏、实际50ms节奏/识别率、长视频及真实双机SMB未验收，按UA-009/008操作。自动AVI和两个本地进程不替代现场，原里程碑仍 **7/10**。完整操作见 [v2中文手册](V2_USER_GUIDE.md)。
 

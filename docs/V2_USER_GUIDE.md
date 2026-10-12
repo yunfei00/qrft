@@ -13,7 +13,7 @@
 5. **启动 Windows 自带录屏**：按 `Win+Shift+R`，或开始菜单打开“截图工具”→录像→新建。框选整个白色播放区（包含最宽DATA和四周留白），点击“开始”。首次START前应已进入录制；工具的录制倒计时需要包含在10秒准备时间内。GUI因准备二维码而延迟并不代表已开始发送，确认画面后再计时。
 6. **保存 MP4**：显示播放完成后停止录制；在截图工具预览中保存原始录像为 MP4，不转换GIF或二次编辑。保存到下面的独占 `$work` 目录，例如 `第一次.mp4`。微软操作依据：[截图工具录屏说明](https://support.microsoft.com/en-gb/windows/apps/use-snipping-tool-to-capture-screenshots)。
 7. **启动解码器**：Decoder 为无界面工具，使用下面的 PowerShell 命令；不要求在目标机安装 Python。
-8. **选择视频**：下面命令弹出文件选择对话框选择已保存 MP4；视频显式关联 `$task` 这个恢复任务目录。不能将不明来源视频导入同一目录。
+8. **选择视频**：下面命令弹出文件选择对话框选择已保存 MP4；视频显式关联 `$task` 这个恢复任务目录。扫描步幅向下取整，避免30fps录像请求20fps却只扫描15fps；默认60扫描常见录像的每一帧。不能将不明来源视频导入同一目录。
 9. **查看缺包**：输出目录有 `missing.txt`、CSV、JSON；没有 START 时 `.qrft-session/status.json` 显示 awaiting_start，不能推断缺包。缺包时退出码2，不生成最终文件。
 10. **恢复文件**：原始帧持久化到任务 SQLite；包齐且完整文件MD5一致才在 `$task\files` 生成文件，`verification.json` 记录 MD5/SHA256与状态。FINISH不是成功依据。已有目标文件不覆盖。
 11. **验证 MD5**：使用 `Get-FileHash -Algorithm MD5` 比较原文件与恢复文件；结果必须一致。
