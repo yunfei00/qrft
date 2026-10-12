@@ -109,6 +109,8 @@ def main():
         bundle = Path(directory) / "中文程序目录"
         shutil.copytree(args.dist, bundle)
         binary = bundle / "QRFT-Acceptance" / "QRFT-Acceptance.exe"
+        if not (binary.parent / "_internal" / "winpty" / "OpenConsole.exe").is_file():
+            raise FileNotFoundError("Acceptance bundle is missing the native ConPTY host")
         security_smoke(bundle, output)
         env = {
             **os.environ,
@@ -168,7 +170,7 @@ def main():
                 reports = set(output.glob("*/report.json")) - previous_reports
                 for report in reports:
                     data = json.loads(report.read_text(encoding="utf-8"))
-                    print(json.dumps(data["results"], ensure_ascii=False, indent=2))
+                    print(json.dumps(data["results"], ensure_ascii=True, indent=2))
                 raise RuntimeError(f"Acceptance EXE failed: {code}; evidence: {output}")
         reports = set(output.glob("*/report.json")) - previous_reports
         if not reports or not any(

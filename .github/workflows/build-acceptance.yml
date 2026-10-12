@@ -35,7 +35,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           uv run --no-sync pyinstaller --noconfirm --onedir --console --name QRFT-Control --paths src src/qrft/control/app.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          uv run --no-sync pyinstaller --noconfirm --onedir --windowed --name QRFT-Acceptance --paths src src/qrft/acceptance/main.py
+          uv run --no-sync pyinstaller --noconfirm --onedir --windowed --name QRFT-Acceptance --paths src --additional-hooks-dir hooks src/qrft/acceptance/main.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Documentation and integrity manifest
         run: |
