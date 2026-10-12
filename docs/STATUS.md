@@ -10,7 +10,7 @@
 
 五个开发EXE构建成功；旧v1四EXE完整链路通过。干净中文目录、仅系统PATH的实际Acceptance EXE：默认v1八项全通过，v2专用环境+链路两项通过，独立合成ZXing通过；HTML/JSON/CSV保存完整证据。v2实际两个Worker处理不同时间片、丢包1、实际CLI缺包补传后MD5/SHA256一致，原始/恢复MD5 `E3F26EE6ED0FF5BB48711D3833500363`。本地未提交构建明确标dirty，不伪称最终Git SHA。原生OpenCV/Qt实际EXE显示1400字节二维码并正常退出（3.360/3.334秒含启动，不能当作真实传输率）。一次本地验收过早读取未完成清单而失败，已按顺序重新验证清单1109文件与完整链路通过；保留失败证据。
 
-主要修改：core/protocol_v2.py、validation.py、协议分发/渲染/重组；encoder_cli与encoder_gui选择/播放/视频；decoder本地持久化与Worker；control任务绑定/协议锁/恢复/Web；acceptance/v2.py与冻结冒烟；新增protocol_v2/v2_integration测试；中文PROTOCOL、V2_USER_GUIDE、USER_ACTIONS、ACCEPTANCE_RUNNER及架构/README/锁文件。首个实现提交 `af3910aa76902ffd58c25c2d04366342cd61763d` 已推送，Draft PR #7保持未合并，分支CI正在验证。另发现并复现30fps视频请求20fps时四舍五入步幅导致仅15fps、漏掉单帧DATA的问题；改为向下取整并用真实重采样AVI回归，20/60fps均通过。最终CI结果后续追加，不以基线CI冒充v2CI。
+主要修改：core/protocol_v2.py、validation.py、协议分发/渲染/重组；encoder_cli与encoder_gui选择/播放/视频；decoder本地持久化与Worker；control任务绑定/协议锁/恢复/Web；acceptance/v2.py与冻结冒烟；新增protocol_v2/v2_integration测试；中文PROTOCOL、V2_USER_GUIDE、USER_ACTIONS、ACCEPTANCE_RUNNER及架构/README/锁文件。首个实现提交 `af3910aa76902ffd58c25c2d04366342cd61763d` 已推送，Draft PR #7保持未合并，首轮七项CI成功。另发现并复现30fps视频请求20fps时四舍五入步幅导致仅15fps、漏掉单帧DATA的问题；改为向下取整并用真实重采样AVI回归，20/60fps均通过。采样修复提交 `ae10b71af6981dcfddc0eb2f583ecf68882f7c30` 的七项CI也全部通过：Python 38199651842，独立构建38199651807/810/832/864，四程序交付38199651814，五程序实际验收38199651862。最终文档提交将再次通过门禁；当前七项成功对应明确软件提交，不以基线CI冒充v2CI。
 
 真实Windows11 MP4录屏、实际50ms节奏/识别率、长视频及真实双机SMB未验收，按UA-009/008操作。自动AVI和两个本地进程不替代现场，原里程碑仍 **7/10**。完整操作见 [v2中文手册](V2_USER_GUIDE.md)。
 

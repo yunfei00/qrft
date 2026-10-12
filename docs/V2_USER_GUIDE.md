@@ -80,12 +80,33 @@ Write-Output "MD5一致：$actual"
 
 用本分支 Control，Token置于 `QRFT_API_TOKEN` 环境变量，数据库/输出使用专用目录。在 Web 创建任务时选 v2；视频和补传视频都关联同一个task_id。原任务版本不能事后切换，旧任务保持v1。节点用新 Decoder：
 
+每个控制中心/Worker的PowerShell会话都先执行以下初始化，输入同一验收Token，命令不会把Token打印或写入文件：
+
 ```powershell
-# 先在控制中心和每个Worker的当前会话配置同一个 QRFT_API_TOKEN（不要写入日志或提交配置）。
+$programs = 'D:\code_2026\qrft\temp\v2-build\dist'
+$secureToken = Read-Host '输入本次验收Token（两端相同）' -AsSecureString
+$tokenPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken)
+try { $env:QRFT_API_TOKEN = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($tokenPointer) }
+finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($tokenPointer) }
+```
+
+控制中心会话使用独占数据库/输出目录，然后启动服务：
+
+```powershell
+$controlWork = Join-Path ([Environment]::GetFolderPath('MyDocuments')) ('QRFT-v2-control-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $controlWork | Out-Null
+$env:QRFT_DB_PATH = Join-Path $controlWork 'control.sqlite3'
+$env:QRFT_OUTPUT_DIR = Join-Path $controlWork '恢复文件'
 & "$programs\QRFT-Control\QRFT-Control.exe" --host 127.0.0.1 --port 8787
-# 另一PowerShell会话，配置好Token后运行：
+```
+
+另一个已执行相同Token初始化的会话启动Worker：
+
+```powershell
 & "$programs\QRFT-Decoder\QRFT-Decoder.exe" worker --server http://127.0.0.1:8787 --node-id Windows-A
 ```
+
+本机用浏览器打开 `http://127.0.0.1:8787/`、输入同一Token，在任务下拉协议选择v2。真正第二台设备需控制中心改为 `--host 0.0.0.0`、只允许验收局域网访问8787端口，Worker的server改为控制机IP；Windows已有SMB登录会话应能读同一UNC视频。不能把Token写入公开JSON配置或日志。测试数据库/目录无需删除，保留用于追溯。
 
 Web登记节点可直接访问的视频路径及真实时长。Worker默认60fps扫描，不要求每个时间片有START，HTTP批量保持原始v2帧。两台设备通过SMB读取同一视频仍需按UA-008做真实现场验收，不能以两个本地进程替代。MD5用于一致性检查，不是恶意篡改认证；Token鉴权不关闭。
 
