@@ -19,13 +19,15 @@ from pydantic import BaseModel, Field
 
 from qrft import __version__
 from qrft.control.acceptance import register_routes
-from qrft.control.packets import ingest
+from qrft.control.packets import ingest, lock_protocol
 from qrft.control.packets import init_schema as init_packets
 from qrft.control.recovery import recover
 from qrft.control.scheduler import add_slices, claim, complete, init_schema, renew
+from qrft.control.session import bind_start
 from qrft.control.web import PAGE
 from qrft.core.missing import iter_missing, stream_missing
 from qrft.core.protocol import ProtocolError, decode_frame
+from qrft.core.validation import validate_data
 
 app = FastAPI(title="QRFT Control", version=__version__)
 
@@ -77,7 +79,12 @@ def connection():
             """
         )
         init_schema(db)
+        legacy = not db.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='task_protocols'"
+        ).fetchone()
         init_packets(db)
+        if legacy:
+            db.execute("INSERT OR IGNORE INTO task_protocols SELECT id,1 FROM tasks")
         db.execute(
             "CREATE TABLE IF NOT EXISTS task_packet_stats(task_id INTEGER PRIMARY KEY, duplicates INTEGER NOT NULL DEFAULT 0)"
         )
@@ -102,6 +109,7 @@ def connection():
             "total_packets INTEGER NOT NULL, chunk_size INTEGER NOT NULL, "
             "file_size INTEGER NOT NULL)"
         )
+        db.commit()
         try:
             yield db
             db.commit()
@@ -155,6 +163,7 @@ def cancel_task(task_id: int):
 
 
 class TaskCreate(BaseModel):
+    protocol_version: int = Field(default=1, ge=1, le=2)
     name: str = Field(min_length=1, max_length=200)
 
 
@@ -238,6 +247,7 @@ def create_task(item: TaskCreate) -> dict[str, int]:
         cursor = db.execute(
             "INSERT INTO tasks(name, created_at) VALUES (?, ?)", (item.name, time.time())
         )
+        lock_protocol(db, int(cursor.lastrowid), item.protocol_version)
         return {"id": int(cursor.lastrowid)}
 
 
@@ -298,6 +308,7 @@ def list_nodes() -> list[dict]:
 def settings():
     return {
         "protocol_version": 1,
+        "supported_protocol_versions": [1, 2],
         "lease_seconds": 120,
         "slice_seconds": 30,
         "overlap_seconds": 1,
@@ -397,25 +408,6 @@ def bind_manifest(item: ManifestBind) -> dict[str, str]:
         frame = decode_frame(raw)
         if frame.kind != "start" or frame.metadata is None:
             raise ProtocolError("START frame required")
-        meta = frame.metadata
-        size, chunk, total = (meta.get(k) for k in ("file_size", "chunk_size", "total_packets"))
-        if (
-            type(size) is not int
-            or type(chunk) is not int
-            or type(total) is not int
-            or size < 0
-            or chunk <= 0
-            or total != (size + chunk - 1) // chunk
-            or total > 88888888
-        ):
-            raise ProtocolError("invalid START manifest sizes")
-        if not all(
-            isinstance(meta.get(key), str)
-            and len(meta[key]) == length
-            and all(ch in "0123456789abcdefABCDEF" for ch in meta[key])
-            for key, length in (("sha256", 64), ("md5", 32))
-        ):
-            raise ProtocolError("invalid manifest hashes")
     except (ValueError, binascii.Error, ProtocolError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     with connection() as db:
@@ -423,25 +415,11 @@ def bind_manifest(item: ManifestBind) -> dict[str, str]:
         ensure_active(db, item.task_id)
         if db.execute("SELECT 1 FROM tasks WHERE id=?", (item.task_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Task not found")
-        existing = db.execute(
-            "SELECT start_frame FROM task_manifests WHERE task_id=?", (item.task_id,)
-        ).fetchone()
-        if existing is not None:
-            if existing["start_frame"] != raw:
-                raise HTTPException(status_code=409, detail="Conflicting START manifest")
-            return {"status": "already_bound"}
-        for row in db.execute("SELECT frame FROM packets WHERE task_id=?", (item.task_id,)):
-            data = decode_frame(bytes(row["frame"]))
-            if data.packet_id >= total or len(data.payload) != min(
-                chunk, size - data.packet_id * chunk
-            ):
-                raise HTTPException(status_code=409, detail="Stored DATA does not match START")
-        db.execute(
-            "INSERT INTO task_manifests(task_id,start_frame,total_packets,chunk_size,file_size) "
-            "VALUES (?,?,?,?,?)",
-            (item.task_id, raw, total, chunk, size),
-        )
-    return {"status": "bound"}
+        try:
+            status = bind_start(db, item.task_id, raw)
+        except ProtocolError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {"status": status}
 
 
 @app.get("/tasks/{task_id}/missing", dependencies=[Depends(require_token)])
@@ -542,6 +520,7 @@ def ingest_batch(item: PacketBatch) -> dict[str, int]:
                 if len(raw) > 8192:
                     raise ValueError("frame exceeds size limit")
                 frame = decode_frame(raw)
+                lock_protocol(db, item.task_id, frame.version)
                 if frame.kind == "finish":
                     cursor = db.execute(
                         "INSERT OR IGNORE INTO task_finishes VALUES (?)", (item.task_id,)
@@ -549,19 +528,11 @@ def ingest_batch(item: PacketBatch) -> dict[str, int]:
                     counts["inserted" if cursor.rowcount else "duplicate"] += 1
                     continue
                 manifest = db.execute(
-                    "SELECT total_packets,chunk_size,file_size FROM task_manifests WHERE task_id=?",
+                    "SELECT start_frame FROM task_manifests WHERE task_id=?",
                     (item.task_id,),
                 ).fetchone()
-                if manifest is not None and (
-                    frame.kind != "data"
-                    or frame.packet_id >= manifest["total_packets"]
-                    or len(frame.payload)
-                    != min(
-                        manifest["chunk_size"],
-                        manifest["file_size"] - frame.packet_id * manifest["chunk_size"],
-                    )
-                ):
-                    raise ProtocolError("DATA frame does not match bound manifest")
+                if manifest is not None:
+                    validate_data(decode_frame(bytes(manifest["start_frame"])).metadata, frame)
                 result = ingest(db, item.task_id, raw)
             except (ValueError, binascii.Error, ProtocolError) as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -623,6 +594,9 @@ def task_progress(task_id: int) -> dict:
     with connection() as db:
         if db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Task not found")
+        stats["protocol_version"] = db.execute(
+            "SELECT version FROM task_protocols WHERE task_id=?", (task_id,)
+        ).fetchone()[0]
         stats["finished"] = (
             db.execute("SELECT 1 FROM task_finishes WHERE task_id=?", (task_id,)).fetchone()
             is not None

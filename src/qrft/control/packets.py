@@ -12,6 +12,9 @@ from qrft.core.protocol import Frame, ProtocolError, decode_frame
 def init_schema(db: sqlite3.Connection) -> None:
     db.executescript(
         """
+        CREATE TABLE IF NOT EXISTS task_protocols (
+            task_id INTEGER PRIMARY KEY, version INTEGER NOT NULL CHECK(version IN (1,2))
+        );
         CREATE TABLE IF NOT EXISTS packets (
             task_id INTEGER NOT NULL,
             packet_id INTEGER NOT NULL,
@@ -37,6 +40,7 @@ def ingest(db: sqlite3.Connection, task_id: int, raw: bytes) -> str:
     frame: Frame = decode_frame(raw)
     if frame.kind != "data":
         raise ProtocolError("only DATA frames accepted by packet ingestion")
+    lock_protocol(db, task_id, frame.version)
     digest = hashlib.sha256(raw).hexdigest()
     db.execute("SAVEPOINT qrft_packet_ingest")
     existing = db.execute(
@@ -60,3 +64,12 @@ def ingest(db: sqlite3.Connection, task_id: int, raw: bytes) -> str:
     )
     db.execute("RELEASE SAVEPOINT qrft_packet_ingest")
     return "conflict"
+
+
+def lock_protocol(db: sqlite3.Connection, task_id: int, version: int) -> None:
+    existing = db.execute(
+        "SELECT version FROM task_protocols WHERE task_id=?", (task_id,)
+    ).fetchone()
+    if existing is not None and existing[0] != version:
+        raise ProtocolError("protocol version mismatch: cannot mix v1 and v2")
+    db.execute("INSERT OR IGNORE INTO task_protocols VALUES (?,?)", (task_id, version))

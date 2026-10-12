@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from qrft.core.protocol import Frame, ProtocolError, decode_frame
 def iter_video_frames(
     path: Path,
     *,
-    sample_fps: float = 10.0,
+    sample_fps: float = 60.0,
     start_seconds: float = 0.0,
     end_seconds: float | None = None,
     on_sample=None,
@@ -50,7 +51,10 @@ def iter_video_frames(
             for barcode in zxingcpp.read_barcodes(image):
                 try:
                     yield decode_frame(bytes(barcode.bytes))
-                except ProtocolError:
+                except ProtocolError as exc:
+                    logging.getLogger(__name__).warning(
+                        "Discard invalid QR frame at video frame %s: %s", index, exc
+                    )
                     continue
             if on_sample is not None:
                 on_sample(min(int((index + step) / fps * 1000), int(end_index / fps * 1000)))

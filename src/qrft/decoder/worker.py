@@ -13,7 +13,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from qrft.core.protocol import encode_data, encode_finish, encode_start
+from qrft.core.protocol import serialize_frame
 from qrft.decoder.video import iter_video_frames
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ def process_slice(
     node_id: str,
     lease: dict,
     *,
-    sample_fps: float = 10.0,
+    sample_fps: float = 60.0,
     batch_size: int = 50,
     maintenance_seconds: float = 30.0,
     lease_seconds: int = 120,
@@ -139,17 +139,13 @@ def process_slice(
                     "/tasks/manifest",
                     {
                         "task_id": task_id,
-                        "start_base64": base64.b64encode(encode_start(frame.metadata or {})).decode(
-                            "ascii"
-                        ),
+                        "start_base64": base64.b64encode(serialize_frame(frame)).decode("ascii"),
                     },
                 )
             elif frame.kind == "finish":
-                batch.append(base64.b64encode(encode_finish()).decode("ascii"))
+                batch.append(base64.b64encode(serialize_frame(frame)).decode("ascii"))
             elif frame.kind == "data":
-                batch.append(
-                    base64.b64encode(encode_data(frame.packet_id, frame.payload)).decode("ascii")
-                )
+                batch.append(base64.b64encode(serialize_frame(frame)).decode("ascii"))
                 if len(batch) >= batch_size:
                     flush()
         if errors:

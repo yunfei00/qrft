@@ -10,8 +10,8 @@ from pathlib import Path
 def play(
     source: Path,
     *,
-    chunk_size: int = 256,
-    interval_ms: int = 300,
+    chunk_size: int | None = None,
+    interval_ms: int | None = None,
     initial_delay_ms: int = 3000,
     retransmit: Path | None = None,
     start_id: int = 0,
@@ -20,8 +20,10 @@ def play(
     workers: int = 2,
     prefetch: int = 4,
     exit_when_finished: bool = False,
+    protocol_version: int = 1,
 ) -> int:
     """延迟启动并按定时器显示二维码，数据帧在播放时才生成。"""
+    interval_ms = interval_ms if interval_ms is not None else (50 if protocol_version == 2 else 300)
     if interval_ms < 1 or initial_delay_ms < 0:
         raise ValueError("invalid interval or initial delay")
     if workers < 1 or prefetch < workers:
@@ -35,6 +37,7 @@ def play(
     app = existing_app or QApplication(sys.argv)
     window = PlayerWindow(
         source,
+        protocol_version=protocol_version,
         chunk_size=chunk_size,
         interval_ms=interval_ms,
         initial_delay_ms=initial_delay_ms,
@@ -53,14 +56,16 @@ def play(
         app.setProperty("qrft_players", windows)
         window.stopped.connect(lambda: windows.remove(window) if window in windows else None)
         return 0
-    return app.exec()
+    code = app.exec()
+    return 1 if window.error else code
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="QRFT 全屏实时二维码播放器")
     parser.add_argument("source", type=Path)
-    parser.add_argument("--chunk-size", type=int, default=256)
-    parser.add_argument("--interval-ms", type=int, default=300)
+    parser.add_argument("--protocol", choices=["v1", "v2"], default="v1")
+    parser.add_argument("--chunk-size", type=int)
+    parser.add_argument("--interval-ms", type=int)
     parser.add_argument("--initial-delay-ms", type=int, default=3000)
     parser.add_argument("--retransmit", type=Path)
     parser.add_argument("--start-id", type=int, default=0)
@@ -71,6 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     return play(
         args.source,
+        protocol_version=2 if args.protocol == "v2" else 1,
         chunk_size=args.chunk_size,
         interval_ms=args.interval_ms,
         initial_delay_ms=args.initial_delay_ms,

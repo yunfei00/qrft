@@ -27,6 +27,7 @@ from qrft import __version__
 from qrft.acceptance.metrics import Monitor
 from qrft.acceptance.report import ITEMS, write_reports
 from qrft.acceptance.smb import Blocked, controller_role, worker_role
+from qrft.acceptance.v2 import run_v2
 
 PROGRAMS = ("QRFT-Encoder-CLI", "QRFT-Encoder-GUI", "QRFT-Decoder", "QRFT-Control")
 
@@ -726,6 +727,7 @@ class Runner:
             "missing": self.missing,
             "performance": self.performance,
             "qr_performance": self.qr_performance,
+            "v2": lambda: run_v2(self),
             "fault": self.fault,
             "stability": self.stability,
             "smb": lambda: worker_role(self) if self.role == "worker" else controller_role(self),

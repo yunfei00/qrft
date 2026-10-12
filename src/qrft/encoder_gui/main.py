@@ -60,6 +60,9 @@ class EncoderWindow(QMainWindow):
         root = QWidget(self)
         layout = QVBoxLayout(root)
         form = QFormLayout()
+        self.protocol = QComboBox()
+        self.protocol.addItems(["v1 原始字节 + CRC32", "v2 HEX + MD5"])
+        form.addRow("二维码协议", self.protocol)
         self.source = QLineEdit()
         self.source.setPlaceholderText("选择任意二进制文件")
         source_row = QHBoxLayout()
@@ -112,6 +115,7 @@ class EncoderWindow(QMainWindow):
         self.box_size = QSpinBox()
         self.box_size.setRange(2, 16)
         self.box_size.setValue(8)
+        self.protocol.currentIndexChanged.connect(self.change_protocol)
         qr_row = QHBoxLayout()
         qr_row.addWidget(QLabel("纠错"))
         qr_row.addWidget(self.correction)
@@ -152,6 +156,18 @@ class EncoderWindow(QMainWindow):
         if name:
             self.source.setText(name)
             self.inspect_source()
+
+    def change_protocol(self, index):
+        v2 = index == 1
+        self.chunk_size.setValue(1400 if v2 else 256)
+        self.interval_ms.setValue(50 if v2 else 300)
+        self.correction.setCurrentText("L" if v2 else "M")
+        self.box_size.setValue(10 if v2 else 8)
+        for control in (self.chunk_size, self.interval_ms, self.correction, self.box_size):
+            control.setEnabled(not v2)
+        self.status.setText(
+            "v2 固定1400字节、L/10/4、50%图像；START/FINISH各20次" if v2 else "v1 参数可配置"
+        )
 
     def choose_output(self) -> None:
         name = QFileDialog.getExistingDirectory(self, "选择导出目录")
@@ -212,6 +228,7 @@ class EncoderWindow(QMainWindow):
 
     def options(self, missing):
         return {
+            "protocol_version": 2 if self.protocol.currentIndex() == 1 else 1,
             "chunk_size": self.chunk_size.value(),
             "retransmit": missing,
             "start_id": self.start_id.value(),

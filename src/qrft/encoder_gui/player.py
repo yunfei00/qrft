@@ -32,6 +32,7 @@ class PlayerWindow(QWidget):
         prefetch=4,
         qr_options=None,
         exit_when_finished=False,
+        protocol_version=1,
         **options,
     ):
         super().__init__()
@@ -39,7 +40,11 @@ class PlayerWindow(QWidget):
             raise ValueError("invalid playback timing/cache settings")
         self.setWindowTitle("QRFT 二维码播放")
         self.resize(900, 900)
+        if protocol_version == 2:
+            available = self.screen().availableGeometry()
+            self.resize(min(1000, available.width() - 30), min(1000, available.height() - 60))
         self.exit_when_finished = exit_when_finished
+        self.protocol_version = protocol_version
         self.setStyleSheet("background:white;color:black")
         layout = QVBoxLayout(self)
         self.image = QLabel("准备二维码…")
@@ -70,17 +75,26 @@ class PlayerWindow(QWidget):
         self.stop_event = threading.Event()
         self.pending = queue.Queue(maxsize=prefetch)
         self.pixmap = QPixmap()
+        announced = False
 
         def produce():
+            nonlocal announced
             prepared = prefetch_png(
-                iter_encoded_frames(source, cancelled=self.stop_event.is_set, **options),
+                iter_encoded_frames(
+                    source,
+                    cancelled=self.stop_event.is_set,
+                    protocol_version=protocol_version,
+                    **options,
+                ),
                 workers=workers,
                 capacity=prefetch,
                 qr_options=qr_options,
+                protocol_version=protocol_version,
             )
             try:
                 for item in prepared:
-                    if item[0][0] == "START":
+                    if item[0][0] == "START" and not announced:
+                        announced = True
                         meta = decode_frame(item[0][1]).metadata
                         count = sum(
                             last - first + 1
@@ -92,7 +106,7 @@ class PlayerWindow(QWidget):
                                 cancelled=self.stop_event.is_set,
                             )
                         )
-                        if not put({"selected": count + 2}):
+                        if not put({"selected": count + (40 if protocol_version == 2 else 2)}):
                             return
                     if not put(item):
                         return
@@ -115,7 +129,7 @@ class PlayerWindow(QWidget):
         self.thread.start()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.advance)
-        self.timer.start(20)
+        self.timer.start(5 if protocol_version == 2 else 20)
         if fullscreen:
             self.showFullScreen()
 
@@ -165,10 +179,31 @@ class PlayerWindow(QWidget):
         )
         self.progress.emit(packet_id, self.displayed)
         self.render()
-        self.deadline = time.monotonic() + self.interval
+        self.deadline = time.monotonic() + (
+            0.05
+            if self.protocol_version == 2 and packet_id in ("START", "FINISH")
+            else self.interval
+        )
 
     def render(self):
         if not self.pixmap.isNull():
+            if self.protocol_version == 2:
+                ratio = self.devicePixelRatioF()
+                self.pixmap.setDevicePixelRatio(ratio)
+                if (
+                    self.image.width() * ratio < self.pixmap.width()
+                    or self.image.height() * ratio < self.pixmap.height()
+                ):
+                    self.error = "窗口空间不足；请全屏或增大窗口，二维码不能裁切"
+                    self.status.setText(self.error)
+                    self.timer.stop()
+                    self.finished = True
+                    self.stopped.emit()
+                    if self.exit_when_finished:
+                        QTimer.singleShot(0, self.close)
+                    return
+                self.image.setPixmap(self.pixmap)
+                return
             self.image.setPixmap(
                 self.pixmap.scaled(
                     self.image.size(),

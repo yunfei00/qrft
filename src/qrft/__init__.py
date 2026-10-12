@@ -1,3 +1,3 @@
 """QRFT shared Python package."""
 
-__version__ = "0.3.0rc1"
+__version__ = "0.4.0.dev0"

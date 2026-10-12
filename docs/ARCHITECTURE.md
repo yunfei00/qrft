@@ -1,5 +1,8 @@
 # QRFT 系统架构
 
+2026-10-12 v2开发补充：共享protocol_v2与validation，Frame保留版本及原始线字节；编码/Qt/OpenCV/PNG复用相同二维码生成器。Control任务协议锁及兼容SQLite迁移，Worker不重编码线帧；本地导入也使用持久包表、START绑定与流式恢复核心。v2无file_size/SHA256/文件ID字段，末包决定长度、最终MD5校验，未知来源视频须明确任务关联。OpenCV采用带GUI的opencv-python；decoder仍无界面运行，避免与headless两个发行包争用cv2。
+
+
 ## 当前实现补充（0.3.0rc1）
 
 原四程序保留职责，新增第五个独立 `QRFT-Acceptance.exe` 作为验收编排器，通过实际 EXE/鉴权 HTTP API 测试，不复制协议实现。当前视频读取为 OpenCV + ZXing 原始字节解码；控制中心使用 FastAPI、SQLite BLOB 包存储和原生中文 HTML/JavaScript 页面，没有 React 前端。以下初期选型记录保留为历史；实现以 src/qrft 为准。一键验收与现场范围见 ACCEPTANCE_RUNNER.md，v1 DATA 无会话 ID 的来源限制仍存在。

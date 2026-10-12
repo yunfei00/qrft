@@ -1,5 +1,10 @@
 # QRFT 用户操作手册（唯一操作入口）
 
+## UA-009：QRFT v2 与 Windows 11 真实录屏验收
+
+时机：使用 feature/qrft-v2-hex-md5 的0.4.0.dev0开发构建或Draft PR构件，旧0.3.0rc1不支持v2。本轮不合并、不发布。按 [完整中文v2操作与录屏手册](V2_USER_GUIDE.md) 执行12步：选文件/v2、10秒延迟、Win+Shift+R录制完整播放区、保存MP4、选择视频到明确任务、查看缺包、补传到同一目录、核对MD5。真实录屏/双机尚未验收，反馈Commit、系统/DPI/录制参数、原始/恢复MD5和日志。
+
+
 ## UA-008：第五程序与真实双机验收
 
 时机：[0.3.0rc1 五程序候选 Release](https://github.com/yunfei00/qrft/releases/tag/v0.3.0-rc.1) 下载后（335,909,638 字节，ZIP SHA256 见 ACCEPTANCE_RESULTS.md）。环境：两台 Windows、可访问 UNC 共享、同版本完整解压目录。按 [中文一键验收手册](ACCEPTANCE_RUNNER.md) 运行单机默认项目并导出完整报告；其结果不替代真实双机。

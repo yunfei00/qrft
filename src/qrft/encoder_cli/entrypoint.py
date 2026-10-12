@@ -21,16 +21,19 @@ def main(argv: list[str] | None = None) -> int:
     export = sub.add_parser("export", help="将文件导出为二维码 PNG")
     export.add_argument("source", type=Path)
     export.add_argument("--output", type=Path, required=True)
-    export.add_argument("--chunk-size", type=int, default=256)
+    export.add_argument("--protocol", choices=["v1", "v2"], default="v1")
+    export.add_argument("--chunk-size", type=int)
     export.add_argument("--retransmit", type=Path)
     export.add_argument("--start-id", type=int, default=0)
     export.add_argument("--end-id", type=int)
-    export.add_argument("--correction", choices=["L", "M", "Q", "H"], default="M")
-    export.add_argument("--box-size", type=int, default=8)
+    export.add_argument("--correction", choices=["L", "M", "Q", "H"])
+    export.add_argument("--box-size", type=int)
     player = sub.add_parser("play", help="全屏实时播放二维码")
     player.add_argument("source", type=Path)
-    player.add_argument("--chunk-size", type=int, default=256)
-    player.add_argument("--interval-ms", type=int, default=300)
+    player.add_argument("--protocol", choices=["v1", "v2"], default="v1")
+    player.add_argument("--player", choices=["qt", "opencv"], default="qt")
+    player.add_argument("--chunk-size", type=int)
+    player.add_argument("--interval-ms", type=int)
     player.add_argument("--initial-delay-ms", type=int, default=3000)
     player.add_argument("--retransmit", type=Path)
     player.add_argument("--start-id", type=int, default=0)
@@ -45,8 +48,8 @@ def main(argv: list[str] | None = None) -> int:
             str(args.source),
             "--output",
             str(args.output),
-            "--chunk-size",
-            str(args.chunk_size),
+            "--protocol",
+            args.protocol,
         ]
         if args.retransmit is not None:
             options.extend(["--retransmit", str(args.retransmit)])
@@ -54,17 +57,31 @@ def main(argv: list[str] | None = None) -> int:
             [
                 "--start-id",
                 str(args.start_id),
-                "--correction",
-                args.correction,
-                "--box-size",
-                str(args.box_size),
             ]
         )
+        for key in ("chunk_size", "correction", "box_size"):
+            value = getattr(args, key)
+            if value is not None:
+                options.extend(["--" + key.replace("_", "-"), str(value)])
         if args.end_id is not None:
             options.extend(["--end-id", str(args.end_id)])
         return export_main(options)
+    if args.player == "opencv":
+        from qrft.encoder_cli.opencv_player import play_opencv
+
+        return play_opencv(
+            args.source,
+            protocol_version=2 if args.protocol == "v2" else 1,
+            chunk_size=args.chunk_size,
+            interval_ms=args.interval_ms,
+            initial_delay_ms=args.initial_delay_ms,
+            retransmit=args.retransmit,
+            start_id=args.start_id,
+            end_id=args.end_id,
+        )
     return play(
         args.source,
+        protocol_version=2 if args.protocol == "v2" else 1,
         chunk_size=args.chunk_size,
         interval_ms=args.interval_ms,
         initial_delay_ms=args.initial_delay_ms,

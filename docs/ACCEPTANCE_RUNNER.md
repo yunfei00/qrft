@@ -1,5 +1,12 @@
 # Windows 中文一键验收手册
 
+## v2 开发分支补充（2026-10-12）
+
+本分支0.4.0.dev0新增可选“v2 HEX + MD5 完整链路”。保持默认八项v1不变，先勾选环境检查，再勾选v2；实际CLI导出1400字节/50%二维码，20fps合成AVI，实际Decoder恢复，两个真实Worker EXE领取不同短时间片，可控缺包后实际CLI补传，再恢复并核对MD5/SHA256。报告范围明确为合成视频，不代表真实录屏/双机。缺少新EXE或仍选旧0.3构建会失败，不能冒充v2通过。无Python时可运行 `QRFT-Acceptance.exe --headless --items environment v2`。
+
+新协议及兼容见 [PROTOCOL.md](PROTOCOL.md)，真实Windows11录屏12步见 [V2_USER_GUIDE.md](V2_USER_GUIDE.md)。本轮不合并main、不发布Release。
+
+
 第五个独立程序 `QRFT-Acceptance/QRFT-Acceptance.exe` 与原四程序职责分离。请解压完整绿色版，保留所有 `_internal` 运行库及根目录 SHA256SUMS.txt、VERSION.txt、COMMIT.txt。目标电脑无需安装 Python。
 
 ## 单机操作
