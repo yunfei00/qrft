@@ -2,6 +2,8 @@
 
 日期：2026-10-12。本分支 feature/qrft-v2-hex-md5 的软件版本为 0.4.0.dev0，尚未合并 main、未发布 Release。**当前推荐使用下文“Windows 11 本地源码验收（uv）”**，直接从本分支运行 Python 源码，不使用打包 EXE。后面的 EXE 流程保留作历史参考。协议参数见 PROTOCOL.md。
 
+**v2-P8 状态：第 1～10 步已由用户在 Windows 11 报告全部 PASS。** [人工验收记录及证据边界](ACCEPTANCE_RESULTS.md) 明确区分用户反馈与 Codex 自动测试；录屏路径、哈希数值、FPS/DPI、日志/截图未提供。用户无需重复已完成的验收。操作索引以 [USER_ACTIONS.md 的 UA-010 / UA-009](USER_ACTIONS.md) 为准，本章是详细执行入口。
+
 ## Windows 11 本地源码验收（uv）
 
 在同一个 PowerShell 窗口依次执行以下代码块。示例工作区为 D:\code_2026\qrft；如仓库位于其他位置，只需修改第一块中的 $repo。切换前检查工作区是否干净，发现未提交修改即停止，不会覆盖或清理它们。自动生成的测试数据放在 Git 忽略的 temp 子目录。
@@ -59,6 +61,8 @@ if ($LASTEXITCODE -ne 0) { throw '依赖导入失败，请重跑 uv sync' }
 
 实际入口是 qrft.encoder_gui.main、qrft.encoder_cli.entrypoint 和 qrft.decoder.entrypoint。GUI 与 Decoder 帮助保持原样；编码 CLI 不提供 -h/--help。运行下面的编码 CLI 后，终端会静默等待；直接输入大小写敏感的 `qsnfj` 并按回车（输入隐藏），正确后才显示操作菜单。最多三次；错误时不编码、不写文件、不打开播放器。必须在普通交互式 PowerShell/Windows Terminal 运行，不支持管道、重定向、环境变量或参数传入口令。这是本地操作入口校验，不是安全授权或防逆向机制。命令失败时确认工作目录及依赖。
 
+静默等待并不是卡死：此时没有口令提示文字，也不会显示输入字符或星号。请手动输入小写 `qsnfj` 后按 **Enter**，不要输入引号、前后空格或命令本身；GUI 入口完全不需要这一步。三次错误后本次 CLI 调用非零退出，可在同一交互式 PowerShell 重新执行同条命令，再手动输入；重启 CLI 会重新校验，不需要重建样本或更改协议。已记录用户第 6 步三次失败后重新手动输入成功的经过，未推断最初失败原因。
+
 ```powershell
 Set-Location $repo
 uv run --no-sync python -m qrft.encoder_gui.main --help
@@ -110,12 +114,19 @@ GUI 不需要口令。在 GUI 选择第 4 步输出的源文件，选择“v2 HE
 ```powershell
 Set-Location $repo
 uv run --no-sync python -m qrft.encoder_cli.entrypoint play $source --protocol v2 --player opencv --start-id 0 --end-id 9
-if ($LASTEXITCODE -ne 0) { throw 'v2 OpenCV 播放失败或被取消' }
+$playExit = $LASTEXITCODE
+if ($playExit -eq 130) {
+    Write-Warning '播放器提前退出；请独立检查截图工具是否保存 MP4，再决定解码或重新录制。'
+} elseif ($playExit -ne 0) {
+    throw 'CLI 校验、参数或播放失败；查看终端信息，口令错误时重新执行并手动输入。'
+}
 ```
 
 按 Win+Shift+R 或打开截图工具→录像→新建，**框选标题提示下的整个固定白色正方形（926×926 物理像素），不要仅框选最初较小的 START**。窗口正常传输/补传布局相同，二维码在白色区域内居中，位置不会随帧变化；留白包含完整静区，文字在区域外。点击截图工具“开始”，等待其录像倒计时结束，再点击播放器窗口获得键盘焦点并短按 Space。长按不应连续切换，Space 可暂停/继续，Esc 可提前取消。完成后播放器保留最后一帧并在区域外显示 FINISHED；先停止录制，再按 Esc 正常结束（退出码 0；未完成时 Esc/关闭退出码 130）。把原始 MP4 保存为第 4 步打印的 work 路径下第一段.mp4。不要裁剪、缩放、拖动窗口或编辑录像。
 
 可在命令末尾加 --fullscreen 使用可选全屏，但必须在框选前选择；默认不全屏。旧 --initial-delay-ms 仅保留参数兼容，不再自动倒计时。焦点不在播放器时按键不会生效，请先点击播放器。窗口关闭与 Esc 均结束自有播放器。出现裁切/容量/空间不足、按键无效或无 MP4 即失败；请更换足够大的显示区域并重新录制，不能改 1400 字节或缩小二维码来宣称通过。
+
+**播放退出与录像保存是两个独立结果。** 上述 OpenCV 命令播放完成后 Esc/关闭返回 0，未完成时 Esc/关闭返回 130；校验或其他错误也会非零退出。播放器不负责保存 MP4，保存操作由截图工具完成。130 不证明 MP4 不存在或损坏，0 也不证明截图工具已保存；必须检查 `$partialMp4` 是否存在并按第 7 步解码。完整白色区域、START 和所需 DATA 是否被录到，最终以实际解码/缺包结果判断。这里的 130 说明仅针对 OpenCV CLI，不能套用于 Qt GUI 的进程退出码。
 
 ### 7. 从源码解码第一段并检查 missing.txt
 
@@ -140,10 +151,15 @@ Write-Output "缺包数：$($missingIds.Count)；任务目录：$task"
 ```powershell
 Set-Location $repo
 uv run --no-sync python -m qrft.encoder_cli.entrypoint play $source --protocol v2 --player opencv --retransmit $missing
-if ($LASTEXITCODE -ne 0) { throw '选择性补传播放失败或被取消' }
+$playExit = $LASTEXITCODE
+if ($playExit -eq 130) {
+    Write-Warning '补传播放器提前退出；检查截图工具保存的 MP4，缺包仍可继续补传。'
+} elseif ($playExit -ne 0) {
+    throw '补传 CLI 校验、参数或播放失败；查看终端信息并重新执行。'
+}
 ```
 
-本次再次在终端输入口令。补传窗口同样显示首帧并静止等待，按第 6 步框选相同白色正方形，先启动截图工具录制、再点击播放器并按 Space。完成后停止录制、保存 work 下补传段.mp4，再按 Esc。编码器读取 missing.txt，保持未改变的源文件、1400 字节分块和原包号。文件、清单或播放失败时核对第 4、7 步重做；通过条件是退出码 0 且补传 MP4 已保存。
+本次再次在终端输入口令。补传窗口同样显示首帧并静止等待，按第 6 步框选相同白色正方形，先启动截图工具录制、再点击播放器并按 Space。完成后停止录制、保存 work 下补传段.mp4，再按 Esc。编码器读取 missing.txt，保持未改变的源文件、1400 字节分块和原包号。正常完整播放预期退出码 0 且 MP4 已保存；若提前退出为 130，按第 6 步独立检查保存文件并在第 9 步验证，补传是否足够以缺包及恢复 MD5 结果判断。其他文件、清单、校验或播放错误按终端信息排查，不更改源文件或任务。
 
 ### 9. 将补传视频导入同一任务并核对 MD5
 
@@ -164,7 +180,7 @@ Write-Output 'PASS：源码编码、录屏、缺包、补传、合并及MD5校�
 
 通过条件是退出码 0、恢复文件位于 task 下 files 子目录、missing.txt 为空、verification.json 状态为 verified 且两项 MD5 一致。仍有缺包时可用更新后的同一清单重复第 8–9 步；MD5 不同或数据包冲突时停止验收并保留独占 work 排查，不覆盖文件或导入不明来源视频。
 
-自动测试覆盖源码二维码和 AVI 视频链路；**本地自动测试没有执行 Windows 11 截图工具 MP4 录制**，真实屏幕录制须由操作者完成以上步骤后另行验收。按 USER_ACTIONS.md 的 UA-009 记录 Windows/显示器/DPI、录像帧率、缺包数及原始/恢复 MD5。
+自动测试覆盖源码二维码和 AVI 视频链路，本地自动测试不等于截图工具 MP4 录制。本次真实 Windows 11 MP4 及第 1～10 步的 PASS 来自用户反馈，见 ACCEPTANCE_RESULTS.md；Codex 未直接查阅其录像或文件。后续需要复现时可按 UA-009 保留环境/日志证据，不要求用户重复已经报告成功的流程。
 
 ### 10. 独立纯 CLI 导出 PNG（不初始化 GUI）
 
@@ -297,4 +313,4 @@ Web登记节点可直接访问的视频路径及真实时长。Worker默认60fps
 
 ## 判定与反馈
 
-记录分支Commit、程序版本、系统/显示器/DPI、截图工具版本、MP4分辨率/FPS/时长、原始/恢复MD5、缺包数量、补传次数、日志与最终状态。先用小二进制/全字节文件验证，再做长文件。真实录屏、真实双机、实际丢包率和50ms实机节奏本轮尚未验收，用户提交这些证据后再评定，不能把20fps合成AVI视为真实MP4录屏。
+本次 v2-P8 第 1～10 步已依据用户报告记录 PASS，包括真实 MP4、补传合并及 MD5 一致性；数值、路径和录屏参数未提供，不能补造。详细证据边界见 ACCEPTANCE_RESULTS.md。未来扩展验收时记录分支 Commit、程序版本、显示器/DPI、截图工具版本、MP4 分辨率/FPS/时长、缺包数量、原始/恢复 MD5、日志及最终状态。真实双机 SMB、长视频、大文件完整传输、长时间播放、实际丢包率/精确 50 ms 节奏仍未验收；不能把 20fps 合成 AVI 或本次功能 PASS 作为这些项目的性能/硬件结果。

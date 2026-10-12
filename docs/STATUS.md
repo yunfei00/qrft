@@ -1,5 +1,15 @@
 # QRFT 项目进度与交接记录
 
+## v2-P8 正式收尾：用户报告源码人工验收 PASS（2026-10-12）
+
+用户在 ChatGPT 会话中反馈：Windows 11 完成 V2_USER_GUIDE.md 第 1～10 步，GUI、固定区域/首帧/Space/Esc、CLI 交互、真实 MP4、缺包、选择性补传及恢复 MD5 一致性全部成功。第 6 步曾三次口令失败，重新在交互终端手动输入正确字符串并按 Enter 后通过；最初失败输入未提供，不推断原因。用户无需重复本次验收。
+
+人工来源及缺失证据见 [ACCEPTANCE_RESULTS.md](ACCEPTANCE_RESULTS.md)：Codex 未直接访问用户的本次 Windows 验收环境或原始视频/文件，路径、MD5 数值、FPS/DPI、日志/截图及被测精确 Commit 未提供。收尾前仓库 HEAD ad3cae7c1a3f35095686a957646e9fba96bbf5bd 的七项 CI 全绿，本轮只修改相关文档、执行源码门禁和不含打包的 Python CI，不打包、不打 Tag、不发布、不合并，PR #7 保持 Draft。真实双机 SMB、多屏/DPI、长时间播放和大规模性能仍未验收，原里程碑 7/10 不变。
+
+本轮本地锁定依赖同步、Ruff 格式与静态检查通过，pytest **196 项通过、无跳过**（1 条既有 Starlette/httpx 弃用警告）；17 个手册 PowerShell 代码块语法通过，原有 Decoder/Worker/Control/SMB 操作段落保持不变，源码与测试未改。为避免本次文档推送触发 EXE 打包，提交使用 `[skip ci]` 抑制自动 push/PR 工作流，再单独以 workflow_dispatch 执行 `ci.yml` 的完整 Python 检查；不修改工作流、不跳过失败测试，CI 结果按对应文档 Commit 的 Python 运行记录确认。该方式遵循 [GitHub 的跳过规则](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/skip-workflow-runs)，仅用于本次不打包的文档收尾，后续源码开发继续使用正常自动 CI。
+
+以下为开发阶段与自动化测试历史记录。其中当时的“MP4 待人工验收”由以上本次用户报告补充，不改变历史 EXE、自动报告或未执行的双机验收状态。
+
 ## v2-P8 编码端收尾（2026-10-12）
 
 分支 feature/qrft-v2-hex-md5；PR #7 保持 Draft，本阶段不合并、不发布。GUI 统一中文字体/间距/文件与参数卡片、任务进度、取消和小屏滚动；Qt/OpenCV 默认固定非全屏，926×926 物理像素白色区域居中显示二维码，提示在区域外，首帧静止等待 Space，Space 开始/暂停/继续、长按去重、Esc/关闭结束。保留可选全屏与旧延迟参数解析，但不再自动倒计时。

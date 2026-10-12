@@ -2,21 +2,21 @@
 
 ## 当前推荐的 v2 验收方式
 
-v2-P8 编码端：GUI 与 OpenCV 默认固定窗口，首帧静止等待 Space，Space 开始/暂停/继续，Esc 结束；CLI 先作本地交互校验，拒绝无终端调用，不提供帮助开关。GUI 不需要口令。细节及可复制命令见源码手册；旧自动倒计时步骤已归档。
+v2-P8 编码端：GUI 与 OpenCV 默认固定窗口，首帧静止等待 Space，Space 开始/暂停/恢复，Esc 结束。GUI 入口不需要口令；独立 CLI 启动后静默等待手动输入 `qsnfj`，字符/星号不可见，输入后按 Enter，大小写敏感、最多三次尝试；拒绝无终端调用，不提供 -h/--help。细节及可复制命令见源码手册；旧自动倒计时步骤已归档。录屏必须包含完整固定白色二维码区域；OpenCV 提前退出可能非零，录屏是否保存须由截图工具文件和解码结果另行判断。
 
-自动测试区分：协议/PNG/视频回归调用实际编码解码核心；CLI 启动测试在真实 Windows ConPTY 中键入测试口令，不用 stdin 管道或隐藏绕过参数，记录时移除测试输入。现有验收器只为编码器调用调整该终端驱动，其他角色不变。Qt 生命周期在 offscreen 测试并由明确的 GUI stability 验收入口驱动；桌面键盘、录屏焦点、DPI、截图工具 MP4 和长时间播放仍按 UA-010 人工验收。可在有 Windows 桌面时运行 `uv run --no-sync python scripts/encoder_player_smoke.py`，它仅对自身 OpenCV 窗口发送 Space/Esc 并保存证据，不能计作真实录屏。
+自动测试区分：协议/PNG/视频回归调用实际编码解码核心；CLI 启动测试在真实 Windows ConPTY 中键入测试口令，不用 stdin 管道或隐藏绕过参数，记录时移除测试输入。现有验收器只为编码器调用调整该终端驱动，其他角色不变。Qt 生命周期在 offscreen 测试并由明确的 GUI stability 验收入口驱动；自动 AVI/窗口烟测不等于人工录屏。用户已报告 Windows 11 源码第 1～10 步 PASS（包括真实 MP4），按 [UA-010 / UA-009](USER_ACTIONS.md) 索引查看 [详细手册](V2_USER_GUIDE.md) 和 [人工记录](ACCEPTANCE_RESULTS.md)，无需重复；多屏/DPI、长时间播放及真实双机 SMB 仍未验收。可在有 Windows 桌面时运行 `uv run --no-sync python scripts/encoder_player_smoke.py`，它只测试自身 OpenCV 窗口，不能将其输出冒充本次用户录屏证据。
 
 冻结验收器必须保留 `_internal/winpty/OpenConsole.exe` 等原生宿主资源；build-acceptance 工作流通过专用 PyInstaller hook 自动收集并列入校验清单。缺少时明确失败，不能只复制验收 EXE。无控制台宿主的终端驱动只为测试建立/附加原生控制台，只隐藏自己新建的控制台，不隐藏用户终端，结束后释放自有附加；普通 GUI 编码入口不执行该驱动。完整冻结验收与独立 CLI EXE 烟测分别检查，不能只以源码通过代替打包验证。
 
-Windows 11 的真实 v2 MP4 验收目前推荐在 Python 3.12 + uv 环境下运行本地源码，不使用打包 EXE。完整分支切换、环境同步、v2 GUI 检查、OpenCV 播放、截图工具录屏、源码解码、缺包选择性补传及 MD5 对比命令，见 [V2_USER_GUIDE.md 的“Windows 11 本地源码验收（uv）”](V2_USER_GUIDE.md)。人工 MP4 录制仍待操作者完成。
+Windows 11 的真实 v2 MP4 验收目前推荐在 Python 3.12 + uv 环境下运行本地源码，不使用打包 EXE。完整分支切换、环境同步、v2 GUI 检查、OpenCV 播放、截图工具录屏、源码解码、缺包选择性补传及 MD5 对比命令，见 [V2_USER_GUIDE.md 的“Windows 11 本地源码验收（uv）”](V2_USER_GUIDE.md)。本次 PASS 依据用户反馈，Codex 未直接查阅用户录屏、文件或环境；记录没有补造路径、MD5 数值、FPS/DPI、日志/截图。本轮不打包 EXE、不打 Tag、不发布、不合并，PR #7 保持 Draft。
 
 下方一键验收器说明、开发分支 EXE 补充及绿色版步骤保留作为先前 0.3.0rc1 / EXE 自动化流程的历史参考，不是本轮推荐的 v2 人工验收方式。自动 AVI 与 EXE 冒烟结果不能代替真实录屏。
 
-## v2 开发分支补充（2026-10-12）
+## 历史构建记录：v2 开发分支补充（2026-10-12）
 
 本分支0.4.0.dev0新增可选“v2 HEX + MD5 完整链路”。保持默认八项v1不变，先勾选环境检查，再勾选v2；实际CLI导出1400字节/50%二维码，20fps合成AVI，实际Decoder恢复，两个真实Worker EXE领取不同短时间片，可控缺包后实际CLI补传，再恢复并核对MD5/SHA256。报告范围明确为合成视频，不代表真实录屏/双机。缺少新EXE或仍选旧0.3构建会失败，不能冒充v2通过。无Python时可运行 `QRFT-Acceptance.exe --headless --items environment v2`。
 
-本轮170项自动测试与七项CI通过，实际EXE证据及限制见 [V2_TEST_RESULTS.md](V2_TEST_RESULTS.md)。新协议及兼容见 [PROTOCOL.md](PROTOCOL.md)，真实Windows11录屏12步见 [V2_USER_GUIDE.md](V2_USER_GUIDE.md)。本轮不合并main、不发布Release。
+该历史实现阶段170项自动测试与七项CI通过，实际EXE证据及限制见 [V2_TEST_RESULTS.md](V2_TEST_RESULTS.md)，不作为本轮重新打包结果。新协议及兼容见 [PROTOCOL.md](PROTOCOL.md)；当前操作按源码手册第 1～10 步，旧 EXE 12 步仅为历史参考。
 
 
 第五个独立程序 `QRFT-Acceptance/QRFT-Acceptance.exe` 与原四程序职责分离。请解压完整绿色版，保留所有 `_internal` 运行库及根目录 SHA256SUMS.txt、VERSION.txt、COMMIT.txt。目标电脑无需安装 Python。
