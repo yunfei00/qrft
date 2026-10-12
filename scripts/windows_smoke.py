@@ -36,6 +36,15 @@ def main():
         }
 
         def run(name, *options):
+            if name == "QRFT-Encoder-CLI":
+                from qrft.encoder_cli.console_test import run_encoder
+
+                result = run_encoder(
+                    [str(binaries[name]), *map(str, options)], env=env, cwd=root, timeout=60
+                )
+                if result.returncode:
+                    raise RuntimeError(result.stdout)
+                return
             subprocess.run(
                 [str(binaries[name]), *map(str, options)], env=env, cwd=root, check=True, timeout=60
             )
@@ -47,16 +56,16 @@ def main():
         run("QRFT-Encoder-CLI", "export", source, "--output", images, "--chunk-size", 64)
         run("QRFT-Encoder-GUI", "--smoke-test")
         run(
-            "QRFT-Encoder-CLI",
-            "play",
+            "QRFT-Encoder-GUI",
+            "--stability-file",
             source,
-            "--interval-ms",
-            10,
-            "--initial-delay-ms",
-            0,
-            "--windowed",
-            "--exit-when-finished",
+            "--stability-seconds",
+            1,
+            "--stability-evidence",
+            root / "player.json",
         )
+        evidence = json.loads((root / "player.json").read_text(encoding="utf-8"))
+        assert evidence["displayed_frames"] and evidence["error"] is None
         import cv2
         import numpy as np
 

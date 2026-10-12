@@ -330,6 +330,12 @@ def test_qt_player_v2_repeats_and_lifecycle(tmp_path):
     )
     try:
         window.show()
+        ready_deadline = time.monotonic() + 10
+        while not window.ready and time.monotonic() < ready_deadline:
+            qt.processEvents()
+            QTest.qWait(5)
+        assert window.ready
+        window.toggle_pause()
         deadline = time.monotonic() + 10
         while not window.finished and time.monotonic() < deadline:
             qt.processEvents()

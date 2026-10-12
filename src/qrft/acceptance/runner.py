@@ -167,6 +167,22 @@ class Runner:
             raise RuntimeError(f"EXE 返回错误码 {process.returncode}；请查看进程日志")
 
     def run(self, name, *args, timeout=120, extra_env=None):
+        if name == "QRFT-Encoder-CLI":
+            from qrft.encoder_cli.console_test import run_encoder
+
+            self.check()
+            self.log("编码器自动测试：真实 Windows ConPTY 中交互校验；不使用管道/绕过参数")
+            result = run_encoder(
+                [str(self.binary(name)), *map(str, args)],
+                cwd=self.root,
+                env={**self.env, **(extra_env or {})},
+                timeout=timeout,
+                check_cancel=self.check,
+            )
+            self.log(result.stdout)
+            if result.returncode:
+                raise RuntimeError(f"编码器返回错误码 {result.returncode}")
+            return
         self.wait(self.spawn(name, *args, extra_env=extra_env), timeout)
 
     @staticmethod
@@ -263,17 +279,18 @@ class Runner:
             )
         self.run("QRFT-Encoder-GUI", "--smoke-test", extra_env={"QT_QPA_PLATFORM": "offscreen"})
         self.run(
-            "QRFT-Encoder-CLI",
-            "play",
+            "QRFT-Encoder-GUI",
+            "--stability-file",
             self.source,
-            "--interval-ms",
-            10,
-            "--initial-delay-ms",
-            0,
-            "--windowed",
-            "--exit-when-finished",
+            "--stability-seconds",
+            1,
+            "--stability-evidence",
+            self.root / "encoder-player.json",
             extra_env={"QT_QPA_PLATFORM": "offscreen"},
         )
+        evidence = json.loads((self.root / "encoder-player.json").read_text(encoding="utf-8"))
+        if evidence["error"] or not evidence["displayed_frames"]:
+            raise RuntimeError("Qt 播放器没有成功显示二维码")
         return {"png_count": len(list(self.images.glob("*.png"))), "source_sha256": self.sha}
 
     def make_video(self, images, output, *, omit=None):

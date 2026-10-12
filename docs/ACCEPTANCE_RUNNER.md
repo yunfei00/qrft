@@ -2,6 +2,10 @@
 
 ## 当前推荐的 v2 验收方式
 
+v2-P8 编码端：GUI 与 OpenCV 默认固定窗口，首帧静止等待 Space，Space 开始/暂停/继续，Esc 结束；CLI 先作本地交互校验，拒绝无终端调用，不提供帮助开关。GUI 不需要口令。细节及可复制命令见源码手册；旧自动倒计时步骤已归档。
+
+自动测试区分：协议/PNG/视频回归调用实际编码解码核心；CLI 启动测试在真实 Windows ConPTY 中键入测试口令，不用 stdin 管道或隐藏绕过参数，记录时移除测试输入。现有验收器只为编码器调用调整该终端驱动，其他角色不变。Qt 生命周期在 offscreen 测试并由明确的 GUI stability 验收入口驱动；桌面键盘、录屏焦点、DPI、截图工具 MP4 和长时间播放仍按 UA-010 人工验收。可在有 Windows 桌面时运行 `uv run --no-sync python scripts/encoder_player_smoke.py`，它仅对自身 OpenCV 窗口发送 Space/Esc 并保存证据，不能计作真实录屏。
+
 Windows 11 的真实 v2 MP4 验收目前推荐在 Python 3.12 + uv 环境下运行本地源码，不使用打包 EXE。完整分支切换、环境同步、v2 GUI 检查、OpenCV 播放、截图工具录屏、源码解码、缺包选择性补传及 MD5 对比命令，见 [V2_USER_GUIDE.md 的“Windows 11 本地源码验收（uv）”](V2_USER_GUIDE.md)。人工 MP4 录制仍待操作者完成。
 
 下方一键验收器说明、开发分支 EXE 补充及绿色版步骤保留作为先前 0.3.0rc1 / EXE 自动化流程的历史参考，不是本轮推荐的 v2 人工验收方式。自动 AVI 与 EXE 冒烟结果不能代替真实录屏。

@@ -1,5 +1,13 @@
 # QRFT 项目进度与交接记录
 
+## v2-P8 编码端收尾（2026-10-12）
+
+分支 feature/qrft-v2-hex-md5；PR #7 保持 Draft，本阶段不合并、不发布。GUI 统一中文字体/间距/文件与参数卡片、任务进度、取消和小屏滚动；Qt/OpenCV 默认固定非全屏，926×926 物理像素白色区域居中显示二维码，提示在区域外，首帧静止等待 Space，Space 开始/暂停/继续、长按去重、Esc/关闭结束。保留可选全屏与旧延迟参数解析，但不再自动倒计时。
+
+编码 CLI 在参数解析前隐藏输入交互校验（三次上限、大小写敏感），没有帮助开关、无终端拒绝；PNG export 不加载 PySide6，GUI 共享函数不校验口令。本地入口校验不是安全授权或防逆向机制。冻结 v2 三段格式/MD5/1400/20次控制帧和 v1 核心没有修改；Decoder、Worker、Control 没有改动。仅调整现有 acceptance 的编码器调用与 CI 冒烟脚本，使用真实 Windows ConPTY，不使用口令管道/绕过参数；Qt 验收使用明确的 GUI stability 入口。
+
+本地全量回归 196 项通过（1 项既有 Starlette/httpx 弃用警告），提交前再次执行全部门禁。原生 Windows Qt GUI 源码启动、实际 OpenCV 窗口及原生 Space/Esc、静止首帧/长按/暂停恢复/固定尺寸、可选全屏及未开始时关闭烟测通过；证据在独占 temp/p8-native-player-* 目录。源码真实终端导出 PNG→AVI→现有 Decoder 恢复 MD5 一致；本地 PyInstaller 编码 CLI 开发构建及真实终端 v1/v2 PNG/MD5、帮助参数拒绝、无终端拒绝烟测通过（temp/p8-build）。本阶段 CI 结果以 PR #7 对应提交检查为准，不引用旧提交冒充。真实截图工具 MP4、人工焦点/多 DPI/多屏、长时间播放尚未验收，按 UA-010 执行；原口径里程碑仍 7/10。
+
 ## v2 HEX + MD5 开发（2026-10-12，未合并/未发布）
 
 分支 `feature/qrft-v2-hex-md5` 基于main `5fa681fb619c5cd296dd249269cdea57f7d9f248`，基线工作区干净、七项CI成功。开发包版本0.4.0.dev0，不修改现有0.3.0rc1 Release。本轮禁止自动合并/发布。

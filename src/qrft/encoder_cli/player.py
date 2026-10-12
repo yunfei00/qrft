@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import sys
 from pathlib import Path
 
@@ -16,7 +15,7 @@ def play(
     retransmit: Path | None = None,
     start_id: int = 0,
     end_id: int | None = None,
-    fullscreen: bool = True,
+    fullscreen: bool = False,
     workers: int = 2,
     prefetch: int = 4,
     exit_when_finished: bool = False,
@@ -61,32 +60,11 @@ def play(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="QRFT 全屏实时二维码播放器")
-    parser.add_argument("source", type=Path)
-    parser.add_argument("--protocol", choices=["v1", "v2"], default="v1")
-    parser.add_argument("--chunk-size", type=int)
-    parser.add_argument("--interval-ms", type=int)
-    parser.add_argument("--initial-delay-ms", type=int, default=3000)
-    parser.add_argument("--retransmit", type=Path)
-    parser.add_argument("--start-id", type=int, default=0)
-    parser.add_argument("--end-id", type=int)
-    parser.add_argument("--workers", type=int, default=2)
-    parser.add_argument("--prefetch", type=int, default=4)
-    parser.add_argument("--windowed", action="store_true")
-    args = parser.parse_args(argv)
-    return play(
-        args.source,
-        protocol_version=2 if args.protocol == "v2" else 1,
-        chunk_size=args.chunk_size,
-        interval_ms=args.interval_ms,
-        initial_delay_ms=args.initial_delay_ms,
-        retransmit=args.retransmit,
-        start_id=args.start_id,
-        end_id=args.end_id,
-        fullscreen=not args.windowed,
-        workers=args.workers,
-        prefetch=args.prefetch,
-    )
+    import sys
+
+    from qrft.encoder_cli.entrypoint import main as console_main
+
+    return console_main(["play", *(sys.argv[1:] if argv is None else argv)])
 
 
 if __name__ == "__main__":

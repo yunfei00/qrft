@@ -10,18 +10,22 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
     QFileDialog,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMainWindow,
     QMessageBox,
+    QProgressBar,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -35,6 +39,7 @@ from qrft.encoder_gui.player import PlayerWindow
 class Job(QThread):
     result = Signal(object)
     failed = Signal(str)
+    progress = Signal(int, int)
 
     def __init__(self, operation, parent):
         super().__init__(parent)
@@ -43,7 +48,7 @@ class Job(QThread):
 
     def run(self):
         try:
-            self.result.emit(self.operation(self.cancel.is_set))
+            self.result.emit(self.operation(self.cancel.is_set, self.progress.emit))
         except (OSError, ValueError, RuntimeError) as exc:
             self.failed.emit(str(exc))
 
@@ -54,12 +59,43 @@ class EncoderWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("QRFT 图形编码器")
-        self.resize(760, 620)
+        available = self.screen().availableGeometry()
+        self.resize(min(900, available.width() - 40), min(800, available.height() - 60))
+        self.setFont(QFont("Microsoft YaHei UI", 10))
+        self.setStyleSheet("""
+            QMainWindow { background: #f3f5f9; }
+            QWidget { color: #24324a; }
+            QGroupBox { background: white; border: 1px solid #dce3ee;
+                        border-radius: 10px; margin-top: 12px; padding: 18px; }
+            QGroupBox::title { subcontrol-origin: margin; left: 18px; }
+            QLineEdit, QSpinBox, QComboBox { background: white; border: 1px solid #cbd5e1;
+                border-radius: 5px; padding: 5px 8px; min-height: 22px; }
+            QLineEdit:focus, QSpinBox:focus, QComboBox:focus { border-color: #2563eb; }
+            QSpinBox:disabled, QComboBox:disabled { background: #f7f9fc; color: #64748b; }
+            QScrollArea { border: none; background: #f3f5f9; }
+            QPushButton { background: white; border: 1px solid #cbd5e1;
+                border-radius: 6px; padding: 8px 14px; }
+            QPushButton:hover { background: #eaf1ff; border-color: #2563eb; }
+            QPushButton#primary { background: #2563eb; color: white; border-color: #2563eb; }
+            QPushButton:disabled { color: #94a3b8; }
+            QProgressBar { border: none; background: #e2e8f0; border-radius: 4px;
+                           min-height: 12px; text-align: center; }
+            QProgressBar::chunk { background: #2563eb; border-radius: 4px; }
+        """)
         self.jobs = []
         self.player = None
         root = QWidget(self)
         layout = QVBoxLayout(root)
+        layout.setContentsMargins(24, 18, 24, 18)
+        layout.setSpacing(14)
+        title = QLabel("文件二维码传输")
+        title.setFont(QFont("Microsoft YaHei UI", 18, QFont.Weight.DemiBold))
+        layout.addWidget(title)
+        layout.addWidget(QLabel("选择文件 → 检查信息 → 准备二维码 → 录屏后按 Space 开始"))
+        settings = QGroupBox("文件与编码参数")
         form = QFormLayout()
+        form.setVerticalSpacing(10)
+        form.setHorizontalSpacing(18)
         self.protocol = QComboBox()
         self.protocol.addItems(["v1 原始字节 + CRC32", "v2 HEX + MD5"])
         form.addRow("二维码协议", self.protocol)
@@ -98,7 +134,9 @@ class EncoderWindow(QMainWindow):
         self.delay_ms = QSpinBox()
         self.delay_ms.setRange(0, 60000)
         self.delay_ms.setValue(3000)
-        form.addRow("开始延迟（毫秒）", self.delay_ms)
+        self.delay_ms.setValue(0)
+        self.delay_ms.setEnabled(False)
+        self.delay_ms.setToolTip("播放器首帧静止等待 Space；不使用自动倒计时")
         self.start_id = QSpinBox()
         self.start_id.setRange(0, 88888887)
         self.end_id = QSpinBox()
@@ -123,9 +161,10 @@ class EncoderWindow(QMainWindow):
         qr_row.addWidget(self.box_size)
         form.addRow("二维码参数", qr_row)
         self.fullscreen = QCheckBox("开始时全屏播放（F11 可切换）")
-        self.fullscreen.setChecked(True)
+        self.fullscreen.setChecked(False)
         form.addRow(self.fullscreen)
-        layout.addLayout(form)
+        settings.setLayout(form)
+        layout.addWidget(settings)
         self.metadata = QLabel("文件信息：选择文件后点击检查；哈希计算在后台运行。")
         self.metadata.setWordWrap(True)
         self.metadata.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -137,19 +176,25 @@ class EncoderWindow(QMainWindow):
         export = QPushButton("导出二维码 PNG")
         export.clicked.connect(self.export_png)
         actions.addWidget(export)
-        playback = QPushButton("开始播放")
+        playback = QPushButton("准备二维码")
+        playback.setObjectName("primary")
         playback.clicked.connect(self.start_playback)
         actions.addWidget(playback)
-        pause = QPushButton("暂停 / 继续")
-        pause.clicked.connect(lambda: self.player.toggle_pause() if self.player else None)
-        actions.addWidget(pause)
-        stop = QPushButton("停止")
+        stop = QPushButton("取消任务")
         stop.clicked.connect(self.stop_jobs)
         actions.addWidget(stop)
         layout.addLayout(actions)
-        self.status = QLabel("就绪。播放时按空格暂停或继续，按 Esc 退出。")
+        self.task_progress = QProgressBar()
+        self.task_progress.setRange(0, 100)
+        self.task_progress.setValue(0)
+        layout.addWidget(self.task_progress)
+        self.status = QLabel("就绪。播放器默认固定窗口；首帧等待 Space，Esc 结束。")
+        self.status.setWordWrap(True)
         layout.addWidget(self.status)
-        self.setCentralWidget(root)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(root)
+        self.setCentralWidget(scroll)
 
     def choose_source(self) -> None:
         name, _ = QFileDialog.getOpenFileName(self, "选择源文件")
@@ -168,6 +213,7 @@ class EncoderWindow(QMainWindow):
         self.status.setText(
             "v2 固定1400字节、L/10/4、50%图像；START/FINISH各20次" if v2 else "v1 参数可配置"
         )
+        self.metadata.setText("协议已切换，请重新检查文件，确认总包数与哈希。")
 
     def choose_output(self) -> None:
         name = QFileDialog.getExistingDirectory(self, "选择导出目录")
@@ -198,7 +244,9 @@ class EncoderWindow(QMainWindow):
             output = Path(self.output.text().strip())
             options = self.options(missing)
             self.start_job(
-                lambda cancelled: export_frames(source, output, cancelled=cancelled, **options),
+                lambda cancelled, progress: export_frames(
+                    source, output, cancelled=cancelled, progress=progress, **options
+                ),
                 lambda result: self.status.setText(
                     f"导出完成：{result['exported_data_packets']} 个数据包"
                 ),
@@ -221,7 +269,15 @@ class EncoderWindow(QMainWindow):
             self.player.progress.connect(
                 lambda packet, count: self.status.setText(f"播放中：{packet}，已显示 {count} 帧")
             )
-            self.player.stopped.connect(lambda: self.status.setText("播放已停止或完成"))
+            self.player.state_changed.connect(self.status.setText)
+            self.player.stopped.connect(
+                lambda: self.status.setText(
+                    f"播放失败：{self.player.error}" if self.player.error else "播放已结束"
+                )
+            )
+            self.player.progress.connect(
+                lambda packet, count: self.update_progress(count, self.player.bar.maximum())
+            )
             self.player.show()
         except (OSError, ValueError, RuntimeError) as exc:
             QMessageBox.critical(self, "播放失败", str(exc))
@@ -244,11 +300,29 @@ class EncoderWindow(QMainWindow):
             raise ValueError("后台任务正在执行，请稍候或停止")
         job = Job(operation, self)
         self.jobs.append(job)
-        job.result.connect(finished)
-        job.failed.connect(lambda message: self.status.setText(f"任务失败：{message}"))
+
+        def success(result):
+            finished(result)
+            self.task_progress.setRange(0, 100)
+            self.task_progress.setValue(100)
+
+        job.result.connect(success)
+        job.progress.connect(self.update_progress)
+
+        def failed(message):
+            self.status.setText(f"任务失败：{message}")
+            self.task_progress.setRange(0, 100)
+            self.task_progress.setValue(0)
+
+        job.failed.connect(failed)
         job.finished.connect(lambda: self.jobs.remove(job))
+        self.task_progress.setRange(0, 0)
         self.status.setText("后台处理中…")
         job.start()
+
+    def update_progress(self, count, total):
+        self.task_progress.setRange(0, max(1, total))
+        self.task_progress.setValue(count)
 
     def inspect_source(self):
         try:
@@ -262,7 +336,8 @@ class EncoderWindow(QMainWindow):
                 )
 
             self.start_job(
-                lambda cancelled: inspect_file(source, chunk, cancelled=cancelled), display
+                lambda cancelled, progress: inspect_file(source, chunk, cancelled=cancelled),
+                display,
             )
         except (OSError, ValueError) as exc:
             self.status.setText(str(exc))
@@ -309,6 +384,14 @@ def main(argv=None) -> int:
             )
             window.player.show()
             window.player.progress.connect(progress)
+
+            def start_ready():
+                if window.player.ready and not window.player.started:
+                    window.player.toggle_pause()
+
+            begin = QTimer(window.player)
+            begin.timeout.connect(start_ready)
+            begin.start(10)
 
         replay()
         repeat = QTimer(window)

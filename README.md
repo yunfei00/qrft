@@ -2,6 +2,8 @@
 
 本分支 `feature/qrft-v2-hex-md5` 开发软件0.4.0.dev0：新增v2大写HEX + MD5、固定1400字节、50ms、START/FINISH各20次；v1编码默认及解码兼容保留。见 [v2中文手册](docs/V2_USER_GUIDE.md) 和 [协议](docs/PROTOCOL.md)。本轮仅提交/推送、Draft PR验证，不合并main、不发布Release；下面已发布0.3.0rc1为历史候选版，不支持v2。
 
+v2-P8 编码端推荐按 [Windows 11 本地源码验收（uv）](docs/V2_USER_GUIDE.md) 操作：GUI 无需口令；纯 CLI 先执行本地交互校验，不提供帮助开关，不接受无终端/管道输入。Qt/OpenCV 默认固定窗口，首帧等待 Space，Space 开始/暂停/继续，Esc 结束；文字不进入固定白色录屏区。真实截图工具 MP4 尚待 UA-010 人工验收。
+
 
 **当前状态：Python 编码/视频恢复闭环、控制中心和分布式 Worker 已实现；完整产品与真实双机验收尚未完成。** 目标交付日期：2026-10-16（7 天紧凑排期）。
 
