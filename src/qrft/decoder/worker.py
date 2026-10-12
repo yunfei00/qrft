@@ -173,11 +173,14 @@ def run_worker(
     once: bool = False,
     lease_seconds: int = 120,
     maintenance_seconds: float = 30.0,
+    task_id: int | None = None,
+    sample_fps: float = 60.0,
 ) -> None:
     if (
         poll_seconds <= 0
         or not 1 <= lease_seconds <= 3600
         or not 0 < maintenance_seconds < lease_seconds
+        or sample_fps <= 0
     ):
         raise ValueError("invalid poll/lease/maintenance timing")
     while True:
@@ -187,7 +190,11 @@ def run_worker(
                 base_url,
                 token,
                 "/slices/claim",
-                {"node_id": node_id, "lease_seconds": lease_seconds},
+                {
+                    "node_id": node_id,
+                    "lease_seconds": lease_seconds,
+                    **({"task_id": task_id} if task_id is not None else {}),
+                },
             )
         except OSError:
             logger.exception("Control request failed")
@@ -204,9 +211,27 @@ def run_worker(
                     lease,
                     lease_seconds=lease_seconds,
                     maintenance_seconds=maintenance_seconds,
+                    sample_fps=sample_fps,
                 )
-            except (OSError, ValueError):
+            except (OSError, ValueError) as exc:
                 logger.exception("Slice %s failed; lease will expire for reassignment", lease["id"])
+                if "lease_token" in lease:
+                    try:
+                        request_json(
+                            base_url,
+                            token,
+                            f"/slices/{lease['id']}/error",
+                            {
+                                "node_id": node_id,
+                                "lease_token": lease["lease_token"],
+                                "message": (
+                                    f"视频扫描或提交失败：{type(exc).__name__}：{exc}；"
+                                    "检查视频/SMB权限、协议版本、网络和节点日志。"
+                                ).replace(token, "[已隐藏]")[:2000],
+                            },
+                        )
+                    except OSError:
+                        logger.warning("无法上报时间片错误；租约仍将过期回收")
                 if once:
                     raise
         if once:
@@ -224,6 +249,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--lease-seconds", type=int, default=120)
     parser.add_argument("--maintenance-seconds", type=float, default=30)
+    parser.add_argument("--task-id", type=int, help="只领取指定任务；默认领取所有可用任务")
+    parser.add_argument("--sample-fps", type=float, default=60.0)
     args = parser.parse_args(argv)
     config = {}
     if args.config:
@@ -250,6 +277,8 @@ def main(argv: list[str] | None = None) -> int:
             once=args.once,
             lease_seconds=args.lease_seconds,
             maintenance_seconds=args.maintenance_seconds,
+            task_id=args.task_id,
+            sample_fps=args.sample_fps,
         )
     except KeyboardInterrupt:
         logger.info("Worker stopped; unfinished lease will expire")

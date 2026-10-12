@@ -1,5 +1,7 @@
 # Windows 中文一键验收手册
 
+v2-P9 源码解码 GUI 的自动证据来自 `tests/test_decoder_desktop.py`、独立 Qt 驱动和 Windows Python CI，使用实际合成 MP4、真实 HTTP、独立源码 Worker；不要求 Acceptance EXE，不代表真实录屏或双机。源码入口和最终人工边界见 [解码手册](DECODER_USER_GUIDE.md) 及 UA-011。当前阶段不打包、Tag 或 Release，下方 EXE 流程保留历史参考；P8 用户 PASS 不扩充为 P9 新 GUI PASS。
+
 ## 当前推荐的 v2 验收方式
 
 v2-P8 编码端：GUI 与 OpenCV 默认固定窗口，首帧静止等待 Space，Space 开始/暂停/恢复，Esc 结束。GUI 入口不需要口令；独立 CLI 启动后静默等待手动输入 `qsnfj`，字符/星号不可见，输入后按 Enter，大小写敏感、最多三次尝试；拒绝无终端调用，不提供 -h/--help。细节及可复制命令见源码手册；旧自动倒计时步骤已归档。录屏必须包含完整固定白色二维码区域；OpenCV 提前退出可能非零，录屏是否保存须由截图工具文件和解码结果另行判断。

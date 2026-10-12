@@ -1,5 +1,7 @@
 # QRFT v2 中文操作与 Windows 11 真实录屏验收
 
+v2-P9 已增加统一源码解码 GUI，单机无需手动启动 Control/Worker；新桌面操作按 [DECODER_USER_GUIDE.md](DECODER_USER_GUIDE.md) 和 UA-011。下方 P8 第 1～10 步保留已验收的编码/CLI 操作与历史证据，不要求重复执行。
+
 日期：2026-10-12。本分支 feature/qrft-v2-hex-md5 的软件版本为 0.4.0.dev0，尚未合并 main、未发布 Release。**当前推荐使用下文“Windows 11 本地源码验收（uv）”**，直接从本分支运行 Python 源码，不使用打包 EXE。后面的 EXE 流程保留作历史参考。协议参数见 PROTOCOL.md。
 
 **v2-P8 状态：第 1～10 步已由用户在 Windows 11 报告全部 PASS。** [人工验收记录及证据边界](ACCEPTANCE_RESULTS.md) 明确区分用户反馈与 Codex 自动测试；录屏路径、哈希数值、FPS/DPI、日志/截图未提供。用户无需重复已完成的验收。操作索引以 [USER_ACTIONS.md 的 UA-010 / UA-009](USER_ACTIONS.md) 为准，本章是详细执行入口。

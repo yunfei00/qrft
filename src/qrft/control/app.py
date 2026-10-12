@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import errno
+import json
 import os
 import sqlite3
 import time
@@ -100,8 +102,15 @@ def connection():
         )
         db.execute("CREATE INDEX IF NOT EXISTS slice_receipts_slice ON slice_receipts(slice_id)")
         db.execute(
+            "CREATE TABLE IF NOT EXISTS slice_errors (slice_id INTEGER PRIMARY KEY, "
+            "message TEXT NOT NULL, updated_at REAL NOT NULL)"
+        )
+        db.execute(
             "CREATE TABLE IF NOT EXISTS task_recoveries (task_id INTEGER PRIMARY KEY, "
             "status TEXT NOT NULL, path TEXT, updated_at REAL NOT NULL)"
+        )
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS task_recovery_evidence(task_id INTEGER PRIMARY KEY,evidence TEXT NOT NULL)"
         )
         db.execute(
             "CREATE TABLE IF NOT EXISTS task_manifests ("
@@ -152,7 +161,7 @@ def cancel_task(task_id: int):
         if not db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone():
             raise HTTPException(status_code=404, detail="Task not found")
         db.execute(
-            "INSERT INTO task_controls VALUES (?,1) ON CONFLICT(task_id) DO UPDATE SET cancelled=1",
+            "INSERT INTO task_controls(task_id,cancelled) VALUES (?,1) ON CONFLICT(task_id) DO UPDATE SET cancelled=1",
             (task_id,),
         )
         db.execute(
@@ -167,13 +176,49 @@ class TaskCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
 
 
+@app.post("/tasks/{task_id}/pause", dependencies=[Depends(require_token)])
+def pause_task(task_id: int):
+    with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        if not db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="Task not found")
+        db.execute(
+            "INSERT INTO task_controls(task_id,paused) VALUES (?,1) "
+            "ON CONFLICT(task_id) DO UPDATE SET paused=1",
+            (task_id,),
+        )
+        db.execute(
+            "UPDATE slices SET state='pending',owner=NULL,lease_until=NULL,lease_token=NULL "
+            "WHERE state='leased' AND video_id IN (SELECT id FROM videos WHERE task_id=?)",
+            (task_id,),
+        )
+    return {"status": "paused"}
+
+
+@app.post("/tasks/{task_id}/resume", dependencies=[Depends(require_token)])
+def resume_task(task_id: int):
+    with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        if not db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="Task not found")
+        db.execute("UPDATE task_controls SET paused=0,cancelled=0 WHERE task_id=?", (task_id,))
+        db.execute(
+            "UPDATE slices SET state='pending',owner=NULL,lease_until=NULL,lease_token=NULL "
+            "WHERE state='cancelled' AND video_id IN (SELECT id FROM videos WHERE task_id=?)",
+            (task_id,),
+        )
+    return {"status": "pending"}
+
+
 class VideoCreate(BaseModel):
+    slice_seconds: int = Field(default=30, ge=1, le=3600)
     task_id: int = Field(gt=0)
     path: str = Field(min_length=1, max_length=4096)
     duration_seconds: float = Field(gt=0, allow_inf_nan=False)
 
 
 class SliceClaim(BaseModel):
+    task_id: int | None = Field(default=None, gt=0)
     node_id: str = Field(min_length=1, max_length=128)
     lease_seconds: int = Field(default=120, ge=1, le=3600)
 
@@ -209,6 +254,35 @@ class ScanCheckpoint(BaseModel):
     node_id: str
     lease_token: str
     checkpoint_ms: int = Field(ge=0)
+
+
+class SliceFailure(BaseModel):
+    lease_token: str
+    node_id: str
+    message: str = Field(max_length=2000)
+
+
+@app.post("/slices/{slice_id}/error", dependencies=[Depends(require_token)])
+def slice_error(slice_id: int, item: SliceFailure):
+    with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute(
+            "SELECT owner,lease_token,state FROM slices WHERE id=?", (slice_id,)
+        ).fetchone()
+        if (
+            row is None
+            or row["owner"] != item.node_id
+            or row["lease_token"] != item.lease_token
+            or row["state"] != "leased"
+        ):
+            raise HTTPException(status_code=409, detail="lease_invalid")
+        message = item.message.replace(os.environ.get("QRFT_API_TOKEN", ""), "[已隐藏]")
+        db.execute(
+            "INSERT INTO slice_errors VALUES (?,?,?) ON CONFLICT(slice_id) "
+            "DO UPDATE SET message=excluded.message,updated_at=excluded.updated_at",
+            (slice_id, message, time.time()),
+        )
+    return {"status": "recorded"}
 
 
 @app.post("/slices/{slice_id}/checkpoint", dependencies=[Depends(require_token)])
@@ -267,7 +341,13 @@ def register_video(item: VideoCreate) -> dict[str, int]:
             (item.task_id, item.path, item.duration_seconds, time.time()),
         )
         video_id = int(cursor.lastrowid)
-        add_slices(db, video_id, item.duration_seconds)
+        add_slices(
+            db,
+            video_id,
+            item.duration_seconds,
+            slice_ms=item.slice_seconds * 1000,
+            overlap_ms=min(1000, item.slice_seconds * 100),
+        )
         return {"id": video_id}
 
 
@@ -353,7 +433,7 @@ def rescan_video(video_id: int):
 @app.post("/slices/claim", dependencies=[Depends(require_token)])
 def claim_slice(item: SliceClaim) -> dict | None:
     with connection() as db:
-        result = claim(db, item.node_id, item.lease_seconds)
+        result = claim(db, item.node_id, item.lease_seconds, item.task_id)
         if result:
             db.execute(
                 "INSERT INTO slice_receipts(lease_token,slice_id,node_id,started_at) VALUES (?,?,?,?)",
@@ -375,6 +455,7 @@ def complete_slice(slice_id: int, item: SliceComplete) -> dict[str, str]:
             "WHERE lease_token=(SELECT lease_token FROM slices WHERE id=?)",
             (time.time(), slice_id),
         )
+        db.execute("DELETE FROM slice_errors WHERE slice_id=?", (slice_id,))
         return {"status": result}
 
 
@@ -382,9 +463,14 @@ def complete_slice(slice_id: int, item: SliceComplete) -> dict[str, str]:
 def list_slices(video_id: int | None = None) -> list[dict]:
     with connection() as db:
         if video_id is None:
-            rows = db.execute("SELECT * FROM slices ORDER BY id")
+            rows = db.execute(
+                "SELECT s.*,e.message AS error FROM slices s LEFT JOIN slice_errors e ON e.slice_id=s.id ORDER BY s.id"
+            )
         else:
-            rows = db.execute("SELECT * FROM slices WHERE video_id=? ORDER BY id", (video_id,))
+            rows = db.execute(
+                "SELECT s.*,e.message AS error FROM slices s LEFT JOIN slice_errors e ON e.slice_id=s.id WHERE s.video_id=? ORDER BY s.id",
+                (video_id,),
+            )
         return [dict(row) for row in rows]
 
 
@@ -605,11 +691,29 @@ def task_progress(task_id: int) -> dict:
             "SELECT status,path,updated_at FROM task_recoveries WHERE task_id=?", (task_id,)
         ).fetchone()
         stats["recovery"] = dict(recovery) if recovery else {"status": "not_started"}
+        evidence = db.execute(
+            "SELECT evidence FROM task_recovery_evidence WHERE task_id=?", (task_id,)
+        ).fetchone()
+        if evidence:
+            stats["recovery"].update(json.loads(evidence[0]))
         stats["cancelled"] = (
             db.execute(
                 "SELECT 1 FROM task_controls WHERE task_id=? AND cancelled=1", (task_id,)
             ).fetchone()
             is not None
+        )
+        control = db.execute(
+            "SELECT paused FROM task_controls WHERE task_id=?", (task_id,)
+        ).fetchone()
+        stats["paused"] = bool(control and control[0])
+        stats["scan"] = dict(
+            db.execute(
+                "SELECT COALESCE(SUM(s.end_ms-s.start_ms),0) AS total_ms, "
+                "COALESCE(SUM(CASE WHEN s.state='done' THEN s.end_ms-s.start_ms "
+                "ELSE MAX(0,s.checkpoint_ms-s.start_ms) END),0) AS scanned_ms "
+                "FROM slices s JOIN videos v ON v.id=s.video_id WHERE v.task_id=?",
+                (task_id,),
+            ).fetchone()
         )
         stats["slices"] = [
             dict(row)
@@ -655,16 +759,31 @@ def recover_task(task_id: int) -> dict:
                 "INSERT INTO task_recoveries VALUES (?,'failed',NULL,?) ON CONFLICT(task_id) DO UPDATE SET status='failed',path=NULL,updated_at=excluded.updated_at",
                 (task_id, time.time()),
             )
+            db.execute(
+                "INSERT INTO task_recovery_evidence VALUES (?,?) ON CONFLICT(task_id) "
+                "DO UPDATE SET evidence=excluded.evidence",
+                (task_id, json.dumps({"status": "failed", "reason": str(exc)})),
+            )
             db.commit()
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except FileExistsError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except OSError as exc:
+            raise HTTPException(
+                status_code=507 if exc.errno == errno.ENOSPC else 500,
+                detail=f"恢复文件写入失败，请检查磁盘空间及目录权限：{type(exc).__name__}",
+            ) from exc
     with connection() as db:
         db.execute(
             "INSERT INTO task_recoveries VALUES (?,?,?,?) "
             "ON CONFLICT(task_id) DO UPDATE SET status=excluded.status, "
             "path=excluded.path,updated_at=excluded.updated_at",
             (task_id, result["status"], result.get("path"), time.time()),
+        )
+        db.execute(
+            "INSERT INTO task_recovery_evidence VALUES (?,?) ON CONFLICT(task_id) "
+            "DO UPDATE SET evidence=excluded.evidence",
+            (task_id, json.dumps(result)),
         )
     return result
 

@@ -1,5 +1,15 @@
 # QRFT 项目进度与交接记录
 
+## v2-P9 统一单机 / 分布式源码解码（2026-10-12）
+
+差距核对：基线已有 Control/SQLite、持久包库、START 乱序绑定、FINISH、缺包、流式哈希恢复、Worker HTTP 重试/心跳/续租/检查点；缺少解码 GUI、一键本地服务生命周期、任务暂停/恢复、桌面任务/节点/视频管理和实际 MP4 桌面集成测试。本轮新增 `decoder_gui/main.py` 与 `service.py`，全部复用现有 API、视频扫描及恢复核心；新增暂停兼容迁移、限定任务领取、可配置时间片、错误/恢复证据持久化。单机自动启动本地 Control/独立 Worker，分布式连接现有中心，Token 不保存到设置或 URL。编码端及冻结协议未修改。
+
+新增真实 MP4、双独立 Worker、补传/MD5、重开、暂停取消、租约重领、已有文件保护、错误视频、GUI 后台事件响应测试；Qt 生命周期独立进程隔离，Windows CI 增加源码原生启动，不打包 EXE。性能脚本 `scripts/decoder_benchmark.py` 输出机器、合成范围、进程树资源与真实测量；64 KiB 小规模结果见 ACCEPTANCE_RESULTS，不代表真实录屏、大视频或 1 GB。
+
+文档入口 DECODER_USER_GUIDE、索引 UA-011；新 GUI 实际用户录像桌面操作与真实双 Windows/SMB 待人工，P8 用户 PASS 保留，里程碑 7/10 不变。提交使用 `[skip ci]` 避免旧 PR 构建工作流打包 EXE，随后手动 dispatch 源码 `ci.yml`，不绕过格式/静态/测试。最终测试与当前提交 CI 证据见下方补充记录。
+
+本地最终门禁：Ruff format 103 文件、Ruff check 均通过；pytest **209 passed，1 项既有 Starlette/httpx 弃用警告，159.05 秒，无跳过**。新增 13 项自动用例，含真实 Worker 进程退出、过期重领和真实 HTTP 503 重试；GUI Qt 应用隔离，刷新不覆盖重要状态。原生 Windows 中文窗口已启动、截取并检查布局、安全退出；源码 GUI/Control/Worker/原有解码 CLI 的实际参数入口均运行核对。新手册 8 个及既有编码手册 17 个 PowerShell 块语法检查无错误。当前源码 CI 将随本提交手动触发，实际链接以 PR #7 的 P9 记录为准；不引用 P8 旧 CI 作为 P9 通过证据。
+
 ## v2-P8 正式收尾：用户报告源码人工验收 PASS（2026-10-12）
 
 用户在 ChatGPT 会话中反馈：Windows 11 完成 V2_USER_GUIDE.md 第 1～10 步，GUI、固定区域/首帧/Space/Esc、CLI 交互、真实 MP4、缺包、选择性补传及恢复 MD5 一致性全部成功。第 6 步曾三次口令失败，重新在交互终端手动输入正确字符串并按 Enter 后通过；最初失败输入未提供，不推断原因。用户无需重复本次验收。
