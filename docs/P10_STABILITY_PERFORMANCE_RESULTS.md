@@ -66,7 +66,7 @@ Windows Python 3.12 的 GetTickCount64 单调时钟分辨率约 15.6 ms，原始
 
 P10 实测允许进入 P11 候选版准备，但不支持直接宣称全部硬件/超大视频生产验收完成。P11 应验证打包后启动、相同源码回归和实际 EXE 冒烟、版本/校验清单及手册；分布式 SMB 功能仍须按现有 UA-006/解码手册在第二台物理 Windows 验收。当前 PR 保持 Draft，本轮没有合并、Tag、EXE 构建或 Release。
 
-原始各次数据、哈希、CPU/RSS/I/O、节点/时间片证明及资源策略见 [P10_BENCHMARK_SUMMARY.json](P10_BENCHMARK_SUMMARY.json)。最终 Commit 与 CI 记录由完成后的交付补记确认。
+原始各次数据、哈希、CPU/RSS/I/O、节点/时间片证明及资源策略见 [P10_BENCHMARK_SUMMARY.json](P10_BENCHMARK_SUMMARY.json)。代码提交 `c266015b0bbc426e2e049018ab9d1b331fe424c1` 已推送；[Windows Python CI 38349131223](https://github.com/yunfei00/qrft/actions/runs/38349131223) 成功（3 分 33 秒），格式/静态/全量测试、原生源码 GUI 启动/安全退出及二维码/ZXing/AVI/API/SQLite 分项全部通过。PR #7 保持 Open / Draft，没有合并、Tag、EXE 构建或 Release。
 
 ## 开发者复现入口（本轮用户不需重做）
 

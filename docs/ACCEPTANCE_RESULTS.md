@@ -14,6 +14,8 @@
 
 **未运行/未测**：50/100 MiB QR 视频、1 GiB QR 视频、60 分钟 GUI、单段长视频/真人录屏性能及真实双机 SMB/物理断网。限制原因和估算均见报告；只把实际完成的范围计 PASS。P9 真人 MP4 用户反馈仍单独保留如下，原里程碑 7/10 不变。
 
+交付代码 Commit：`c266015b0bbc426e2e049018ab9d1b331fe424c1`；[Windows Python CI 38349131223](https://github.com/yunfei00/qrft/actions/runs/38349131223) 全部成功，含完整 221 项测试和原生 GUI / 二维码 / ZXing / AVI / API / SQLite 门禁。原测量基线与 dirty 标记保留，不能将 P9 用户哈希补造到 P10 自动样本；PR #7 继续 Open / Draft。
+
 ## v2-P9 / UA-011：用户报告真实 Windows MP4 单机 GUI 验收 PASS（2026-10-13）
 
 **验收结论：PASS（仅依据用户在 ChatGPT 会话中的反馈，不是 Codex 独立获取的现场日志）。** 用户按照 [P9_REAL_MP4_ACCEPTANCE.md](P9_REAL_MP4_ACCEPTANCE.md) 的指南操作后明确回复“这个验收都通过了”。该指南第 1～7 步是同一轮验收，包含同步/确认素材、独立工作区和单机 GUI、首段录屏解码及缺包 TXT/CSV/JSON 导出、停止关闭重开后数据保持、同任务补传录像合并、文件恢复及原始/恢复大小、MD5、SHA256 比对。

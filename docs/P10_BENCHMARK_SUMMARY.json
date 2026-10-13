@@ -1,4 +1,12 @@
 {
+  "delivery": {
+    "source_code_commit": "c266015b0bbc426e2e049018ab9d1b331fe424c1",
+    "source_ci": "https://github.com/yunfei00/qrft/actions/runs/38349131223",
+    "source_ci_conclusion": "success",
+    "project_version": "0.4.0.dev0",
+    "pull_request": 7,
+    "pull_request_is_draft": true
+  },
   "environment": {
     "platform": "Windows-11-10.0.26200-SP0",
     "python": "3.12.13",
