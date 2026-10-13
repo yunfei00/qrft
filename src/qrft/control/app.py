@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import errno
+import json
 import os
 import sqlite3
 import time
@@ -19,13 +21,15 @@ from pydantic import BaseModel, Field
 
 from qrft import __version__
 from qrft.control.acceptance import register_routes
-from qrft.control.packets import ingest
+from qrft.control.packets import ingest, lock_protocol
 from qrft.control.packets import init_schema as init_packets
 from qrft.control.recovery import recover
 from qrft.control.scheduler import add_slices, claim, complete, init_schema, renew
+from qrft.control.session import bind_start
 from qrft.control.web import PAGE
 from qrft.core.missing import iter_missing, stream_missing
 from qrft.core.protocol import ProtocolError, decode_frame
+from qrft.core.validation import validate_data
 
 app = FastAPI(title="QRFT Control", version=__version__)
 
@@ -77,7 +81,12 @@ def connection():
             """
         )
         init_schema(db)
+        legacy = not db.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='task_protocols'"
+        ).fetchone()
         init_packets(db)
+        if legacy:
+            db.execute("INSERT OR IGNORE INTO task_protocols SELECT id,1 FROM tasks")
         db.execute(
             "CREATE TABLE IF NOT EXISTS task_packet_stats(task_id INTEGER PRIMARY KEY, duplicates INTEGER NOT NULL DEFAULT 0)"
         )
@@ -93,8 +102,15 @@ def connection():
         )
         db.execute("CREATE INDEX IF NOT EXISTS slice_receipts_slice ON slice_receipts(slice_id)")
         db.execute(
+            "CREATE TABLE IF NOT EXISTS slice_errors (slice_id INTEGER PRIMARY KEY, "
+            "message TEXT NOT NULL, updated_at REAL NOT NULL)"
+        )
+        db.execute(
             "CREATE TABLE IF NOT EXISTS task_recoveries (task_id INTEGER PRIMARY KEY, "
             "status TEXT NOT NULL, path TEXT, updated_at REAL NOT NULL)"
+        )
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS task_recovery_evidence(task_id INTEGER PRIMARY KEY,evidence TEXT NOT NULL)"
         )
         db.execute(
             "CREATE TABLE IF NOT EXISTS task_manifests ("
@@ -102,6 +118,7 @@ def connection():
             "total_packets INTEGER NOT NULL, chunk_size INTEGER NOT NULL, "
             "file_size INTEGER NOT NULL)"
         )
+        db.commit()
         try:
             yield db
             db.commit()
@@ -144,7 +161,7 @@ def cancel_task(task_id: int):
         if not db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone():
             raise HTTPException(status_code=404, detail="Task not found")
         db.execute(
-            "INSERT INTO task_controls VALUES (?,1) ON CONFLICT(task_id) DO UPDATE SET cancelled=1",
+            "INSERT INTO task_controls(task_id,cancelled) VALUES (?,1) ON CONFLICT(task_id) DO UPDATE SET cancelled=1",
             (task_id,),
         )
         db.execute(
@@ -155,16 +172,53 @@ def cancel_task(task_id: int):
 
 
 class TaskCreate(BaseModel):
+    protocol_version: int = Field(default=1, ge=1, le=2)
     name: str = Field(min_length=1, max_length=200)
 
 
+@app.post("/tasks/{task_id}/pause", dependencies=[Depends(require_token)])
+def pause_task(task_id: int):
+    with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        if not db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="Task not found")
+        db.execute(
+            "INSERT INTO task_controls(task_id,paused) VALUES (?,1) "
+            "ON CONFLICT(task_id) DO UPDATE SET paused=1",
+            (task_id,),
+        )
+        db.execute(
+            "UPDATE slices SET state='pending',owner=NULL,lease_until=NULL,lease_token=NULL "
+            "WHERE state='leased' AND video_id IN (SELECT id FROM videos WHERE task_id=?)",
+            (task_id,),
+        )
+    return {"status": "paused"}
+
+
+@app.post("/tasks/{task_id}/resume", dependencies=[Depends(require_token)])
+def resume_task(task_id: int):
+    with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        if not db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="Task not found")
+        db.execute("UPDATE task_controls SET paused=0,cancelled=0 WHERE task_id=?", (task_id,))
+        db.execute(
+            "UPDATE slices SET state='pending',owner=NULL,lease_until=NULL,lease_token=NULL "
+            "WHERE state='cancelled' AND video_id IN (SELECT id FROM videos WHERE task_id=?)",
+            (task_id,),
+        )
+    return {"status": "pending"}
+
+
 class VideoCreate(BaseModel):
+    slice_seconds: int = Field(default=30, ge=1, le=3600)
     task_id: int = Field(gt=0)
     path: str = Field(min_length=1, max_length=4096)
     duration_seconds: float = Field(gt=0, allow_inf_nan=False)
 
 
 class SliceClaim(BaseModel):
+    task_id: int | None = Field(default=None, gt=0)
     node_id: str = Field(min_length=1, max_length=128)
     lease_seconds: int = Field(default=120, ge=1, le=3600)
 
@@ -200,6 +254,35 @@ class ScanCheckpoint(BaseModel):
     node_id: str
     lease_token: str
     checkpoint_ms: int = Field(ge=0)
+
+
+class SliceFailure(BaseModel):
+    lease_token: str
+    node_id: str
+    message: str = Field(max_length=2000)
+
+
+@app.post("/slices/{slice_id}/error", dependencies=[Depends(require_token)])
+def slice_error(slice_id: int, item: SliceFailure):
+    with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute(
+            "SELECT owner,lease_token,state FROM slices WHERE id=?", (slice_id,)
+        ).fetchone()
+        if (
+            row is None
+            or row["owner"] != item.node_id
+            or row["lease_token"] != item.lease_token
+            or row["state"] != "leased"
+        ):
+            raise HTTPException(status_code=409, detail="lease_invalid")
+        message = item.message.replace(os.environ.get("QRFT_API_TOKEN", ""), "[已隐藏]")
+        db.execute(
+            "INSERT INTO slice_errors VALUES (?,?,?) ON CONFLICT(slice_id) "
+            "DO UPDATE SET message=excluded.message,updated_at=excluded.updated_at",
+            (slice_id, message, time.time()),
+        )
+    return {"status": "recorded"}
 
 
 @app.post("/slices/{slice_id}/checkpoint", dependencies=[Depends(require_token)])
@@ -238,6 +321,7 @@ def create_task(item: TaskCreate) -> dict[str, int]:
         cursor = db.execute(
             "INSERT INTO tasks(name, created_at) VALUES (?, ?)", (item.name, time.time())
         )
+        lock_protocol(db, int(cursor.lastrowid), item.protocol_version)
         return {"id": int(cursor.lastrowid)}
 
 
@@ -257,7 +341,13 @@ def register_video(item: VideoCreate) -> dict[str, int]:
             (item.task_id, item.path, item.duration_seconds, time.time()),
         )
         video_id = int(cursor.lastrowid)
-        add_slices(db, video_id, item.duration_seconds)
+        add_slices(
+            db,
+            video_id,
+            item.duration_seconds,
+            slice_ms=item.slice_seconds * 1000,
+            overlap_ms=min(1000, item.slice_seconds * 100),
+        )
         return {"id": video_id}
 
 
@@ -298,6 +388,7 @@ def list_nodes() -> list[dict]:
 def settings():
     return {
         "protocol_version": 1,
+        "supported_protocol_versions": [1, 2],
         "lease_seconds": 120,
         "slice_seconds": 30,
         "overlap_seconds": 1,
@@ -342,7 +433,7 @@ def rescan_video(video_id: int):
 @app.post("/slices/claim", dependencies=[Depends(require_token)])
 def claim_slice(item: SliceClaim) -> dict | None:
     with connection() as db:
-        result = claim(db, item.node_id, item.lease_seconds)
+        result = claim(db, item.node_id, item.lease_seconds, item.task_id)
         if result:
             db.execute(
                 "INSERT INTO slice_receipts(lease_token,slice_id,node_id,started_at) VALUES (?,?,?,?)",
@@ -364,6 +455,7 @@ def complete_slice(slice_id: int, item: SliceComplete) -> dict[str, str]:
             "WHERE lease_token=(SELECT lease_token FROM slices WHERE id=?)",
             (time.time(), slice_id),
         )
+        db.execute("DELETE FROM slice_errors WHERE slice_id=?", (slice_id,))
         return {"status": result}
 
 
@@ -371,9 +463,14 @@ def complete_slice(slice_id: int, item: SliceComplete) -> dict[str, str]:
 def list_slices(video_id: int | None = None) -> list[dict]:
     with connection() as db:
         if video_id is None:
-            rows = db.execute("SELECT * FROM slices ORDER BY id")
+            rows = db.execute(
+                "SELECT s.*,e.message AS error FROM slices s LEFT JOIN slice_errors e ON e.slice_id=s.id ORDER BY s.id"
+            )
         else:
-            rows = db.execute("SELECT * FROM slices WHERE video_id=? ORDER BY id", (video_id,))
+            rows = db.execute(
+                "SELECT s.*,e.message AS error FROM slices s LEFT JOIN slice_errors e ON e.slice_id=s.id WHERE s.video_id=? ORDER BY s.id",
+                (video_id,),
+            )
         return [dict(row) for row in rows]
 
 
@@ -397,25 +494,6 @@ def bind_manifest(item: ManifestBind) -> dict[str, str]:
         frame = decode_frame(raw)
         if frame.kind != "start" or frame.metadata is None:
             raise ProtocolError("START frame required")
-        meta = frame.metadata
-        size, chunk, total = (meta.get(k) for k in ("file_size", "chunk_size", "total_packets"))
-        if (
-            type(size) is not int
-            or type(chunk) is not int
-            or type(total) is not int
-            or size < 0
-            or chunk <= 0
-            or total != (size + chunk - 1) // chunk
-            or total > 88888888
-        ):
-            raise ProtocolError("invalid START manifest sizes")
-        if not all(
-            isinstance(meta.get(key), str)
-            and len(meta[key]) == length
-            and all(ch in "0123456789abcdefABCDEF" for ch in meta[key])
-            for key, length in (("sha256", 64), ("md5", 32))
-        ):
-            raise ProtocolError("invalid manifest hashes")
     except (ValueError, binascii.Error, ProtocolError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     with connection() as db:
@@ -423,25 +501,11 @@ def bind_manifest(item: ManifestBind) -> dict[str, str]:
         ensure_active(db, item.task_id)
         if db.execute("SELECT 1 FROM tasks WHERE id=?", (item.task_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Task not found")
-        existing = db.execute(
-            "SELECT start_frame FROM task_manifests WHERE task_id=?", (item.task_id,)
-        ).fetchone()
-        if existing is not None:
-            if existing["start_frame"] != raw:
-                raise HTTPException(status_code=409, detail="Conflicting START manifest")
-            return {"status": "already_bound"}
-        for row in db.execute("SELECT frame FROM packets WHERE task_id=?", (item.task_id,)):
-            data = decode_frame(bytes(row["frame"]))
-            if data.packet_id >= total or len(data.payload) != min(
-                chunk, size - data.packet_id * chunk
-            ):
-                raise HTTPException(status_code=409, detail="Stored DATA does not match START")
-        db.execute(
-            "INSERT INTO task_manifests(task_id,start_frame,total_packets,chunk_size,file_size) "
-            "VALUES (?,?,?,?,?)",
-            (item.task_id, raw, total, chunk, size),
-        )
-    return {"status": "bound"}
+        try:
+            status = bind_start(db, item.task_id, raw)
+        except ProtocolError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {"status": status}
 
 
 @app.get("/tasks/{task_id}/missing", dependencies=[Depends(require_token)])
@@ -542,6 +606,7 @@ def ingest_batch(item: PacketBatch) -> dict[str, int]:
                 if len(raw) > 8192:
                     raise ValueError("frame exceeds size limit")
                 frame = decode_frame(raw)
+                lock_protocol(db, item.task_id, frame.version)
                 if frame.kind == "finish":
                     cursor = db.execute(
                         "INSERT OR IGNORE INTO task_finishes VALUES (?)", (item.task_id,)
@@ -549,19 +614,11 @@ def ingest_batch(item: PacketBatch) -> dict[str, int]:
                     counts["inserted" if cursor.rowcount else "duplicate"] += 1
                     continue
                 manifest = db.execute(
-                    "SELECT total_packets,chunk_size,file_size FROM task_manifests WHERE task_id=?",
+                    "SELECT start_frame FROM task_manifests WHERE task_id=?",
                     (item.task_id,),
                 ).fetchone()
-                if manifest is not None and (
-                    frame.kind != "data"
-                    or frame.packet_id >= manifest["total_packets"]
-                    or len(frame.payload)
-                    != min(
-                        manifest["chunk_size"],
-                        manifest["file_size"] - frame.packet_id * manifest["chunk_size"],
-                    )
-                ):
-                    raise ProtocolError("DATA frame does not match bound manifest")
+                if manifest is not None:
+                    validate_data(decode_frame(bytes(manifest["start_frame"])).metadata, frame)
                 result = ingest(db, item.task_id, raw)
             except (ValueError, binascii.Error, ProtocolError) as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -623,6 +680,9 @@ def task_progress(task_id: int) -> dict:
     with connection() as db:
         if db.execute("SELECT 1 FROM tasks WHERE id=?", (task_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Task not found")
+        stats["protocol_version"] = db.execute(
+            "SELECT version FROM task_protocols WHERE task_id=?", (task_id,)
+        ).fetchone()[0]
         stats["finished"] = (
             db.execute("SELECT 1 FROM task_finishes WHERE task_id=?", (task_id,)).fetchone()
             is not None
@@ -631,11 +691,29 @@ def task_progress(task_id: int) -> dict:
             "SELECT status,path,updated_at FROM task_recoveries WHERE task_id=?", (task_id,)
         ).fetchone()
         stats["recovery"] = dict(recovery) if recovery else {"status": "not_started"}
+        evidence = db.execute(
+            "SELECT evidence FROM task_recovery_evidence WHERE task_id=?", (task_id,)
+        ).fetchone()
+        if evidence:
+            stats["recovery"].update(json.loads(evidence[0]))
         stats["cancelled"] = (
             db.execute(
                 "SELECT 1 FROM task_controls WHERE task_id=? AND cancelled=1", (task_id,)
             ).fetchone()
             is not None
+        )
+        control = db.execute(
+            "SELECT paused FROM task_controls WHERE task_id=?", (task_id,)
+        ).fetchone()
+        stats["paused"] = bool(control and control[0])
+        stats["scan"] = dict(
+            db.execute(
+                "SELECT COALESCE(SUM(s.end_ms-s.start_ms),0) AS total_ms, "
+                "COALESCE(SUM(CASE WHEN s.state='done' THEN s.end_ms-s.start_ms "
+                "ELSE MAX(0,s.checkpoint_ms-s.start_ms) END),0) AS scanned_ms "
+                "FROM slices s JOIN videos v ON v.id=s.video_id WHERE v.task_id=?",
+                (task_id,),
+            ).fetchone()
         )
         stats["slices"] = [
             dict(row)
@@ -681,16 +759,31 @@ def recover_task(task_id: int) -> dict:
                 "INSERT INTO task_recoveries VALUES (?,'failed',NULL,?) ON CONFLICT(task_id) DO UPDATE SET status='failed',path=NULL,updated_at=excluded.updated_at",
                 (task_id, time.time()),
             )
+            db.execute(
+                "INSERT INTO task_recovery_evidence VALUES (?,?) ON CONFLICT(task_id) "
+                "DO UPDATE SET evidence=excluded.evidence",
+                (task_id, json.dumps({"status": "failed", "reason": str(exc)})),
+            )
             db.commit()
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except FileExistsError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except OSError as exc:
+            raise HTTPException(
+                status_code=507 if exc.errno == errno.ENOSPC else 500,
+                detail=f"恢复文件写入失败，请检查磁盘空间及目录权限：{type(exc).__name__}",
+            ) from exc
     with connection() as db:
         db.execute(
             "INSERT INTO task_recoveries VALUES (?,?,?,?) "
             "ON CONFLICT(task_id) DO UPDATE SET status=excluded.status, "
             "path=excluded.path,updated_at=excluded.updated_at",
             (task_id, result["status"], result.get("path"), time.time()),
+        )
+        db.execute(
+            "INSERT INTO task_recovery_evidence VALUES (?,?) ON CONFLICT(task_id) "
+            "DO UPDATE SET evidence=excluded.evidence",
+            (task_id, json.dumps(result)),
         )
     return result
 

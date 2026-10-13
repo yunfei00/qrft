@@ -68,10 +68,10 @@ def test_real_player_pause_resume_stop_and_bounded_cache(app, tmp_path):
     )
     window.progress.connect(lambda packet, count: seen.append(packet))
     try:
-        window.toggle_pause()
+        wait_until(app, lambda: window.ready)
         QTest.qWait(100)
         app.processEvents()
-        assert not seen
+        assert seen == ["START"]
         assert window.pending.qsize() <= 2
         window.toggle_pause()
         wait_until(app, lambda: window.finished)

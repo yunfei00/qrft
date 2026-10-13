@@ -34,6 +34,8 @@ class Frame:
     packet_id: int
     payload: bytes
     metadata: dict[str, Any] | None = None
+    version: int = 1
+    raw: bytes | None = None
 
 
 def _packet_id(value: int) -> bytes:
@@ -82,7 +84,7 @@ def encode_finish() -> bytes:
     return _wrap(FINISH_MAGIC, FINISH_ID)
 
 
-def decode_frame(raw: bytes) -> Frame:
+def _decode_v1(raw: bytes) -> Frame:
     if not isinstance(raw, bytes):
         raise TypeError("QR decoder must return raw bytes, not text")
     if len(raw) < 12:
@@ -109,3 +111,40 @@ def decode_frame(raw: bytes) -> Frame:
             raise ProtocolError("invalid FINISH magic")
         return Frame("finish", packet_id, b"")
     return Frame("data", packet_id, body)
+
+
+def decode_frame(raw: bytes) -> Frame:
+    """Keep strict v1 CRC parsing; v2 uses a separate strict HEX/MD5 parser."""
+    if not isinstance(raw, bytes):
+        raise TypeError("QR decoder must return raw bytes, not text")
+    try:
+        frame = _decode_v1(raw)
+    except ProtocolError as v1_error:
+        from .protocol_v2 import decode_v2
+
+        try:
+            return decode_v2(raw)
+        except ProtocolError:
+            if len(raw) >= 48 and re.fullmatch(rb"[0-9A-Fa-f]+", raw):
+                raise
+            raise v1_error
+    return Frame(frame.kind, frame.packet_id, frame.payload, frame.metadata, 1, raw)
+
+
+def serialize_frame(frame: Frame) -> bytes:
+    """Workers preserve the scanned wire frame; never translate v2 into v1."""
+    if frame.raw is not None:
+        return frame.raw
+    if frame.version == 2:
+        from .protocol_v2 import encode_data_v2, encode_finish_v2, encode_start_v2
+
+        if frame.kind == "start":
+            return encode_start_v2(frame.metadata or {})
+        if frame.kind == "finish":
+            return encode_finish_v2()
+        return encode_data_v2(frame.packet_id, frame.payload)
+    if frame.kind == "start":
+        return encode_start(frame.metadata or {})
+    if frame.kind == "finish":
+        return encode_finish()
+    return encode_data(frame.packet_id, frame.payload)

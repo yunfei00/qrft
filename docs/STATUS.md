@@ -1,5 +1,86 @@
 # QRFT 项目进度与交接记录
 
+## v2-P11 候选构件准备（2026-10-13）
+
+**状态：已准备执行计划，尚未启动 Codex 开发/构建；未合并、未打 Tag、未发布。** P10 已按报告通过 221 项完整门禁及限定规模压力测试，可进入 P11-A 打包适配与真实 EXE 验收。新增 [P11_WINDOWS_RC_PREPARATION.md](P11_WINDOWS_RC_PREPARATION.md) 作为唯一执行文档，核心阻塞点是现有旧四/五程序工作流缺少新解码 GUI EXE，且源码 GUI 的 sys.executable -m 子进程启动必须适配 PyInstaller 冻结环境。P11-A 先生成并验证六程序候选构件，保留 Windows uv 源码运行；用户后续明确授权才能合并 main、打 Tag、发布候选 Release。双 Windows/SMB/物理断网以及超大 QR 视频仍未验收。
+
+
+## v2-P10 实测交付（2026-10-13）
+
+按 [P10 计划](P10_STABILITY_PERFORMANCE_PLAN.md) 完成本地受控验收，详细数字与匿名原始摘要见 [P10_STABILITY_PERFORMANCE_RESULTS.md](P10_STABILITY_PERFORMANCE_RESULTS.md) / [P10_BENCHMARK_SUMMARY.json](P10_BENCHMARK_SUMMARY.json)。基线 211 项、最终 **221 项 pytest 通过，无失败/跳过**；Ruff 格式/静态检查通过。已有 P8/P9 人工验收保持，不要求重复。
+
+64 KiB、1 MiB 的同一视频分别比较 1/2/4 Worker，各三次；1 MiB 中位扫描 50.844/26.579/16.250 秒，实测加速 1.913/3.129 倍。4 MiB、10 MiB 全链路及暂停/继续通过；10 MiB 为 7,490 个 DATA 包、扫描 265.375 秒、恢复 0.563 秒，缺包/冲突 0，字节/MD5/SHA256 一致。验收素材生成器支持有界 4 进程、最多 8 帧队列；同一 1 MiB 生成 140.078→48.875 秒，两份 MP4 SHA256 相同。编码端和协议参数未修改。
+
+100 MiB / 1 GiB 真实 v2 SQLite 入库、缺包导出、补回、冲突隔离、重开及流式恢复通过；1 GiB 766,959 包，RSS 峰值 58,007,552 字节。该测试不是 1 GiB QR 视频。原生 GUI + 重复 1 MiB 短视频持续负载 600.016 秒/21 次、1,800.109 秒/61 次通过，中途 GUI/Control 重开、真实 Worker/Control 崩溃、HTTP 503、检查点/租约重领/旧租约围栏、取消/继续及退出清理通过，日志未发现 ERROR/Traceback。
+
+复现并修复刷新期间“新建任务”点击被丢弃（先失败后通过回归）；仅修改该 GUI 条件，不重构界面。修正验收输入回读及短 SQL 查询时钟，原包库已只读高精度复测。证据保留在 `temp/p10-fabb1648a2ef4d4aa8babb9f750c4f1b/`，无用户数据覆盖或历史录像清理。
+
+未测：50/100 MiB 完整 QR 视频（时间/生成量预算）、1 GiB QR 视频（计划禁止）、60 分钟 GUI（剩余总预算不足）、单段长视频/新真人录屏吞吐、真实双 Windows/SMB/物理断网。P10 软件核心门禁 PASS，可准备 P11 候选版；硬件/全规模生产验收不能提前计为完成，原里程碑仍 7/10。代码提交 `c266015b0bbc426e2e049018ab9d1b331fe424c1` 已推送，[Windows Python CI 38349131223](https://github.com/yunfei00/qrft/actions/runs/38349131223) 全部通过。PR #7 保持 Draft，本轮不合并、Tag、EXE 构建或 Release。
+
+## v2-P9 正式收尾与 v2-P10 执行计划（2026-10-13）
+
+**P9 单机核心功能验收收尾：** 用户在 ChatGPT 会话反馈，已完整执行 [P9_REAL_MP4_ACCEPTANCE.md](P9_REAL_MP4_ACCEPTANCE.md) 第 1～7 步，使用自己此前录制的 MP4 完成解码 GUI 首段缺包、停止重开、补传合并及 MD5/SHA256 对比，结论为 **UA-011 PASS（用户报告）**。不是 Codex 独立审阅用户日志，现场精确 Commit、哈希字符串、截图及路径均未提供，详见 [验收记录](ACCEPTANCE_RESULTS.md)。P8 用户 PASS 与 P9 27 项原生自动测试 PASS 继续独立保留，**不要求重复验收**。
+
+**P10 状态：已批准计划、待 Codex 自动执行。** 以 [P10_STABILITY_PERFORMANCE_PLAN.md](P10_STABILITY_PERFORMANCE_PLAN.md) 为唯一详细执行范围：先 64 KiB 基线、1 MiB 全链路，再按磁盘/运行时间上限推进 10 MiB 和有条件的 50–100 MiB；1/2/4 Worker 比较，长时间、异常重试/租约、SQLite 可靠性及报告。已验收 v2 协议/编码端/解码端功能冻结，只有经复现的缺陷允许修复；不得虚称未运行的大规模二维码链路通过。
+
+**P11 状态：待 P10 结果再评估。** 仍保持 `feature/qrft-v2-hex-md5` / PR #7 Draft，不合并 main、不打 Tag、不打包 EXE、不发布 Release。真实双 Windows/SMB 和物理断网未验收，旧里程碑保持 7/10；小文件 GUI 人工 PASS 不能代替双机或压力测试。
+
+
+## v2-P9 完整自动验收与故障闭环补充（2026-10-13）
+
+本地 Windows 11 原生 Qt 自动验收现已完成：真实 GUI 控件/对话框/拖放、合成 MP4 OpenCV/ZXing 解码、双独立 Worker、missing 三格式导出与补传、源/恢复 MD5 和字节校验、重复/冲突/损坏帧/版本与文件隔离、取消和恢复、HTTP 503、续租、Worker 终止后重领、旧租约围栏、60 秒 GUI 稳定性、退出清理及 SQLite 完整性。报告 **27 PASS、0 FAIL、1 NOT TESTED**，全量 pytest **211 passed**，Ruff 格式与静态检查通过。完整证据目录为 `temp/p9-native-acceptance-cc5e22ad431044268ca98a25ee19788a/run/` 与同级 `workspace/`；独立小规模性能报告为 `temp/p9-benchmark-4bb535a0fea448278e51c2b883c787fb/report.json`。详细实测数字及限制见 [ACCEPTANCE_RESULTS.md](ACCEPTANCE_RESULTS.md)。
+
+性能范围为 64 KiB、87 帧合成 MP4，不代表真实录屏传输率；1 GB、长视频及真实双 Windows/SMB/物理断网仍未测。唯一列为 NOT TESTED 的现场项目需要第二台物理 Windows 和 SMB 共享。里程碑仍按原口径为 7/10。代码提交 `494f0cf887a5fe5601510329b992f999814598bc` 已推送；[Windows Python CI 38328640529](https://github.com/yunfei00/qrft/actions/runs/38328640529) 成功。PR #7 保持 Open / Draft，未合并、未打 Tag、未发布。
+
+## v2-P9 统一单机 / 分布式源码解码（2026-10-12）
+
+差距核对：基线已有 Control/SQLite、持久包库、START 乱序绑定、FINISH、缺包、流式哈希恢复、Worker HTTP 重试/心跳/续租/检查点；缺少解码 GUI、一键本地服务生命周期、任务暂停/恢复、桌面任务/节点/视频管理和实际 MP4 桌面集成测试。本轮新增 `decoder_gui/main.py` 与 `service.py`，全部复用现有 API、视频扫描及恢复核心；新增暂停兼容迁移、限定任务领取、可配置时间片、错误/恢复证据持久化。单机自动启动本地 Control/独立 Worker，分布式连接现有中心，Token 不保存到设置或 URL。编码端及冻结协议未修改。
+
+新增真实 MP4、双独立 Worker、补传/MD5、重开、暂停取消、租约重领、已有文件保护、错误视频、GUI 后台事件响应测试；Qt 生命周期独立进程隔离，Windows CI 增加源码原生启动，不打包 EXE。性能脚本 `scripts/decoder_benchmark.py` 输出机器、合成范围、进程树资源与真实测量；64 KiB 小规模结果见 ACCEPTANCE_RESULTS，不代表真实录屏、大视频或 1 GB。
+
+文档入口 DECODER_USER_GUIDE、索引 UA-011；新 GUI 实际用户录像桌面操作与真实双 Windows/SMB 待人工，P8 用户 PASS 保留，里程碑 7/10 不变。提交使用 `[skip ci]` 避免旧 PR 构建工作流打包 EXE，随后手动 dispatch 源码 `ci.yml`，不绕过格式/静态/测试。最终测试与当前提交 CI 证据见下方补充记录。
+
+本地最终门禁：Ruff format 103 文件、Ruff check 均通过；pytest **209 passed，1 项既有 Starlette/httpx 弃用警告，159.05 秒，无跳过**。新增 13 项自动用例，含真实 Worker 进程退出、过期重领和真实 HTTP 503 重试；GUI Qt 应用隔离，刷新不覆盖重要状态。原生 Windows 中文窗口已启动、截取并检查布局、安全退出；源码 GUI/Control/Worker/原有解码 CLI 的实际参数入口均运行核对。新手册 8 个及既有编码手册 17 个 PowerShell 块语法检查无错误。代码提交的实际 CI 链接见下段，后续文档提交同步执行源码门禁；不引用 P8 旧 CI 作为 P9 通过证据。
+
+代码交付 Commit：`69c7b48d5fe2863dc6798731caf9282c24ef5218`，已推送当前分支。[Windows 源码 CI 38261515130](https://github.com/yunfei00/qrft/actions/runs/38261515130) **成功**：209 项 / 152.08 秒，原生解码 GUI 源码启动/关闭、二维码/ZXing/AVI/API 集成步骤全部成功；旧 EXE 工作流未触发。干净代码提交的最终 64 KiB 性能原始报告已保存 `P9_DECODER_BENCHMARK.json`（47 包、无缺包、MD5 一致，扫描 3.547 秒），不同轮次波动不宣称优化。PR #7 仍 OPEN / Draft，无 Tag、合并或 Release；文档证据补充提交的最新 CI 另见该 PR 对应手动运行。
+
+## v2-P8 正式收尾：用户报告源码人工验收 PASS（2026-10-12）
+
+用户在 ChatGPT 会话中反馈：Windows 11 完成 V2_USER_GUIDE.md 第 1～10 步，GUI、固定区域/首帧/Space/Esc、CLI 交互、真实 MP4、缺包、选择性补传及恢复 MD5 一致性全部成功。第 6 步曾三次口令失败，重新在交互终端手动输入正确字符串并按 Enter 后通过；最初失败输入未提供，不推断原因。用户无需重复本次验收。
+
+人工来源及缺失证据见 [ACCEPTANCE_RESULTS.md](ACCEPTANCE_RESULTS.md)：Codex 未直接访问用户的本次 Windows 验收环境或原始视频/文件，路径、MD5 数值、FPS/DPI、日志/截图及被测精确 Commit 未提供。收尾前仓库 HEAD ad3cae7c1a3f35095686a957646e9fba96bbf5bd 的七项 CI 全绿，本轮只修改相关文档、执行源码门禁和不含打包的 Python CI，不打包、不打 Tag、不发布、不合并，PR #7 保持 Draft。真实双机 SMB、多屏/DPI、长时间播放和大规模性能仍未验收，原里程碑 7/10 不变。
+
+本轮本地锁定依赖同步、Ruff 格式与静态检查通过，pytest **196 项通过、无跳过**（1 条既有 Starlette/httpx 弃用警告）；17 个手册 PowerShell 代码块语法通过，原有 Decoder/Worker/Control/SMB 操作段落保持不变，源码与测试未改。为避免本次文档推送触发 EXE 打包，提交使用 `[skip ci]` 抑制自动 push/PR 工作流，再单独以 workflow_dispatch 执行 `ci.yml` 的完整 Python 检查；不修改工作流、不跳过失败测试，CI 结果按对应文档 Commit 的 Python 运行记录确认。该方式遵循 [GitHub 的跳过规则](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/skip-workflow-runs)，仅用于本次不打包的文档收尾，后续源码开发继续使用正常自动 CI。
+
+以下为开发阶段与自动化测试历史记录。其中当时的“MP4 待人工验收”由以上本次用户报告补充，不改变历史 EXE、自动报告或未执行的双机验收状态。
+
+## v2-P8 编码端收尾（2026-10-12）
+
+分支 feature/qrft-v2-hex-md5；PR #7 保持 Draft，本阶段不合并、不发布。GUI 统一中文字体/间距/文件与参数卡片、任务进度、取消和小屏滚动；Qt/OpenCV 默认固定非全屏，926×926 物理像素白色区域居中显示二维码，提示在区域外，首帧静止等待 Space，Space 开始/暂停/继续、长按去重、Esc/关闭结束。保留可选全屏与旧延迟参数解析，但不再自动倒计时。
+
+编码 CLI 在参数解析前隐藏输入交互校验（三次上限、大小写敏感），没有帮助开关、无终端拒绝；PNG export 不加载 PySide6，GUI 共享函数不校验口令。本地入口校验不是安全授权或防逆向机制。冻结 v2 三段格式/MD5/1400/20次控制帧和 v1 核心没有修改；Decoder、Worker、Control 没有改动。仅调整现有 acceptance 的编码器调用与 CI 冒烟脚本，使用真实 Windows ConPTY，不使用口令管道/绕过参数；Qt 验收使用明确的 GUI stability 入口。
+
+本地全量回归 196 项通过（1 项既有 Starlette/httpx 弃用警告），提交前再次执行全部门禁。原生 Windows Qt GUI 源码启动、实际 OpenCV 窗口及原生 Space/Esc、静止首帧/长按/暂停恢复/固定尺寸、可选全屏及未开始时关闭烟测通过；证据在独占 temp/p8-native-player-* 目录。源码真实终端导出 PNG→AVI→现有 Decoder 恢复 MD5 一致；本地 PyInstaller 编码 CLI 开发构建及真实终端 v1/v2 PNG/MD5、帮助参数拒绝、无终端拒绝烟测通过（temp/p8-build）。本阶段 CI 结果以 PR #7 对应提交检查为准，不引用旧提交冒充。真实截图工具 MP4、人工焦点/多 DPI/多屏、长时间播放尚未验收，按 UA-010 执行；原口径里程碑仍 7/10。
+
+实现提交 f122ada28a22b340e4e32aa0ed1a35c718c3196c 已推送。首轮 Acceptance CI 38232665802 在既有取消测试失败（195 通过），根因为仅等待约 1 秒，托管 Windows 的报告落盘/监控线程退出尚未完成；没有删除或跳过测试。改为 10 秒真实时间上限、保留完成/报告断言并补充取消事件断言与 finally 清理；其他运行逻辑不改，随后重新执行全部门禁并推送修复。
+
+计时修复提交 03c45d2a5fbb608a886852af6511281ca998c7c1 的 Python、四项构建、四程序交付通过；五程序 Acceptance 实际冻结验收 38233166276 发现交互驱动子程序退出码 3221225786，中文诊断又被 cp1252 截断。下载机器可读报告并用本地最小 windowed 冻结程序复现：缺少 pywinpty 的 OpenConsole.exe，且无控制台启动时原生句柄可能为空。新增 hooks/hook-winpty.py 收集终端 EXE，验收驱动按需附加终端/仅隐藏自己创建的控制台、恢复冻结启动环境，缺少原生宿主明确报错；诊断改为 ASCII 安全 JSON。修复后最小冻结宿主启动实际编码 CLI，隐藏交互校验后导出 PNG、退出码 0，未使用口令管道或 CLI 绕过参数；完整 CI 再次验证，不修改协议或解码端。
+
+## v2 HEX + MD5 开发（2026-10-12，未合并/未发布）
+
+分支 `feature/qrft-v2-hex-md5` 基于main `5fa681fb619c5cd296dd249269cdea57f7d9f248`，基线工作区干净、七项CI成功。开发包版本0.4.0.dev0，不修改现有0.3.0rc1 Release。本轮禁止自动合并/发布。
+
+实现指定三段大写HEX格式、正文MD5、1400字节分块、START/FINISH各20次。CLI/GUI协议选择，Qt共享渲染，固定926画布OpenCV播放，自动二维码模式与50%最近邻缩放；视频默认60fps扫描。Control协议锁、旧数据库v1迁移、Worker保留原始帧；本地SQLite跨视频补传，末包确定长度、最终MD5验证，混合版本/冲突/非法帧拒绝。v1直接输出文件的位置与CRC/SHA256功能保留。
+
+本地Ruff格式/静态检查及 **170项pytest通过**（117旧测试+53新增），无跳过，有1条既有Starlette弃用警告。实际1400随机块QR version33、785×785与ZXing往返通过；20fps合成AVI序列、中文逗号文件名、空文件、全字节、截断/漏帧、补传、START晚到、协议混用、MD5错误、冲突、旧DB与文件保护通过。
+
+五个开发EXE构建成功；旧v1四EXE完整链路通过。干净中文目录、仅系统PATH的实际Acceptance EXE：默认v1八项全通过，v2专用环境+链路两项通过，独立合成ZXing通过；HTML/JSON/CSV保存完整证据。v2实际两个Worker处理不同时间片、丢包1、实际CLI缺包补传后MD5/SHA256一致，原始/恢复MD5 `E3F26EE6ED0FF5BB48711D3833500363`。本地未提交构建明确标dirty，不伪称最终Git SHA。原生OpenCV/Qt实际EXE显示1400字节二维码并正常退出（3.360/3.334秒含启动，不能当作真实传输率）。一次本地验收过早读取未完成清单而失败，已按顺序重新验证清单1109文件与完整链路通过；保留失败证据。
+
+主要修改：core/protocol_v2.py、validation.py、协议分发/渲染/重组；encoder_cli与encoder_gui选择/播放/视频；decoder本地持久化与Worker；control任务绑定/协议锁/恢复/Web；acceptance/v2.py与冻结冒烟；新增protocol_v2/v2_integration测试；中文PROTOCOL、V2_USER_GUIDE、USER_ACTIONS、ACCEPTANCE_RUNNER及架构/README/锁文件。首个实现提交 `af3910aa76902ffd58c25c2d04366342cd61763d` 已推送，Draft PR #7保持未合并，首轮七项CI成功。另发现并复现30fps视频请求20fps时四舍五入步幅导致仅15fps、漏掉单帧DATA的问题；改为向下取整并用真实重采样AVI回归，20/60fps均通过。采样修复提交 `ae10b71af6981dcfddc0eb2f583ecf68882f7c30` 的七项CI也全部通过：Python 38199651842，独立构建38199651807/810/832/864，四程序交付38199651814，五程序实际验收38199651862。最终文档提交将再次通过门禁；当前七项成功对应明确软件提交，不以基线CI冒充v2CI。
+
+真实Windows11 MP4录屏、实际50ms节奏/识别率、长视频及真实双机SMB未验收，按UA-009/008操作。自动AVI和两个本地进程不替代现场，原里程碑仍 **7/10**。完整操作见 [v2中文手册](V2_USER_GUIDE.md)。
+
+
 ## Phase 3：0.3.0rc1 五程序候选版已交付
 
 [Release 下载](https://github.com/yunfei00/qrft/releases/tag/v0.3.0-rc.1)。第五程序 QRFT-Acceptance.exe 提供中文后台验收、取消、实时日志、三种 SMB 角色配置、资源采样和 HTML/JSON/CSV 报告；原四 EXE 职责与 v1 协议不变。

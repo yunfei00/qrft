@@ -1,5 +1,16 @@
 # QRFT 系统架构
 
+## v2-P9 统一源码桌面解码（未打包）
+
+`qrft.decoder_gui.main` 的 PySide6 窗口通过后台 JobQueue 调用鉴权 Control API，不复制协议、包库、恢复算法。默认自动管理 localhost Control 和 1～16 个独立源码 Worker；工作目录 `.qrft-decoder` 有所有权标记，任务、视频、包、检查点、恢复证据均存入已有 SQLite 模式。关闭只清理本程序创建的进程，不删除数据。分布式模式连接现有 Control，使用相同任务及恢复流程；本机 Worker 自动接入，其他主机使用既有 Worker 入口及只读 SMB。
+
+增量兼容迁移：task_controls 增加 paused；暂停撤销租约，保留包和检查点；resume 明确解除暂停/取消；领取支持可选 task_id，GUI Worker 不扫描其他任务。视频时间片可配置，默认仍 30 秒/1 秒重叠。slice_errors 保存失败原因，task_recovery_evidence 保存已验证 MD5/SHA256。旧 API/Web、数据库和 v1/v2 线协议兼容；扫描与包完整率分别呈现，未绑定 START 不声明总包数。
+
+实际视频核心是 OpenCV 定位 + ZXing 原始字节，不是下方早期 FFmpeg/React 选型。P9 新增源码 GUI 入口，历史 EXE 职责保留参考，本阶段不打包。
+
+2026-10-12 v2开发补充：共享protocol_v2与validation，Frame保留版本及原始线字节；编码/Qt/OpenCV/PNG复用相同二维码生成器。Control任务协议锁及兼容SQLite迁移，Worker不重编码线帧；本地导入也使用持久包表、START绑定与流式恢复核心。v2无file_size/SHA256/文件ID字段，末包决定长度、最终MD5校验，未知来源视频须明确任务关联。OpenCV采用带GUI的opencv-python；decoder仍无界面运行，避免与headless两个发行包争用cv2。
+
+
 ## 当前实现补充（0.3.0rc1）
 
 原四程序保留职责，新增第五个独立 `QRFT-Acceptance.exe` 作为验收编排器，通过实际 EXE/鉴权 HTTP API 测试，不复制协议实现。当前视频读取为 OpenCV + ZXing 原始字节解码；控制中心使用 FastAPI、SQLite BLOB 包存储和原生中文 HTML/JavaScript 页面，没有 React 前端。以下初期选型记录保留为历史；实现以 src/qrft 为准。一键验收与现场范围见 ACCEPTANCE_RUNNER.md，v1 DATA 无会话 ID 的来源限制仍存在。

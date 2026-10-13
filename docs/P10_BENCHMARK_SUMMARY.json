@@ -1,0 +1,2050 @@
+{
+  "delivery": {
+    "source_code_commit": "c266015b0bbc426e2e049018ab9d1b331fe424c1",
+    "source_ci": "https://github.com/yunfei00/qrft/actions/runs/38349131223",
+    "source_ci_conclusion": "success",
+    "project_version": "0.4.0.dev0",
+    "pull_request": 7,
+    "pull_request_is_draft": true
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "cpu": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+    "logical_cpus": 8,
+    "memory_total_bytes": 16889192448,
+    "git_commit": "01db02d6d9831868311c3f6afeaf418eb8fcaef1",
+    "git_worktree_dirty": true,
+    "dependencies": {
+      "qrcode": "8.2",
+      "pillow": "12.3.0",
+      "opencv-python": "5.0.0.93",
+      "zxing-cpp": "3.1.1",
+      "PySide6": "6.9.3",
+      "psutil": "7.2.2"
+    }
+  },
+  "baseline": {
+    "status": "PASS",
+    "passed": 211,
+    "seconds": 140.5,
+    "skipped": 0,
+    "log": "baseline-pytest.log"
+  },
+  "final_regression": {
+    "status": "PASS",
+    "passed": 221,
+    "seconds": 145.35,
+    "skipped": 0,
+    "log": "final-pytest.log"
+  },
+  "synthetic_video": [
+    {
+      "source_bytes": 65536,
+      "media": {
+        "duration_seconds": 4.35,
+        "fps": 20.0,
+        "frames": 87,
+        "width": 926,
+        "height": 926
+      },
+      "video_bytes": 16821678,
+      "video_sha256": "c9f45ea21ce59d8981d9b3e9dc215f790566263782d63203b479331437e98574",
+      "hashes": {
+        "md5": "4177F189B7F3AE38A4F32A4EE666CF3B",
+        "sha256": "250f136c8fc717e39ddb9d7f0f6e29927b459bddbe8a922ba1dc870f18ea5517"
+      },
+      "encoding_seconds": 8.577999999979511,
+      "render_processes": 1,
+      "render_queue_limit_frames": 1,
+      "maximum_pending_render_frames": 1,
+      "encoding_resources": {
+        "samples": 25,
+        "rss_start_bytes": 67928064,
+        "rss_peak_bytes": 77004800,
+        "rss_last_bytes": 76877824,
+        "cpu_average_percent": 101.32799999999999,
+        "cpu_peak_percent": 131.7,
+        "process_io_read_bytes": 65536,
+        "process_io_write_bytes": 16516852,
+        "process_identities_seen": 1,
+        "sampling_minimum_seconds": 0.25,
+        "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+      },
+      "runs": [
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 1,
+          "worker_root_pids": [
+            21440
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 65536,
+          "video_sha256": "c9f45ea21ce59d8981d9b3e9dc215f790566263782d63203b479331437e98574",
+          "scan_seconds": 5.032000000006519,
+          "recovery_seconds": 0.0470000000204891,
+          "verified_unique_packets": 47,
+          "effective_packets_per_second": 9.340222575504592,
+          "synthetic_scan_payload_bytes_per_second": 13023.84737677168,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 25,
+          "hashes": {
+            "md5": "4177F189B7F3AE38A4F32A4EE666CF3B",
+            "sha256": "250f136c8fc717e39ddb9d7f0f6e29927b459bddbe8a922ba1dc870f18ea5517"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 18,
+            "rss_start_bytes": 111374336,
+            "rss_peak_bytes": 174198784,
+            "rss_last_bytes": 138874880,
+            "cpu_average_percent": 81.83888888888889,
+            "cpu_peak_percent": 146.79999999999998,
+            "process_io_read_bytes": 51776995,
+            "process_io_write_bytes": 994575,
+            "process_identities_seen": 6,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 307200,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 1,
+          "directory": "matrix/scan-64kib-w1-r1",
+          "completed_slice_receipts": 5,
+          "distinct_nodes_with_completed_slices": 1
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 2,
+          "worker_root_pids": [
+            8708,
+            10108
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 65536,
+          "video_sha256": "c9f45ea21ce59d8981d9b3e9dc215f790566263782d63203b479331437e98574",
+          "scan_seconds": 3.0310000000172295,
+          "recovery_seconds": 0.0779999999795109,
+          "verified_unique_packets": 47,
+          "effective_packets_per_second": 15.506433520202188,
+          "synthetic_scan_payload_bytes_per_second": 21621.90696127597,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 25,
+          "hashes": {
+            "md5": "4177F189B7F3AE38A4F32A4EE666CF3B",
+            "sha256": "250f136c8fc717e39ddb9d7f0f6e29927b459bddbe8a922ba1dc870f18ea5517"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 11,
+            "rss_start_bytes": 155271168,
+            "rss_peak_bytes": 281001984,
+            "rss_last_bytes": 208056320,
+            "cpu_average_percent": 141.72727272727272,
+            "cpu_peak_percent": 247.60000000000002,
+            "process_io_read_bytes": 52756702,
+            "process_io_write_bytes": 977569,
+            "process_identities_seen": 9,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 307200,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 1,
+          "directory": "matrix/scan-64kib-w2-r1",
+          "completed_slice_receipts": 5,
+          "distinct_nodes_with_completed_slices": 2
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 4,
+          "worker_root_pids": [
+            11636,
+            23988,
+            19180,
+            20028
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 65536,
+          "video_sha256": "c9f45ea21ce59d8981d9b3e9dc215f790566263782d63203b479331437e98574",
+          "scan_seconds": 2.172000000020489,
+          "recovery_seconds": 0.061999999976251274,
+          "verified_unique_packets": 47,
+          "effective_packets_per_second": 21.639042357070274,
+          "synthetic_scan_payload_bytes_per_second": 30173.112338573563,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 25,
+          "hashes": {
+            "md5": "4177F189B7F3AE38A4F32A4EE666CF3B",
+            "sha256": "250f136c8fc717e39ddb9d7f0f6e29927b459bddbe8a922ba1dc870f18ea5517"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 7,
+            "rss_start_bytes": 244314112,
+            "rss_peak_bytes": 480321536,
+            "rss_last_bytes": 345247744,
+            "cpu_average_percent": 254.08571428571423,
+            "cpu_peak_percent": 455.9,
+            "process_io_read_bytes": 56422024,
+            "process_io_write_bytes": 997754,
+            "process_identities_seen": 15,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 307200,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 1,
+          "directory": "matrix/scan-64kib-w4-r1",
+          "completed_slice_receipts": 5,
+          "distinct_nodes_with_completed_slices": 4
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 2,
+          "worker_root_pids": [
+            20536,
+            4048
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 65536,
+          "video_sha256": "c9f45ea21ce59d8981d9b3e9dc215f790566263782d63203b479331437e98574",
+          "scan_seconds": 2.8910000000032596,
+          "recovery_seconds": 0.0470000000204891,
+          "verified_unique_packets": 47,
+          "effective_packets_per_second": 16.257350397767905,
+          "synthetic_scan_payload_bytes_per_second": 22668.97267378973,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 25,
+          "hashes": {
+            "md5": "4177F189B7F3AE38A4F32A4EE666CF3B",
+            "sha256": "250f136c8fc717e39ddb9d7f0f6e29927b459bddbe8a922ba1dc870f18ea5517"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 10,
+            "rss_start_bytes": 155467776,
+            "rss_peak_bytes": 276471808,
+            "rss_last_bytes": 209076224,
+            "cpu_average_percent": 135.81,
+            "cpu_peak_percent": 226.2,
+            "process_io_read_bytes": 52349534,
+            "process_io_write_bytes": 981241,
+            "process_identities_seen": 9,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 307200,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 2,
+          "directory": "matrix/scan-64kib-w2-r2",
+          "completed_slice_receipts": 5,
+          "distinct_nodes_with_completed_slices": 2
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 4,
+          "worker_root_pids": [
+            24728,
+            25592,
+            23724,
+            11544
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 65536,
+          "video_sha256": "c9f45ea21ce59d8981d9b3e9dc215f790566263782d63203b479331437e98574",
+          "scan_seconds": 2.10999999998603,
+          "recovery_seconds": 0.09399999998277053,
+          "verified_unique_packets": 47,
+          "effective_packets_per_second": 22.274881516735153,
+          "synthetic_scan_payload_bytes_per_second": 31059.715640016067,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 25,
+          "hashes": {
+            "md5": "4177F189B7F3AE38A4F32A4EE666CF3B",
+            "sha256": "250f136c8fc717e39ddb9d7f0f6e29927b459bddbe8a922ba1dc870f18ea5517"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 7,
+            "rss_start_bytes": 243978240,
+            "rss_peak_bytes": 486903808,
+            "rss_last_bytes": 345251840,
+            "cpu_average_percent": 251.97142857142853,
+            "cpu_peak_percent": 510.3,
+            "process_io_read_bytes": 56121840,
+            "process_io_write_bytes": 956595,
+            "process_identities_seen": 15,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 307200,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 2,
+          "directory": "matrix/scan-64kib-w4-r2",
+          "completed_slice_receipts": 5,
+          "distinct_nodes_with_completed_slices": 4
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 1,
+          "worker_root_pids": [
+            19608
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 65536,
+          "video_sha256": "c9f45ea21ce59d8981d9b3e9dc215f790566263782d63203b479331437e98574",
+          "scan_seconds": 4.812999999965541,
+          "recovery_seconds": 0.061999999976251274,
+          "verified_unique_packets": 47,
+          "effective_packets_per_second": 9.765219198075316,
+          "synthetic_scan_payload_bytes_per_second": 13616.455433299234,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 25,
+          "hashes": {
+            "md5": "4177F189B7F3AE38A4F32A4EE666CF3B",
+            "sha256": "250f136c8fc717e39ddb9d7f0f6e29927b459bddbe8a922ba1dc870f18ea5517"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 17,
+            "rss_start_bytes": 110895104,
+            "rss_peak_bytes": 174313472,
+            "rss_last_bytes": 138035200,
+            "cpu_average_percent": 80.41764705882355,
+            "cpu_peak_percent": 141.0,
+            "process_io_read_bytes": 51563459,
+            "process_io_write_bytes": 994437,
+            "process_identities_seen": 6,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 307200,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 2,
+          "directory": "matrix/scan-64kib-w1-r2",
+          "completed_slice_receipts": 5,
+          "distinct_nodes_with_completed_slices": 1
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 4,
+          "worker_root_pids": [
+            6004,
+            19628,
+            20484,
+            22380
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 65536,
+          "video_sha256": "c9f45ea21ce59d8981d9b3e9dc215f790566263782d63203b479331437e98574",
+          "scan_seconds": 2.0929999999934807,
+          "recovery_seconds": 0.07800000003771856,
+          "verified_unique_packets": 47,
+          "effective_packets_per_second": 22.45580506457066,
+          "synthetic_scan_payload_bytes_per_second": 31311.992355568145,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 25,
+          "hashes": {
+            "md5": "4177F189B7F3AE38A4F32A4EE666CF3B",
+            "sha256": "250f136c8fc717e39ddb9d7f0f6e29927b459bddbe8a922ba1dc870f18ea5517"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 7,
+            "rss_start_bytes": 244662272,
+            "rss_peak_bytes": 487657472,
+            "rss_last_bytes": 344608768,
+            "cpu_average_percent": 246.91428571428574,
+            "cpu_peak_percent": 467.1,
+            "process_io_read_bytes": 56406100,
+            "process_io_write_bytes": 940153,
+            "process_identities_seen": 15,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 307200,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 3,
+          "directory": "matrix/scan-64kib-w4-r3",
+          "completed_slice_receipts": 5,
+          "distinct_nodes_with_completed_slices": 4
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 1,
+          "worker_root_pids": [
+            23040
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 65536,
+          "video_sha256": "c9f45ea21ce59d8981d9b3e9dc215f790566263782d63203b479331437e98574",
+          "scan_seconds": 5.0310000000172295,
+          "recovery_seconds": 0.06299999996554106,
+          "verified_unique_packets": 47,
+          "effective_packets_per_second": 9.342079109488976,
+          "synthetic_scan_payload_bytes_per_second": 13026.436096158926,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 25,
+          "hashes": {
+            "md5": "4177F189B7F3AE38A4F32A4EE666CF3B",
+            "sha256": "250f136c8fc717e39ddb9d7f0f6e29927b459bddbe8a922ba1dc870f18ea5517"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 18,
+            "rss_start_bytes": 111415296,
+            "rss_peak_bytes": 174018560,
+            "rss_last_bytes": 138264576,
+            "cpu_average_percent": 79.41111111111113,
+            "cpu_peak_percent": 139.0,
+            "process_io_read_bytes": 51744059,
+            "process_io_write_bytes": 994668,
+            "process_identities_seen": 6,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 307200,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 3,
+          "directory": "matrix/scan-64kib-w1-r3",
+          "completed_slice_receipts": 5,
+          "distinct_nodes_with_completed_slices": 1
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 2,
+          "worker_root_pids": [
+            23072,
+            2264
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 65536,
+          "video_sha256": "c9f45ea21ce59d8981d9b3e9dc215f790566263782d63203b479331437e98574",
+          "scan_seconds": 3.047000000020489,
+          "recovery_seconds": 0.031000000017229468,
+          "verified_unique_packets": 47,
+          "effective_packets_per_second": 15.425008204687876,
+          "synthetic_scan_payload_bytes_per_second": 21508.36888728563,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 25,
+          "hashes": {
+            "md5": "4177F189B7F3AE38A4F32A4EE666CF3B",
+            "sha256": "250f136c8fc717e39ddb9d7f0f6e29927b459bddbe8a922ba1dc870f18ea5517"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 11,
+            "rss_start_bytes": 155193344,
+            "rss_peak_bytes": 277958656,
+            "rss_last_bytes": 206938112,
+            "cpu_average_percent": 129.63636363636363,
+            "cpu_peak_percent": 229.1,
+            "process_io_read_bytes": 52578982,
+            "process_io_write_bytes": 989794,
+            "process_identities_seen": 9,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 307200,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 3,
+          "directory": "matrix/scan-64kib-w2-r3",
+          "completed_slice_receipts": 5,
+          "distinct_nodes_with_completed_slices": 2
+        }
+      ],
+      "summary": [
+        {
+          "workers": 1,
+          "repeats": 3,
+          "scan_median_seconds": 5.0310000000172295,
+          "scan_min_seconds": 4.812999999965541,
+          "scan_max_seconds": 5.032000000006519,
+          "packets_per_second_median": 9.342079109488976,
+          "rss_peak_max_bytes": 174313472,
+          "cpu_peak_max_percent": 146.79999999999998,
+          "process_io_read_median_bytes": 51744059,
+          "process_io_write_median_bytes": 994575,
+          "speedup_vs_one_worker": 1.0
+        },
+        {
+          "workers": 2,
+          "repeats": 3,
+          "scan_median_seconds": 3.0310000000172295,
+          "scan_min_seconds": 2.8910000000032596,
+          "scan_max_seconds": 3.047000000020489,
+          "packets_per_second_median": 15.506433520202188,
+          "rss_peak_max_bytes": 281001984,
+          "cpu_peak_max_percent": 247.60000000000002,
+          "process_io_read_median_bytes": 52578982,
+          "process_io_write_median_bytes": 981241,
+          "speedup_vs_one_worker": 1.6598482349022208
+        },
+        {
+          "workers": 4,
+          "repeats": 3,
+          "scan_median_seconds": 2.10999999998603,
+          "scan_min_seconds": 2.0929999999934807,
+          "scan_max_seconds": 2.172000000020489,
+          "packets_per_second_median": 22.274881516735153,
+          "rss_peak_max_bytes": 487657472,
+          "cpu_peak_max_percent": 510.3,
+          "process_io_read_median_bytes": 56406100,
+          "process_io_write_median_bytes": 956595,
+          "speedup_vs_one_worker": 2.3843601895974116
+        }
+      ],
+      "raw_report": "matrix/report.json"
+    },
+    {
+      "source_bytes": 1048576,
+      "media": {
+        "duration_seconds": 39.45,
+        "fps": 20.0,
+        "frames": 789,
+        "width": 926,
+        "height": 926
+      },
+      "video_bytes": 165498696,
+      "video_sha256": "ebfdfe6b54d47ab64b559079a76128cf644341866c48a14780233184810503be",
+      "hashes": {
+        "md5": "75866201C88710039EB8A8ED54631556",
+        "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+      },
+      "encoding_seconds": 140.0779999999795,
+      "render_processes": 1,
+      "render_queue_limit_frames": 1,
+      "maximum_pending_render_frames": 1,
+      "encoding_resources": {
+        "samples": 384,
+        "rss_start_bytes": 80314368,
+        "rss_peak_bytes": 93106176,
+        "rss_last_bytes": 87478272,
+        "cpu_average_percent": 107.07526041666684,
+        "cpu_peak_percent": 164.0,
+        "process_io_read_bytes": 1048576,
+        "process_io_write_bytes": 165441409,
+        "process_identities_seen": 1,
+        "sampling_minimum_seconds": 0.25,
+        "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+      },
+      "runs": [
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 1,
+          "worker_root_pids": [
+            4660
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 1048576,
+          "video_sha256": "ebfdfe6b54d47ab64b559079a76128cf644341866c48a14780233184810503be",
+          "scan_seconds": 50.84399999998277,
+          "recovery_seconds": 0.09299999999348074,
+          "verified_unique_packets": 749,
+          "effective_packets_per_second": 14.731335064122685,
+          "synthetic_scan_payload_bytes_per_second": 20623.397057673577,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 103,
+          "hashes": {
+            "md5": "75866201C88710039EB8A8ED54631556",
+            "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 181,
+            "rss_start_bytes": 111599616,
+            "rss_peak_bytes": 180506624,
+            "rss_last_bytes": 144400384,
+            "cpu_average_percent": 95.71712707182321,
+            "cpu_peak_percent": 178.0,
+            "process_io_read_bytes": 504272985,
+            "process_io_write_bytes": 12371862,
+            "process_identities_seen": 6,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 3198976,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 1,
+          "directory": "matrix/scan-1024kib-w1-r1",
+          "completed_slice_receipts": 44,
+          "distinct_nodes_with_completed_slices": 1
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 2,
+          "worker_root_pids": [
+            17360,
+            23648
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 1048576,
+          "video_sha256": "ebfdfe6b54d47ab64b559079a76128cf644341866c48a14780233184810503be",
+          "scan_seconds": 26.655999999959022,
+          "recovery_seconds": 0.125,
+          "verified_unique_packets": 749,
+          "effective_packets_per_second": 28.098739495841514,
+          "synthetic_scan_payload_bytes_per_second": 39337.334934034065,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 103,
+          "hashes": {
+            "md5": "75866201C88710039EB8A8ED54631556",
+            "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 94,
+            "rss_start_bytes": 155488256,
+            "rss_peak_bytes": 283426816,
+            "rss_last_bytes": 214802432,
+            "cpu_average_percent": 186.1276595744681,
+            "cpu_peak_percent": 280.4,
+            "process_io_read_bytes": 486982692,
+            "process_io_write_bytes": 12364297,
+            "process_identities_seen": 9,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 3198976,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 1,
+          "directory": "matrix/scan-1024kib-w2-r1",
+          "completed_slice_receipts": 44,
+          "distinct_nodes_with_completed_slices": 2
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 4,
+          "worker_root_pids": [
+            7492,
+            24040,
+            3232,
+            8540
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 1048576,
+          "video_sha256": "ebfdfe6b54d47ab64b559079a76128cf644341866c48a14780233184810503be",
+          "scan_seconds": 16.25,
+          "recovery_seconds": 0.14100000000325963,
+          "verified_unique_packets": 749,
+          "effective_packets_per_second": 46.09230769230769,
+          "synthetic_scan_payload_bytes_per_second": 64527.75384615385,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 103,
+          "hashes": {
+            "md5": "75866201C88710039EB8A8ED54631556",
+            "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 52,
+            "rss_start_bytes": 243912704,
+            "rss_peak_bytes": 495161344,
+            "rss_last_bytes": 349995008,
+            "cpu_average_percent": 355.06346153846164,
+            "cpu_peak_percent": 478.2,
+            "process_io_read_bytes": 483847162,
+            "process_io_write_bytes": 12055608,
+            "process_identities_seen": 15,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 3198976,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 1,
+          "directory": "matrix/scan-1024kib-w4-r1",
+          "completed_slice_receipts": 44,
+          "distinct_nodes_with_completed_slices": 4
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 2,
+          "worker_root_pids": [
+            22732,
+            25244
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 1048576,
+          "video_sha256": "ebfdfe6b54d47ab64b559079a76128cf644341866c48a14780233184810503be",
+          "scan_seconds": 26.57900000002701,
+          "recovery_seconds": 0.09399999998277053,
+          "verified_unique_packets": 749,
+          "effective_packets_per_second": 28.180142217511527,
+          "synthetic_scan_payload_bytes_per_second": 39451.296136007164,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 103,
+          "hashes": {
+            "md5": "75866201C88710039EB8A8ED54631556",
+            "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 95,
+            "rss_start_bytes": 155324416,
+            "rss_peak_bytes": 283537408,
+            "rss_last_bytes": 214855680,
+            "cpu_average_percent": 184.3694736842105,
+            "cpu_peak_percent": 312.5,
+            "process_io_read_bytes": 486918777,
+            "process_io_write_bytes": 12306589,
+            "process_identities_seen": 9,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 3198976,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 2,
+          "directory": "matrix/scan-1024kib-w2-r2",
+          "completed_slice_receipts": 44,
+          "distinct_nodes_with_completed_slices": 2
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 4,
+          "worker_root_pids": [
+            8896,
+            3836,
+            18760,
+            22444
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 1048576,
+          "video_sha256": "ebfdfe6b54d47ab64b559079a76128cf644341866c48a14780233184810503be",
+          "scan_seconds": 17.79699999996228,
+          "recovery_seconds": 0.125,
+          "verified_unique_packets": 749,
+          "effective_packets_per_second": 42.08574478853669,
+          "synthetic_scan_payload_bytes_per_second": 58918.694162062275,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 103,
+          "hashes": {
+            "md5": "75866201C88710039EB8A8ED54631556",
+            "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 59,
+            "rss_start_bytes": 244428800,
+            "rss_peak_bytes": 494776320,
+            "rss_last_bytes": 348532736,
+            "cpu_average_percent": 367.8033898305084,
+            "cpu_peak_percent": 487.49999999999994,
+            "process_io_read_bytes": 483846130,
+            "process_io_write_bytes": 12294169,
+            "process_identities_seen": 15,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 3198976,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 2,
+          "directory": "matrix/scan-1024kib-w4-r2",
+          "completed_slice_receipts": 44,
+          "distinct_nodes_with_completed_slices": 4
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 1,
+          "worker_root_pids": [
+            20216
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 1048576,
+          "video_sha256": "ebfdfe6b54d47ab64b559079a76128cf644341866c48a14780233184810503be",
+          "scan_seconds": 51.18800000002375,
+          "recovery_seconds": 0.125,
+          "verified_unique_packets": 749,
+          "effective_packets_per_second": 14.632335703673762,
+          "synthetic_scan_payload_bytes_per_second": 20484.80112525423,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 103,
+          "hashes": {
+            "md5": "75866201C88710039EB8A8ED54631556",
+            "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 182,
+            "rss_start_bytes": 111595520,
+            "rss_peak_bytes": 180477952,
+            "rss_last_bytes": 144539648,
+            "cpu_average_percent": 96.80549450549454,
+            "cpu_peak_percent": 182.0,
+            "process_io_read_bytes": 506080289,
+            "process_io_write_bytes": 12360115,
+            "process_identities_seen": 6,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 3198976,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 2,
+          "directory": "matrix/scan-1024kib-w1-r2",
+          "completed_slice_receipts": 44,
+          "distinct_nodes_with_completed_slices": 1
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 4,
+          "worker_root_pids": [
+            16888,
+            11864,
+            13980,
+            22388
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 1048576,
+          "video_sha256": "ebfdfe6b54d47ab64b559079a76128cf644341866c48a14780233184810503be",
+          "scan_seconds": 15.875,
+          "recovery_seconds": 0.14100000000325963,
+          "verified_unique_packets": 749,
+          "effective_packets_per_second": 47.181102362204726,
+          "synthetic_scan_payload_bytes_per_second": 66052.03149606299,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 103,
+          "hashes": {
+            "md5": "75866201C88710039EB8A8ED54631556",
+            "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 53,
+            "rss_start_bytes": 244015104,
+            "rss_peak_bytes": 495296512,
+            "rss_last_bytes": 348475392,
+            "cpu_average_percent": 364.2,
+            "cpu_peak_percent": 475.69999999999993,
+            "process_io_read_bytes": 482953502,
+            "process_io_write_bytes": 12100238,
+            "process_identities_seen": 15,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 3198976,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 3,
+          "directory": "matrix/scan-1024kib-w4-r3",
+          "completed_slice_receipts": 44,
+          "distinct_nodes_with_completed_slices": 4
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 1,
+          "worker_root_pids": [
+            18008
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 1048576,
+          "video_sha256": "ebfdfe6b54d47ab64b559079a76128cf644341866c48a14780233184810503be",
+          "scan_seconds": 49.17200000002049,
+          "recovery_seconds": 0.0779999999795109,
+          "verified_unique_packets": 749,
+          "effective_packets_per_second": 15.23224599364858,
+          "synthetic_scan_payload_bytes_per_second": 21324.656308459347,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 103,
+          "hashes": {
+            "md5": "75866201C88710039EB8A8ED54631556",
+            "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 173,
+            "rss_start_bytes": 111398912,
+            "rss_peak_bytes": 178733056,
+            "rss_last_bytes": 141959168,
+            "cpu_average_percent": 94.76300578034682,
+            "cpu_peak_percent": 156.2,
+            "process_io_read_bytes": 504620021,
+            "process_io_write_bytes": 12359611,
+            "process_identities_seen": 6,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 3198976,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 3,
+          "directory": "matrix/scan-1024kib-w1-r3",
+          "completed_slice_receipts": 44,
+          "distinct_nodes_with_completed_slices": 1
+        },
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 2,
+          "worker_root_pids": [
+            25144,
+            25336
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 1048576,
+          "video_sha256": "ebfdfe6b54d47ab64b559079a76128cf644341866c48a14780233184810503be",
+          "scan_seconds": 24.32799999997951,
+          "recovery_seconds": 0.09299999999348074,
+          "verified_unique_packets": 749,
+          "effective_packets_per_second": 30.787569878355427,
+          "synthetic_scan_payload_bytes_per_second": 43101.6113121047,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 103,
+          "hashes": {
+            "md5": "75866201C88710039EB8A8ED54631556",
+            "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 86,
+            "rss_start_bytes": 156938240,
+            "rss_peak_bytes": 282812416,
+            "rss_last_bytes": 213426176,
+            "cpu_average_percent": 181.25000000000003,
+            "cpu_peak_percent": 271.2,
+            "process_io_read_bytes": 486012770,
+            "process_io_write_bytes": 12293589,
+            "process_identities_seen": 9,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 3198976,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 3,
+          "directory": "matrix/scan-1024kib-w2-r3",
+          "completed_slice_receipts": 44,
+          "distinct_nodes_with_completed_slices": 2
+        }
+      ],
+      "summary": [
+        {
+          "workers": 1,
+          "repeats": 3,
+          "scan_median_seconds": 50.84399999998277,
+          "scan_min_seconds": 49.17200000002049,
+          "scan_max_seconds": 51.18800000002375,
+          "packets_per_second_median": 14.731335064122685,
+          "rss_peak_max_bytes": 180506624,
+          "cpu_peak_max_percent": 182.0,
+          "process_io_read_median_bytes": 504620021,
+          "process_io_write_median_bytes": 12360115,
+          "speedup_vs_one_worker": 1.0
+        },
+        {
+          "workers": 2,
+          "repeats": 3,
+          "scan_median_seconds": 26.57900000002701,
+          "scan_min_seconds": 24.32799999997951,
+          "scan_max_seconds": 26.655999999959022,
+          "packets_per_second_median": 28.180142217511527,
+          "rss_peak_max_bytes": 283537408,
+          "cpu_peak_max_percent": 312.5,
+          "process_io_read_median_bytes": 486918777,
+          "process_io_write_median_bytes": 12306589,
+          "speedup_vs_one_worker": 1.9129387862572371
+        },
+        {
+          "workers": 4,
+          "repeats": 3,
+          "scan_median_seconds": 16.25,
+          "scan_min_seconds": 15.875,
+          "scan_max_seconds": 17.79699999996228,
+          "packets_per_second_median": 46.09230769230769,
+          "rss_peak_max_bytes": 495296512,
+          "cpu_peak_max_percent": 487.49999999999994,
+          "process_io_read_median_bytes": 483846130,
+          "process_io_write_median_bytes": 12100238,
+          "speedup_vs_one_worker": 3.128861538460478
+        }
+      ],
+      "raw_report": "matrix/report.json"
+    },
+    {
+      "source_bytes": 1048576,
+      "media": {
+        "duration_seconds": 39.45,
+        "fps": 20.0,
+        "frames": 789,
+        "width": 926,
+        "height": 926
+      },
+      "video_bytes": 165498696,
+      "video_sha256": "ebfdfe6b54d47ab64b559079a76128cf644341866c48a14780233184810503be",
+      "hashes": {
+        "md5": "75866201C88710039EB8A8ED54631556",
+        "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+      },
+      "encoding_seconds": 48.875,
+      "render_processes": 4,
+      "render_queue_limit_frames": 8,
+      "maximum_pending_render_frames": 8,
+      "encoding_resources": {
+        "samples": 171,
+        "rss_start_bytes": 117710848,
+        "rss_peak_bytes": 330149888,
+        "rss_last_bytes": 309227520,
+        "cpu_average_percent": 435.278947368421,
+        "cpu_peak_percent": 534.2,
+        "process_io_read_bytes": 1938001517,
+        "process_io_write_bytes": 2088690699,
+        "process_identities_seen": 5,
+        "sampling_minimum_seconds": 0.25,
+        "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+      },
+      "runs": [
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 2,
+          "worker_root_pids": [
+            12328,
+            1456
+          ],
+          "pause_resume_interruption": null,
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 1048576,
+          "video_sha256": "ebfdfe6b54d47ab64b559079a76128cf644341866c48a14780233184810503be",
+          "scan_seconds": 25.5,
+          "recovery_seconds": 0.07800000003771856,
+          "verified_unique_packets": 749,
+          "effective_packets_per_second": 29.372549019607842,
+          "synthetic_scan_payload_bytes_per_second": 41120.62745098039,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 103,
+          "hashes": {
+            "md5": "75866201C88710039EB8A8ED54631556",
+            "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 92,
+            "rss_start_bytes": 155254784,
+            "rss_peak_bytes": 283344896,
+            "rss_last_bytes": 212795392,
+            "cpu_average_percent": 181.56739130434786,
+            "cpu_peak_percent": 287.5,
+            "process_io_read_bytes": 486246360,
+            "process_io_write_bytes": 12372179,
+            "process_identities_seen": 9,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 3198976,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 1,
+          "directory": "matrix-supplement-1024/scan-1024kib-w2-r1",
+          "completed_slice_receipts": 44,
+          "distinct_nodes_with_completed_slices": 2
+        }
+      ],
+      "summary": [
+        {
+          "workers": 2,
+          "repeats": 1,
+          "scan_median_seconds": 25.5,
+          "scan_min_seconds": 25.5,
+          "scan_max_seconds": 25.5,
+          "packets_per_second_median": 29.372549019607842,
+          "rss_peak_max_bytes": 283344896,
+          "cpu_peak_max_percent": 287.5,
+          "process_io_read_median_bytes": 486246360,
+          "process_io_write_median_bytes": 12372179,
+          "speedup_vs_one_worker": null
+        }
+      ],
+      "raw_report": "matrix-supplement-1024/report.json"
+    },
+    {
+      "source_bytes": 10485760,
+      "media": {
+        "duration_seconds": 376.5,
+        "fps": 20.0,
+        "frames": 7530,
+        "width": 926,
+        "height": 926
+      },
+      "video_bytes": 1610466823,
+      "video_sha256": "64b543e60629f4b1c40b6641c2eb3e9346934421bd07da12bd38e906d9beb65d",
+      "hashes": {
+        "md5": "D5BC4EB53216BE363292B26B836641C5",
+        "sha256": "4fc96fea6494a0e4cbb7c8096e4a9175d0ad74ce19ab1a8b7d40b5046a210297"
+      },
+      "encoding_seconds": 592.4370000000345,
+      "render_processes": 4,
+      "render_queue_limit_frames": 8,
+      "maximum_pending_render_frames": 8,
+      "encoding_resources": {
+        "samples": 1921,
+        "rss_start_bytes": 117760000,
+        "rss_peak_bytes": 345321472,
+        "rss_last_bytes": 313696256,
+        "cpu_average_percent": 439.7112961998958,
+        "cpu_peak_percent": 556.2,
+        "process_io_read_bytes": 19315072813,
+        "process_io_write_bytes": 20901894894,
+        "process_identities_seen": 5,
+        "sampling_minimum_seconds": 0.25,
+        "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+      },
+      "runs": [
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 2,
+          "worker_root_pids": [
+            9460,
+            24024
+          ],
+          "pause_resume_interruption": {
+            "paused_stored": 108,
+            "elapsed": 5.01600000000326
+          },
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 10485760,
+          "video_sha256": "64b543e60629f4b1c40b6641c2eb3e9346934421bd07da12bd38e906d9beb65d",
+          "scan_seconds": 265.375,
+          "recovery_seconds": 0.5630000000237487,
+          "verified_unique_packets": 7490,
+          "effective_packets_per_second": 28.224211022138483,
+          "synthetic_scan_payload_bytes_per_second": 39512.99105040038,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 853,
+          "hashes": {
+            "md5": "D5BC4EB53216BE363292B26B836641C5",
+            "sha256": "4fc96fea6494a0e4cbb7c8096e4a9175d0ad74ce19ab1a8b7d40b5046a210297"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 885,
+            "rss_start_bytes": 155504640,
+            "rss_peak_bytes": 294854656,
+            "rss_last_bytes": 243007488,
+            "cpu_average_percent": 191.34700564971735,
+            "cpu_peak_percent": 312.5,
+            "process_io_read_bytes": 4961097887,
+            "process_io_write_bytes": 125853683,
+            "process_identities_seen": 15,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 31072256,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 1,
+          "directory": "matrix-supplement-10240/scan-10240kib-w2-r1",
+          "completed_slice_receipts": 419,
+          "distinct_nodes_with_completed_slices": 4
+        }
+      ],
+      "summary": [
+        {
+          "workers": 2,
+          "repeats": 1,
+          "scan_median_seconds": 265.375,
+          "scan_min_seconds": 265.375,
+          "scan_max_seconds": 265.375,
+          "packets_per_second_median": 28.224211022138483,
+          "rss_peak_max_bytes": 294854656,
+          "cpu_peak_max_percent": 312.5,
+          "process_io_read_median_bytes": 4961097887,
+          "process_io_write_median_bytes": 125853683,
+          "speedup_vs_one_worker": null
+        }
+      ],
+      "raw_report": "matrix-supplement-10240/report.json"
+    },
+    {
+      "source_bytes": 4194304,
+      "media": {
+        "duration_seconds": 151.8,
+        "fps": 20.0,
+        "frames": 3036,
+        "width": 926,
+        "height": 926
+      },
+      "video_bytes": 647105370,
+      "video_sha256": "d23022bacc71e8c18eb417ffe4ca404bb5611aa01c51453ec4b27586b18db35c",
+      "hashes": {
+        "md5": "50E2296737AEFA8843ED7579A3AF91DB",
+        "sha256": "d83e52912e0d2a87526c86c7d8c683edbe3781570289f365ebdb653de454b8f7"
+      },
+      "encoding_seconds": 480.53100000001723,
+      "render_processes": 1,
+      "render_queue_limit_frames": 1,
+      "maximum_pending_render_frames": 1,
+      "encoding_resources": {
+        "samples": 1512,
+        "rss_start_bytes": 68534272,
+        "rss_peak_bytes": 85282816,
+        "rss_last_bytes": 75468800,
+        "cpu_average_percent": 106.97083333333323,
+        "cpu_peak_percent": 175.3,
+        "process_io_read_bytes": 4194304,
+        "process_io_write_bytes": 647084519,
+        "process_identities_seen": 1,
+        "sampling_minimum_seconds": 0.25,
+        "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+      },
+      "runs": [
+        {
+          "status": "PASS",
+          "scope": "same synthetic MP4 / OpenCV-ZXing / independent Worker HTTP / SQLite / real recovery",
+          "workers": 2,
+          "worker_root_pids": [
+            11100,
+            7824
+          ],
+          "pause_resume_interruption": {
+            "paused_stored": 108,
+            "elapsed": 4.672000000020489
+          },
+          "slice_seconds": 1,
+          "slice_overlap_ms": 100,
+          "source_bytes": 4194304,
+          "video_sha256": "d23022bacc71e8c18eb417ffe4ca404bb5611aa01c51453ec4b27586b18db35c",
+          "scan_seconds": 96.78100000001723,
+          "recovery_seconds": 0.2190000000409782,
+          "verified_unique_packets": 2996,
+          "effective_packets_per_second": 30.956489393573808,
+          "synthetic_scan_payload_bytes_per_second": 43338.09322076909,
+          "missing_count": 0,
+          "conflicts": 0,
+          "duplicates": 353,
+          "hashes": {
+            "md5": "50E2296737AEFA8843ED7579A3AF91DB",
+            "sha256": "d83e52912e0d2a87526c86c7d8c683edbe3781570289f365ebdb653de454b8f7"
+          },
+          "bytes_equal": true,
+          "resources": {
+            "samples": 342,
+            "rss_start_bytes": 155385856,
+            "rss_peak_bytes": 289353728,
+            "rss_last_bytes": 252755968,
+            "cpu_average_percent": 188.73040935672523,
+            "cpu_peak_percent": 324.3,
+            "process_io_read_bytes": 1941499432,
+            "process_io_write_bytes": 49400905,
+            "process_identities_seen": 15,
+            "sampling_minimum_seconds": 0.25,
+            "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+          },
+          "database_bytes": 12492800,
+          "sqlite_integrity_check": "ok",
+          "workspace": "workspace/",
+          "log_directory": "workspace/.qrft-decoder/logs/",
+          "reopened_persistent_result": true,
+          "repeat": 1,
+          "directory": "matrix-supplement-4096/scan-4096kib-w2-r1",
+          "completed_slice_receipts": 169,
+          "distinct_nodes_with_completed_slices": 4
+        }
+      ],
+      "summary": [
+        {
+          "workers": 2,
+          "repeats": 1,
+          "scan_median_seconds": 96.78100000001723,
+          "scan_min_seconds": 96.78100000001723,
+          "scan_max_seconds": 96.78100000001723,
+          "packets_per_second_median": 30.956489393573808,
+          "rss_peak_max_bytes": 289353728,
+          "cpu_peak_max_percent": 324.3,
+          "process_io_read_median_bytes": 1941499432,
+          "process_io_write_median_bytes": 49400905,
+          "speedup_vs_one_worker": null
+        }
+      ],
+      "raw_report": "matrix-supplement-4096/report.json"
+    }
+  ],
+  "resource_forecast_history": [
+    {
+      "raw_report": "matrix/report.json",
+      "estimates": [
+        {
+          "size_kib": 10240,
+          "data_packets": 7490,
+          "qr_frames": 7530,
+          "nominal_video_seconds": 376.5,
+          "encoding_seconds_with_30pct_margin": 1737.925908744993,
+          "scan_seconds_with_30pct_margin": 635.0815361219677,
+          "video_bytes_with_30pct_margin": 2053316521,
+          "status": "NOT RUN",
+          "reason": "BLOCKED_BY_LIMIT: 30-minute item or remaining stability budget"
+        },
+        {
+          "size_kib": 51200,
+          "data_packets": 37450,
+          "qr_frames": 37490,
+          "nominal_video_seconds": 1874.5,
+          "encoding_seconds_with_30pct_margin": 8652.701503167304,
+          "scan_seconds_with_30pct_margin": 3161.9132522194645,
+          "video_bytes_with_30pct_margin": 10222953037,
+          "status": "NOT RUN",
+          "reason": "conditional video exceeds measured per-item budget; use separate SQLite stress"
+        },
+        {
+          "size_kib": 102400,
+          "data_packets": 74899,
+          "qr_frames": 74939,
+          "nominal_video_seconds": 3746.95,
+          "encoding_seconds_with_30pct_margin": 17295.940195941705,
+          "scan_seconds_with_30pct_margin": 6320.368557163896,
+          "video_bytes_with_30pct_margin": 20434725999,
+          "status": "NOT RUN",
+          "reason": "conditional video exceeds measured per-item budget; use separate SQLite stress"
+        },
+        {
+          "size_kib": 1048576,
+          "data_packets": 766959,
+          "qr_frames": 766999,
+          "nominal_video_seconds": 38349.95,
+          "encoding_seconds_with_30pct_margin": 177023.5636230413,
+          "scan_seconds_with_30pct_margin": 64688.83175617704,
+          "video_bytes_with_30pct_margin": 209148966582,
+          "status": "NOT RUN",
+          "reason": "1 GiB QR/video prohibited by plan"
+        }
+      ],
+      "preflight": null
+    },
+    {
+      "raw_report": "matrix-supplement-1024/report.json",
+      "estimates": [
+        {
+          "size_kib": 10240,
+          "data_packets": 7490,
+          "qr_frames": 7530,
+          "nominal_video_seconds": 376.5,
+          "encoding_seconds_with_30pct_margin": 606.3845057034221,
+          "scan_seconds_with_30pct_margin": 316.3745247148289,
+          "video_bytes_with_30pct_margin": 2053316521,
+          "status": "NOT RUN",
+          "reason": "conditional larger video; requires budget check"
+        },
+        {
+          "size_kib": 51200,
+          "data_packets": 37450,
+          "qr_frames": 37490,
+          "nominal_video_seconds": 1874.5,
+          "encoding_seconds_with_30pct_margin": 3019.0378643852982,
+          "scan_seconds_with_30pct_margin": 1575.1501901140687,
+          "video_bytes_with_30pct_margin": 10222953037,
+          "status": "NOT RUN",
+          "reason": "conditional video exceeds measured per-item budget; use separate SQLite stress"
+        },
+        {
+          "size_kib": 102400,
+          "data_packets": 74899,
+          "qr_frames": 74939,
+          "nominal_video_seconds": 3746.95,
+          "encoding_seconds_with_30pct_margin": 6034.77403358682,
+          "scan_seconds_with_30pct_margin": 3148.5777566539923,
+          "video_bytes_with_30pct_margin": 20434725999,
+          "status": "NOT RUN",
+          "reason": "conditional video exceeds measured per-item budget; use separate SQLite stress"
+        },
+        {
+          "size_kib": 1048576,
+          "data_packets": 766959,
+          "qr_frames": 766999,
+          "nominal_video_seconds": 38349.95,
+          "encoding_seconds_with_30pct_margin": 61765.77815272497,
+          "scan_seconds_with_30pct_margin": 32225.62338403042,
+          "video_bytes_with_30pct_margin": 209148966582,
+          "status": "NOT RUN",
+          "reason": "1 GiB QR/video prohibited by plan"
+        }
+      ],
+      "preflight": null
+    },
+    {
+      "raw_report": "matrix-supplement-10240/report.json",
+      "estimates": [],
+      "preflight": {
+        "estimated_seconds_with_margin": 922.759030418251,
+        "estimated_video_bytes_with_margin": 2053316521
+      }
+    },
+    {
+      "raw_report": "matrix-supplement-4096/report.json",
+      "estimates": [],
+      "preflight": {
+        "estimated_seconds_with_margin": 956.7663482889897,
+        "estimated_video_bytes_with_margin": 827871043
+      }
+    }
+  ],
+  "sqlite_stress_no_video": [
+    {
+      "environment": {
+        "platform": "Windows-11-10.0.26200-SP0",
+        "python": "3.12.13",
+        "cpu": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+        "logical_cpus": 8,
+        "memory_total_bytes": 16889192448,
+        "git_commit": "01db02d6d9831868311c3f6afeaf418eb8fcaef1",
+        "git_worktree_dirty": true,
+        "dependencies": {
+          "qrcode": "8.2",
+          "pillow": "12.3.0",
+          "opencv-python": "5.0.0.93",
+          "zxing-cpp": "3.1.1",
+          "PySide6": "6.9.3",
+          "psutil": "7.2.2"
+        }
+      },
+      "scope": "SQLite v2 packet store / stream recovery, NO QR video",
+      "ingest_seconds": 5.985000000044238,
+      "ingest_packets_per_second": 12514.452798570825,
+      "queries": {
+        "count": {
+          "median_seconds": 0.002429600019240752,
+          "max_seconds": 0.0032869999995455146,
+          "query_plan": [
+            [
+              3,
+              0,
+              53,
+              "SEARCH packets USING COVERING INDEX sqlite_autoindex_packets_1 (task_id=?)"
+            ]
+          ],
+          "timer": "QueryPerformanceCounter via perf_counter"
+        },
+        "page": {
+          "median_seconds": 0.000805300020147115,
+          "max_seconds": 0.001643700001295656,
+          "query_plan": [
+            [
+              4,
+              0,
+              46,
+              "SEARCH packets USING COVERING INDEX sqlite_autoindex_packets_1 (task_id=? AND packet_id>?)"
+            ]
+          ],
+          "timer": "QueryPerformanceCounter via perf_counter"
+        },
+        "lookup": {
+          "median_seconds": 8.200004231184721e-06,
+          "max_seconds": 0.0008265000069513917,
+          "query_plan": [
+            [
+              3,
+              0,
+              39,
+              "SEARCH packets USING INDEX sqlite_autoindex_packets_1 (task_id=? AND packet_id=?)"
+            ]
+          ],
+          "timer": "QueryPerformanceCounter via perf_counter"
+        }
+      },
+      "missing_export": {
+        "count": 749,
+        "seconds": 0.0470000000204891,
+        "formats": [
+          "txt",
+          "csv",
+          "json"
+        ]
+      },
+      "recovery_seconds": 2.922000000020489,
+      "status": "PASS",
+      "source_bytes": 104857600,
+      "stored_packets": 74899,
+      "hashes": {
+        "md5": "14D349E71547488A2A21C99115A3260D",
+        "sha256": "4cbf988462cc3ba2e10e3aae9f5268546aa79016359fb45be7dd199c073125c0"
+      },
+      "bytes_equal": true,
+      "recovered_after_database_reopen": true,
+      "sqlite_integrity_check": "ok",
+      "duplicate_checks": 20,
+      "quarantined_conflict_count": 1,
+      "no_finish_v2_recovery": "complete packets and valid final MD5 accepted as specified",
+      "incomplete_not_published": true,
+      "unwritable_output_rejected": true,
+      "existing_file_protected": true,
+      "database_bytes": 308576256,
+      "resources": {
+        "samples": 57,
+        "rss_start_bytes": 51408896,
+        "rss_peak_bytes": 57044992,
+        "rss_last_bytes": 57044992,
+        "cpu_average_percent": 89.8631578947368,
+        "cpu_peak_percent": 113.5,
+        "process_io_read_bytes": 2658310397,
+        "process_io_write_bytes": 1067130973,
+        "process_identities_seen": 1,
+        "sampling_minimum_seconds": 0.25,
+        "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+      },
+      "total_seconds": 16.25,
+      "budget": {
+        "initial_free_bytes": 32190238720,
+        "free_floor_bytes": 8589934592,
+        "minimum_observed_free_bytes": 30661144576,
+        "maximum_created_bytes": 16106127360,
+        "created_bytes": 1578965628,
+        "maximum_rss_bytes": 8589934592,
+        "elapsed_seconds": 1374.3617481174879,
+        "total_budget_seconds": 7200,
+        "item_budget_seconds": 1800
+      },
+      "query_measurement_note": "read-only high-resolution remeasurement; original GetTickCount64 measurements retained only in local raw report",
+      "raw_report": "storage-100mib/report.json"
+    },
+    {
+      "environment": {
+        "platform": "Windows-11-10.0.26200-SP0",
+        "python": "3.12.13",
+        "cpu": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+        "logical_cpus": 8,
+        "memory_total_bytes": 16889192448,
+        "git_commit": "01db02d6d9831868311c3f6afeaf418eb8fcaef1",
+        "git_worktree_dirty": true,
+        "dependencies": {
+          "qrcode": "8.2",
+          "pillow": "12.3.0",
+          "opencv-python": "5.0.0.93",
+          "zxing-cpp": "3.1.1",
+          "PySide6": "6.9.3",
+          "psutil": "7.2.2"
+        }
+      },
+      "scope": "SQLite v2 packet store / stream recovery, NO QR video",
+      "ingest_seconds": 71.78099999995902,
+      "ingest_packets_per_second": 10684.707652448948,
+      "queries": {
+        "count": {
+          "median_seconds": 0.032587099965894595,
+          "max_seconds": 0.04238150001037866,
+          "query_plan": [
+            [
+              3,
+              0,
+              53,
+              "SEARCH packets USING COVERING INDEX sqlite_autoindex_packets_1 (task_id=?)"
+            ]
+          ],
+          "timer": "QueryPerformanceCounter via perf_counter"
+        },
+        "page": {
+          "median_seconds": 0.000484699965454638,
+          "max_seconds": 0.0011323000071570277,
+          "query_plan": [
+            [
+              4,
+              0,
+              46,
+              "SEARCH packets USING COVERING INDEX sqlite_autoindex_packets_1 (task_id=? AND packet_id>?)"
+            ]
+          ],
+          "timer": "QueryPerformanceCounter via perf_counter"
+        },
+        "lookup": {
+          "median_seconds": 8.500006515532732e-06,
+          "max_seconds": 0.00198529998306185,
+          "query_plan": [
+            [
+              3,
+              0,
+              39,
+              "SEARCH packets USING INDEX sqlite_autoindex_packets_1 (task_id=? AND packet_id=?)"
+            ]
+          ],
+          "timer": "QueryPerformanceCounter via perf_counter"
+        }
+      },
+      "missing_export": {
+        "count": 7670,
+        "seconds": 0.5320000000065193,
+        "formats": [
+          "txt",
+          "csv",
+          "json"
+        ]
+      },
+      "recovery_seconds": 32.95299999997951,
+      "status": "PASS",
+      "source_bytes": 1073741824,
+      "stored_packets": 766959,
+      "hashes": {
+        "md5": "CB17F4AB872D64DB60B980A67CF04A8A",
+        "sha256": "2c06ade942ee3f17a048dd1064b2fab046a4bb95386d8bb41b68dc6711ac2af3"
+      },
+      "bytes_equal": true,
+      "recovered_after_database_reopen": true,
+      "sqlite_integrity_check": "ok",
+      "duplicate_checks": 20,
+      "quarantined_conflict_count": 1,
+      "no_finish_v2_recovery": "complete packets and valid final MD5 accepted as specified",
+      "incomplete_not_published": true,
+      "unwritable_output_rejected": true,
+      "existing_file_protected": true,
+      "database_bytes": 3160801280,
+      "resources": {
+        "samples": 1064,
+        "rss_start_bytes": 51331072,
+        "rss_peak_bytes": 58007552,
+        "rss_last_bytes": 56954880,
+        "cpu_average_percent": 68.0780075187968,
+        "cpu_peak_percent": 134.5,
+        "process_io_read_bytes": 28021708413,
+        "process_io_write_bytes": 10938213979,
+        "process_identities_seen": 1,
+        "sampling_minimum_seconds": 0.25,
+        "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+      },
+      "total_seconds": 296.76600000000326,
+      "budget": {
+        "initial_free_bytes": 32190238720,
+        "free_floor_bytes": 8589934592,
+        "minimum_observed_free_bytes": 24376008704,
+        "maximum_created_bytes": 16106127360,
+        "created_bytes": 7856666719,
+        "maximum_rss_bytes": 8589934592,
+        "elapsed_seconds": 1682.1013536453247,
+        "total_budget_seconds": 7200,
+        "item_budget_seconds": 1800
+      },
+      "query_measurement_note": "read-only high-resolution remeasurement; original GetTickCount64 measurements retained only in local raw report",
+      "raw_report": "storage-1024mib/report.json"
+    }
+  ],
+  "native_gui_repeated_short_video_stability": [
+    {
+      "environment": {
+        "platform": "Windows-11-10.0.26200-SP0",
+        "python": "3.12.13",
+        "cpu": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+        "logical_cpus": 8,
+        "memory_total_bytes": 16889192448,
+        "git_commit": "01db02d6d9831868311c3f6afeaf418eb8fcaef1",
+        "git_worktree_dirty": true,
+        "dependencies": {
+          "qrcode": "8.2",
+          "pillow": "12.3.0",
+          "opencv-python": "5.0.0.93",
+          "zxing-cpp": "3.1.1",
+          "PySide6": "6.9.3",
+          "psutil": "7.2.2"
+        }
+      },
+      "scope": "native Windows Qt GUI + repeated short synthetic MP4 scans, NOT a single long video",
+      "requested_seconds": 1800,
+      "status": "PASS",
+      "actual_seconds": 1800.1089999999967,
+      "native_qt_platform": "windows",
+      "scans_completed": 61,
+      "repeated_video_bytes": 165498696,
+      "repeated_media": {
+        "duration_seconds": 39.45,
+        "fps": 20.0,
+        "frames": 789,
+        "width": 926,
+        "height": 926
+      },
+      "completed_slice_receipts": 2725,
+      "submitted_data_and_finish_frames": 52831,
+      "distinct_local_nodes": 4,
+      "gui_control_reopened_midway": true,
+      "resource_samples": {
+        "samples": 5224,
+        "rss_start_bytes": 372396032,
+        "rss_peak_bytes": 411308032,
+        "rss_last_bytes": 184639488,
+        "cpu_average_percent": 199.3946784073511,
+        "cpu_peak_percent": 362.4,
+        "process_io_read_bytes": 28998519975,
+        "process_io_write_bytes": 269929840,
+        "process_identities_seen": 19,
+        "sampling_minimum_seconds": 0.25,
+        "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+      },
+      "qt_timer_ticks": 72938,
+      "background_error_count": 0,
+      "sqlite_integrity_check": "ok",
+      "owned_processes_alive_after_close": 0,
+      "final_hashes": {
+        "md5": "75866201C88710039EB8A8ED54631556",
+        "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+      },
+      "active_rss_first_five_minute_samples_median_bytes": 396046336,
+      "active_rss_last_five_minute_samples_median_bytes": 400191488,
+      "raw_report": "stability-1800s/report.json"
+    },
+    {
+      "environment": {
+        "platform": "Windows-11-10.0.26200-SP0",
+        "python": "3.12.13",
+        "cpu": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+        "logical_cpus": 8,
+        "memory_total_bytes": 16889192448,
+        "git_commit": "01db02d6d9831868311c3f6afeaf418eb8fcaef1",
+        "git_worktree_dirty": true,
+        "dependencies": {
+          "qrcode": "8.2",
+          "pillow": "12.3.0",
+          "opencv-python": "5.0.0.93",
+          "zxing-cpp": "3.1.1",
+          "PySide6": "6.9.3",
+          "psutil": "7.2.2"
+        }
+      },
+      "scope": "native Windows Qt GUI + repeated short synthetic MP4 scans, NOT a single long video",
+      "requested_seconds": 600,
+      "status": "PASS",
+      "actual_seconds": 600.0160000000033,
+      "native_qt_platform": "windows",
+      "scans_completed": 21,
+      "repeated_video_bytes": 165498696,
+      "repeated_media": {
+        "duration_seconds": 39.45,
+        "fps": 20.0,
+        "frames": 789,
+        "width": 926,
+        "height": 926
+      },
+      "completed_slice_receipts": 968,
+      "submitted_data_and_finish_frames": 18766,
+      "distinct_local_nodes": 4,
+      "gui_control_reopened_midway": true,
+      "resource_samples": {
+        "samples": 1689,
+        "rss_start_bytes": 352829440,
+        "rss_peak_bytes": 406065152,
+        "rss_last_bytes": 184864768,
+        "cpu_average_percent": 195.25518058022467,
+        "cpu_peak_percent": 344.80000000000007,
+        "process_io_read_bytes": 10263745504,
+        "process_io_write_bytes": 100183967,
+        "process_identities_seen": 19,
+        "sampling_minimum_seconds": 0.25,
+        "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+      },
+      "qt_timer_ticks": 24022,
+      "background_error_count": 0,
+      "sqlite_integrity_check": "ok",
+      "owned_processes_alive_after_close": 0,
+      "final_hashes": {
+        "md5": "75866201C88710039EB8A8ED54631556",
+        "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c"
+      },
+      "active_rss_first_five_minute_samples_median_bytes": 397361152,
+      "active_rss_last_five_minute_samples_median_bytes": 390692864,
+      "raw_report": "stability-600s/report.json"
+    }
+  ],
+  "fault_recovery": {
+    "environment": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "python": "3.12.13",
+      "cpu": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+      "logical_cpus": 8,
+      "memory_total_bytes": 16889192448,
+      "git_commit": "01db02d6d9831868311c3f6afeaf418eb8fcaef1",
+      "git_worktree_dirty": true,
+      "dependencies": {
+        "qrcode": "8.2",
+        "pillow": "12.3.0",
+        "opencv-python": "5.0.0.93",
+        "zxing-cpp": "3.1.1",
+        "PySide6": "6.9.3",
+        "psutil": "7.2.2"
+      }
+    },
+    "scope": "real local HTTP and OS-process faults, not physical network",
+    "cases": [
+      {
+        "name": "HTTP 503, renewal, actual Worker kill, checkpoint takeover, stale fencing",
+        "status": "PASS",
+        "stored_before": 169,
+        "checkpoint_before_kill": 5850,
+        "reassigned": {
+          "id": 1,
+          "video_id": 1,
+          "start_ms": 0,
+          "end_ms": 30000,
+          "state": "done",
+          "owner": "desktop-5d8a785dd6554d2e",
+          "lease_until": null,
+          "attempts": 2,
+          "checkpoint_ms": 29850,
+          "lease_token": "[REDACTED]",
+          "error": null
+        },
+        "killed_processes": [
+          [
+            21084,
+            1791863493.8098345
+          ],
+          [
+            23652,
+            1791863493.8333557
+          ],
+          [
+            19984,
+            1791863493.7975883
+          ]
+        ],
+        "recovery": {
+          "status": "verified",
+          "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c",
+          "md5": "75866201C88710039EB8A8ED54631556",
+          "protocol_version": 2
+        },
+        "http_faults": 1,
+        "renewals": 13
+      },
+      {
+        "name": "abrupt Control crash / new authenticated Control / persisted packets and checkpoints",
+        "status": "PASS",
+        "stored_before": 220,
+        "checkpoint_before_crash": [
+          {
+            "id": 3,
+            "video_id": 2,
+            "start_ms": 0,
+            "end_ms": 30000,
+            "state": "leased",
+            "owner": "desktop-47e1af42ee0b4a04",
+            "lease_until": 1791863559.698656,
+            "attempts": 1,
+            "checkpoint_ms": 6250,
+            "lease_token": "[REDACTED]",
+            "error": null
+          },
+          {
+            "id": 4,
+            "video_id": 2,
+            "start_ms": 29000,
+            "end_ms": 39450,
+            "state": "leased",
+            "owner": "desktop-b03260d3a64a4fe5",
+            "lease_until": 1791863559.6812928,
+            "attempts": 1,
+            "checkpoint_ms": 34750,
+            "lease_token": "[REDACTED]",
+            "error": null
+          }
+        ],
+        "killed_processes": [
+          [
+            24172,
+            1791863492.207646
+          ],
+          [
+            19908,
+            1791863492.228253
+          ],
+          [
+            23860,
+            1791863492.193812
+          ]
+        ],
+        "recovery": {
+          "status": "verified",
+          "sha256": "5fe0e2f21e3e0749a362f732e994272a1e3d7a19c0588689e70443d171c5c03c",
+          "md5": "75866201C88710039EB8A8ED54631556",
+          "protocol_version": 2
+        }
+      },
+      {
+        "name": "Pause/Resume and Cancel/Resume keep verified packets",
+        "status": "PASS",
+        "stored": 749
+      },
+      {
+        "name": "real truncated MP4 rejected",
+        "status": "PASS"
+      }
+    ],
+    "status": "PASS",
+    "total_seconds": 106.85999999998603,
+    "resources": {
+      "samples": 348,
+      "rss_start_bytes": 155828224,
+      "rss_peak_bytes": 280887296,
+      "rss_last_bytes": 241930240,
+      "cpu_average_percent": 119.17327586206895,
+      "cpu_peak_percent": 283.6,
+      "process_io_read_bytes": 657024423,
+      "process_io_write_bytes": 19731227,
+      "process_identities_seen": 36,
+      "sampling_minimum_seconds": 0.25,
+      "scope": "sum of observed process trees; CPU single-core percentages are summed; I/O excludes activity before discovery"
+    }
+  },
+  "resource_budget": {
+    "initial_free_bytes": 32190238720,
+    "free_floor_bytes": 8589934592,
+    "minimum_observed_free_bytes": 23581974528,
+    "maximum_created_bytes": 16106127360,
+    "created_bytes": 8648527613,
+    "maximum_rss_bytes": 8589934592,
+    "elapsed_seconds": 7052.384074930218,
+    "total_budget_seconds": 7200,
+    "item_budget_seconds": 1800
+  },
+  "core_gate": "PASS",
+  "not_tested_or_not_run": [
+    {
+      "item": "50/100 MiB full QR video",
+      "status": "NOT RUN",
+      "reason": "conditional video exceeds per-item time/evidence budget; real SQLite stresses separately measured"
+    },
+    {
+      "item": "1 GiB full QR video",
+      "status": "NOT TESTED",
+      "reason": "prohibited by P10 plan; 1 GiB storage/recovery is a separate test"
+    },
+    {
+      "item": "60-minute native GUI endurance",
+      "status": "NOT RUN",
+      "reason": "does not fit remaining two-hour controlled workload budget"
+    },
+    {
+      "item": "physical dual Windows/SMB and physical network disconnect",
+      "status": "NOT TESTED",
+      "reason": "requires second physical host"
+    },
+    {
+      "item": "new real screen-capture throughput or single long-video performance",
+      "status": "NOT TESTED",
+      "reason": "synthetic videos and repeated short scans do not establish these measurements; existing P8/P9 user PASS retained"
+    }
+  ],
+  "evidence_directory": "temp/p10-fabb1648a2ef4d4aa8babb9f750c4f1b",
+  "privacy": "relative paths; API/lease tokens redacted; no private recordings or hostname"
+}

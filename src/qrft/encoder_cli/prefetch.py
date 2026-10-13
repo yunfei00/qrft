@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
 
-from qrft.core.qr_image import qr_png
+from qrft.core.qr_image import render_png
 
 
 def ordered_prefetch[T](
@@ -43,10 +43,11 @@ def prefetch_png(
     workers: int = 2,
     capacity: int = 4,
     qr_options: dict | None = None,
+    protocol_version: int = 1,
 ) -> Iterator[tuple[str, bytes]]:
     """对原始 QRFT 帧进行有界并行 PNG 生成。"""
 
     def render(frame: tuple[str, bytes]) -> bytes:
-        return qr_png(frame[1], **(qr_options or {}))
+        return render_png(frame[1], protocol_version=protocol_version, **(qr_options or {}))
 
     return ordered_prefetch(frames, render, workers=workers, capacity=capacity)

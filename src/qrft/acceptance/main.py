@@ -113,7 +113,7 @@ class AcceptanceWindow(QMainWindow):
         for key, title in ITEMS.items():
             row = QHBoxLayout()
             check = QCheckBox(title)
-            check.setChecked(key not in ("smb", "performance", "qr_performance", "stability"))
+            check.setChecked(key not in ("smb", "performance", "qr_performance", "stability", "v2"))
             state = QLabel("未开始")
             row.addWidget(check)
             row.addStretch()

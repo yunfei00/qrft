@@ -1,0 +1,89 @@
+{
+  "acceptance": "QRFT v2-P9 local Windows source acceptance",
+  "started_at_local": "2026-10-13T08:28:55+08:00",
+  "finished_at_local": "2026-10-13T08:34:16+08:00",
+  "source_base_commit": "0cb500768512e4e09ec9ce62e95a38b8f71338bc",
+  "source_worktree_was_dirty": true,
+  "environment": {
+    "os": "Windows 11 10.0.26200",
+    "python": "3.12.13",
+    "logical_cpu_count": 8,
+    "memory_total_bytes": 16889192448,
+    "test_disk_free_bytes": 32492699648
+  },
+  "materials": {
+    "video": "Generated real MP4 using QRFT v2 encoder, QR renderer, and OpenCV; not Windows screen recording",
+    "sample_file_bytes": 65536,
+    "data_packets": 47,
+    "video_fps": 20,
+    "video_frame_size": "926x926",
+    "two_workers": "Independent local Worker processes; not physical dual-machine acceptance"
+  },
+  "result_counts": {
+    "PASS": 27,
+    "FAIL": 0,
+    "NOT TESTED": 1
+  },
+  "not_tested": [
+    {
+      "item": "Second physical Windows host, real SMB share, and physical network interruption/reconnection",
+      "reason": "Requires a second physical Windows computer"
+    }
+  ],
+  "checks": [
+    "Native GUI start, settings persistence, reopen, real Qt file/folder dialogs, drag-and-drop repair import",
+    "First MP4 decode, missing TXT/CSV/JSON, repair MP4 merge, original/recovered MD5 and byte comparison",
+    "No overwrite, duplicate video idempotency, two independent workers processing different slices",
+    "Missing START, final hash mismatch, conflicting packet, bad frame MD5, v1/v2 mix, mismatching START isolation",
+    "Corrupt/nonexistent video errors, empty file and Chinese comma filename recovery",
+    "HTTP 503 retry, lease renewal, killed worker reassignment, stale lease fencing",
+    "Cancel/resume/rescan, small-window scrolling, 60-second GUI refresh, clean process shutdown, SQLite integrity"
+  ],
+  "recovery": {
+    "source_md5": "8F1445BAFE2C2095044AF7789462F475",
+    "recovered_md5": "8F1445BAFE2C2095044AF7789462F475",
+    "source_sha256": "7daca2095d0438260fa849183dfc67faa459fdf4936e1bc91eec6b281b27e4c2",
+    "recovered_sha256": "7daca2095d0438260fa849183dfc67faa459fdf4936e1bc91eec6b281b27e4c2",
+    "source_and_recovered_bytes_equal": true,
+    "stored_packets": 47,
+    "conflicts": 0,
+    "sqlite_integrity_check": "ok",
+    "owned_processes_alive_after_close": 0
+  },
+  "gui_stability_60_seconds": {
+    "actual_seconds": 60.031,
+    "rss_samples": 536,
+    "rss_min_bytes": 211746816,
+    "rss_peak_bytes": 222539776,
+    "rss_last_bytes": 211750912,
+    "process_cpu_average_percent": 6.5705,
+    "process_cpu_peak_percent": 100.3,
+    "process_io_read_bytes": 3688610,
+    "process_io_write_bytes": 122332910,
+    "qt_timer_ticks": 11072
+  },
+  "automated_tests": {
+    "pytest_passed": 211,
+    "pytest_failed": 0,
+    "ruff_format_check": "passed",
+    "ruff_check": "passed"
+  },
+  "artifacts_local_only": {
+    "acceptance_directory": "temp/p9-native-acceptance-cc5e22ad431044268ca98a25ee19788a/run/",
+    "acceptance_workspace": "temp/p9-native-acceptance-cc5e22ad431044268ca98a25ee19788a/workspace/",
+    "contains": [
+      "report.json",
+      "report.html",
+      "screenshots/*.png",
+      "gui.log",
+      "workspace/.qrft-decoder/logs/",
+      "workspace/.qrft-decoder/control.sqlite3"
+    ]
+  },
+  "release_candidate_criteria_met": false,
+  "limitations": [
+    "Synthetic MP4 measurements do not represent real screen-capture transmission throughput",
+    "No 1 GB full QR/video chain or long-duration video measurement was run",
+    "No second physical Windows/SMB acceptance was run"
+  ]
+}

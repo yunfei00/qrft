@@ -11,6 +11,7 @@ from typing import Any
 
 from .missing import stream_missing
 from .protocol import Frame, ProtocolError
+from .validation import validate_data, validate_manifest
 
 
 class PacketIds:
@@ -53,6 +54,7 @@ class FileAssembler:
         self.received = PacketIds()
         self._file: Path | None = None
         self.finished = False
+        self.conflicted = False
 
     def accept(self, frame: Frame) -> None:
         if frame.kind == "start":
@@ -63,24 +65,10 @@ class FileAssembler:
             meta = frame.metadata
             if meta is None:
                 raise ProtocolError("START metadata missing")
-            size = meta.get("file_size")
-            chunk = meta.get("chunk_size")
-            total = meta.get("total_packets")
-            if (
-                type(size) is not int
-                or type(chunk) is not int
-                or type(total) is not int
-                or size < 0
-                or chunk <= 0
-                or total != (size + chunk - 1) // chunk
-                or total > 88_888_888
-            ):
-                raise ProtocolError("invalid START manifest sizes")
-            if not all(
-                isinstance(meta.get(key), str) and len(meta[key]) == length
-                for key, length in (("sha256", 64), ("md5", 32))
-            ):
-                raise ProtocolError("missing manifest hashes")
+            if meta.get("version", 1) != frame.version:
+                raise ProtocolError("START metadata version disagrees with wire protocol")
+            validate_manifest(meta)
+            size = meta["file_size"] or 0
             self.manifest = dict(meta)
             descriptor, temporary = tempfile.mkstemp(
                 prefix=".qrft-", suffix=".part", dir=self.directory
@@ -94,25 +82,28 @@ class FileAssembler:
         if self.manifest is None or self._file is None:
             raise ProtocolError("START frame required before data")
 
+        if frame.version != self.manifest.get("version", 1):
+            raise ProtocolError("protocol version mismatch: cannot mix v1 and v2")
+
         if frame.kind == "finish":
             self.finished = True
             return
         if frame.kind != "data":
             raise ProtocolError("unknown frame kind")
 
-        total = int(self.manifest["total_packets"])
         chunk = int(self.manifest["chunk_size"])
-        size = int(self.manifest["file_size"])
+        validate_data(self.manifest, frame)
         packet_id = frame.packet_id
-        if packet_id < 0 or packet_id >= total:
-            raise ProtocolError("packet ID outside manifest")
-        expected = min(chunk, size - packet_id * chunk)
-        if len(frame.payload) != expected:
-            raise ProtocolError("incorrect packet length")
+        expected = len(frame.payload)
         if packet_id in self.received:
             with self._file.open("rb") as stream:
                 stream.seek(packet_id * chunk)
-                if stream.read(expected) != frame.payload:
+                if stream.read(expected) != frame.payload or (
+                    frame.version == 2
+                    and packet_id == self.manifest["total_packets"] - 1
+                    and self._file.stat().st_size != packet_id * chunk + expected
+                ):
+                    self.conflicted = True
                     raise ProtocolError("conflicting duplicate packet")
             return
         with self._file.open("r+b") as stream:
@@ -128,7 +119,9 @@ class FileAssembler:
         if self.manifest.get("filename") in {"missing.txt", "missing.csv", "missing.json"}:
             reports = self.directory / ".qrft-missing"
         missing = stream_missing(reports, total, self.received)
-        if missing or not self.finished:
+        if self.manifest.get("version", 1) == 2 and self.conflicted:
+            raise ProtocolError("v2 packet conflicts require a new isolated task")
+        if missing or (self.manifest.get("version", 1) == 1 and not self.finished):
             return None
         sha = hashlib.sha256()
         md5 = hashlib.md5(usedforsecurity=False)
@@ -136,7 +129,10 @@ class FileAssembler:
             for block in iter(lambda: stream.read(1024 * 1024), b""):
                 sha.update(block)
                 md5.update(block)
-        if sha.hexdigest() != self.manifest["sha256"] or md5.hexdigest() != self.manifest["md5"]:
+        if md5.hexdigest().upper() != self.manifest["md5"].upper() or (
+            self.manifest.get("version", 1) == 1
+            and sha.hexdigest().upper() != self.manifest["sha256"].upper()
+        ):
             raise ProtocolError("reassembled file hash mismatch")
         filename = self.manifest.get("filename")
         if not isinstance(filename, str) or not filename or Path(filename).name != filename:

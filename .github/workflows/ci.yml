@@ -24,6 +24,13 @@ jobs:
         run: uv run --no-sync ruff check .
       - name: 单元测试
         run: uv run --no-sync pytest -q
+      - name: 解码 GUI 原生 Windows 源码启动与安全退出（不打包 EXE）
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = 'windows'
+          $workspace = Join-Path $env:RUNNER_TEMP ('qrft-decoder-smoke-' + [guid]::NewGuid().ToString('N'))
+          uv run --no-sync python -m qrft.decoder_gui.main --workspace $workspace --smoke-test
+          if ($LASTEXITCODE -ne 0) { throw 'Decoder GUI source smoke failed' }
       - name: 二维码图片测试（含 encoder 可选依赖）
         run: |
           uv sync --locked --all-extras --group dev

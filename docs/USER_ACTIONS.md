@@ -1,5 +1,38 @@
 # QRFT 用户操作手册（唯一操作入口）
 
+## P10 自动验收结果索引（无需用户重复操作）
+
+本轮软件核心门禁已通过，实测规模、1/2/4 Worker 对比、10/30 分钟原生 GUI、故障恢复、限制及开发者复现命令见 [P10_STABILITY_PERFORMANCE_RESULTS.md](P10_STABILITY_PERFORMANCE_RESULTS.md)。已有 P8/P9 真人验收继续有效，不要求重做。真实第二台 Windows/SMB/物理断网仍按 UA-006 与 [解码手册第 7 节](DECODER_USER_GUIDE.md) 单独执行；本机多进程不计真实双机。P11 本轮仅给候选版建议，不执行打包或发布。
+
+## UA-011：v2-P9 统一解码 GUI 最终源码验收
+
+**本次 Windows 11 真实录像 GUI 验收从 [P9_REAL_MP4_ACCEPTANCE.md](P9_REAL_MP4_ACCEPTANCE.md) 第 1 步开始。** 这是最终现场验收的唯一逐步执行清单；复用 P8 的原始文件、第一段 MP4 和补传 MP4，完成首段缺包→停止重开→补传→文件 MD5/SHA256 对比。若遇到错误按该文档第 8 步反馈，停止当前环节、不重跑已通过步骤；不要求用户重复 Codex 已完成的自动验收。
+
+**状态：UA-011 真实 Windows MP4 单机 GUI 用户验收 PASS（2026-10-13，依据用户反馈）；另有本地原生 Windows 合成 MP4 自动验收 27 项 PASS。** P8 和 P9 已验收的部分均无需重复执行。真实双 Windows/SMB 与物理断网仍待第二台电脑；P10 大规模/长时验证交给 Codex，执行方案见 [P10_STABILITY_PERFORMANCE_PLAN.md](P10_STABILITY_PERFORMANCE_PLAN.md)。 准备、启动、错误处理和分布式命令统一在 [DECODER_USER_GUIDE.md](DECODER_USER_GUIDE.md) 第 1～8 节。已有 P8 第 1～10 步 PASS 继续有效，不要求重录编码视频。
+
+原生 Qt 自动验收使用真实 PySide6 控件、文件对话框、拖放、Control/Worker 进程及真实生成的 MP4。结果、截图、日志和性能摘要见 [ACCEPTANCE_RESULTS.md](ACCEPTANCE_RESULTS.md)；本机完整证据保存在该记录列出的独占 `temp/p9-native-acceptance-*` 目录。若需人工复核 GUI，按手册第 2 节使用专用临时工作区。真实双 Windows/SMB、物理断网与重连仍需按 UA-006 在第二台电脑执行；本机多个进程不计为双机通过。
+
+自动化报告已覆盖合成 MP4、真实独立 Worker、补传、哈希、租约故障恢复、原生 GUI 稳定性与安全关闭，不要求用户重复已完成的本地检查。合成 MP4 不是 Windows 截图工具录屏；真实多机按手册第 7 节后续执行共享、唯一节点、隐藏 Token、断网/租约重领/重连和 MD5，本机进程不计入该验收。
+
+## UA-010：v2-P8 编码端最终收尾人工验收
+
+**状态：PASS（用户在 ChatGPT 会话中报告 Windows 11 源码第 1～10 步全部成功）。无需重复验收。** 详细执行入口是 [V2_USER_GUIDE.md 的“Windows 11 本地源码验收（uv）”](V2_USER_GUIDE.md)，证据来源、口令重试经过及未提供字段见 [ACCEPTANCE_RESULTS.md](ACCEPTANCE_RESULTS.md)。Codex 未直接访问本次人工验收环境或查阅原始录屏/日志，不将本条反馈扩展为双机 SMB、多屏/DPI 或长时间测试通过。
+
+在 feature/qrft-v2-hex-md5 源码环境按 [V2_USER_GUIDE.md 的“Windows 11 本地源码验收（uv）”](V2_USER_GUIDE.md) 执行。GUI 无口令：文件选择、v2 参数锁定、检查哈希、PNG 导出进度、取消、窗口关闭必须正常；默认不全屏。
+
+在普通交互式 PowerShell 分别启动纯 CLI 和 OpenCV 播放命令：启动后静默等待，没有提示文字，手动输入小写 `qsnfj` 后按 Enter，字符和星号均不可见；大小写敏感，最多三次尝试，失败后非零退出，可重新执行同条命令。CLI 不提供 -h/--help，未知/缺失参数在校验后拒绝；管道/重定向运行应拒绝。GUI 不需要口令，纯 export 只在新目录生成 PNG/清单，不出现 Qt 窗口。
+
+播放器操作：默认固定非全屏窗口，首张 START 静止等待 Space，不自动播放；点击窗口取得焦点后 Space 开始、暂停、恢复，Esc 在窗口/全屏均结束，关闭按钮也能退出。录屏必须包含整个固定白色二维码区域及静区，不仅框选较小的 START；普通与补传布局相同，文字在区域外。录制前可选择全屏，录制期间保持模式、位置、DPI 不变。OpenCV 提前退出可能返回 130，与截图工具是否保存 MP4 独立；按手册检查文件再解码/补传，不以退出码代替录像结果。真实 MP4 首段→missing.txt→补传→同任务合并→MD5 已由用户报告通过；多屏/DPI、长时间测试和真实双机仍待另行验收，双机按 UA-008，不要求重做本次已通过步骤。
+
+## UA-009：QRFT v2 Windows 11 本地源码录屏验收
+
+**状态：第 1～10 步用户报告 PASS；与 UA-010 共用同一份 [人工验收记录](ACCEPTANCE_RESULTS.md)，不是第二次独立验收。** 本项保留为源码流程索引，后续需要复现时再使用详细手册。
+
+**当前推荐方式：用 Python 3.12 + uv 直接运行源码，不使用打包 EXE。** 执行 [V2_USER_GUIDE.md 的“Windows 11 本地源码验收（uv）”](V2_USER_GUIDE.md) 全章；所有源码命令、变量定义、预期结果、失败处理和通过条件均在该节。准备可运行 Windows 桌面、Git、网络、Python 3.12（uv 可自动安装）、uv 和 Windows 11 截图工具。请在同一个 PowerShell 窗口依序执行，保留自动生成的独占 temp 工作目录。
+
+本操作包含真实人工 MP4 录制，本次已由用户反馈通过，不能归因于自动 AVI 测试。具体分支 Commit、显示器/DPI、录像 FPS、哈希数值、日志/截图未提供，不补造这些字段。当前操作仅支持同机本地录像/恢复；真实双机 SMB 仍按 UA-008 单独验收。旧打包 EXE 流程仅作历史参考。
+
+
 ## UA-008：第五程序与真实双机验收
 
 时机：[0.3.0rc1 五程序候选 Release](https://github.com/yunfei00/qrft/releases/tag/v0.3.0-rc.1) 下载后（335,909,638 字节，ZIP SHA256 见 ACCEPTANCE_RESULTS.md）。环境：两台 Windows、可访问 UNC 共享、同版本完整解压目录。按 [中文一键验收手册](ACCEPTANCE_RUNNER.md) 运行单机默认项目并导出完整报告；其结果不替代真实双机。

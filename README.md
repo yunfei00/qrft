@@ -1,5 +1,14 @@
 # QRFT — 二维码二进制文件传输与视频恢复系统
 
+v2-P9 新增统一源码解码 GUI：单机自动管理 localhost Control 和独立 Worker；导入同任务 MP4/AVI、后台扫描、缺包导出、补传合并、哈希恢复；分布式模式复用现有 HTTP/SQLite。运行 `uv run --no-sync python -m qrft.decoder_gui.main`，完整操作见 [源码解码手册](docs/DECODER_USER_GUIDE.md)，最终桌面验收为 [UA-011](docs/USER_ACTIONS.md)。GUI 无编码 CLI 口令，本阶段不打包。
+
+v2-P10 的分级视频、1/2/4 Worker、真实 SQLite、大文件流式恢复、原生 GUI 长时负载和故障测试见 [稳定性/性能结果](docs/P10_STABILITY_PERFORMANCE_RESULTS.md) 与 [机器可读摘要](docs/P10_BENCHMARK_SUMMARY.json)。开发者入口为 `scripts/p10_acceptance.py` / `scripts/p10_report.py`，复现命令和资源保护说明在结果文档中；已有 P8/P9 用户验收不要求重复。合成视频及存储速度不代表真实录屏或 SMB 速度。
+
+本分支 `feature/qrft-v2-hex-md5` 开发软件0.4.0.dev0：新增v2大写HEX + MD5、固定1400字节、50ms、START/FINISH各20次；v1编码默认及解码兼容保留。见 [v2中文手册](docs/V2_USER_GUIDE.md) 和 [协议](docs/PROTOCOL.md)。本轮仅提交/推送、Draft PR验证，不合并main、不发布Release；下面已发布0.3.0rc1为历史候选版，不支持v2。
+
+v2-P8 编码端推荐按 [Windows 11 本地源码验收（uv）](docs/V2_USER_GUIDE.md) 操作：GUI 无需口令；纯 CLI 先执行本地交互校验，不提供帮助开关，不接受无终端/管道输入。Qt/OpenCV 默认固定窗口，首帧等待 Space，Space 开始/暂停/继续，Esc 结束；文字不进入固定白色录屏区。源码第 1～10 步及真实 Windows MP4 已由用户报告 PASS，见 [UA-010 / UA-009](docs/USER_ACTIONS.md) 和 [人工验收记录](docs/ACCEPTANCE_RESULTS.md)；Codex 未直接查阅其录屏/环境，真实双机 SMB 仍未验收。
+
+
 **当前状态：Python 编码/视频恢复闭环、控制中心和分布式 Worker 已实现；完整产品与真实双机验收尚未完成。** 目标交付日期：2026-10-16（7 天紧凑排期）。
 
 QRFT 支持将任意二进制文件转换为二维码序列，通过录屏保存，再使用单机或多台 Windows 解码节点从视频中恢复文件。

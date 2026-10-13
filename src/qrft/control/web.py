@@ -17,7 +17,7 @@ label{display:inline-block}#message{min-height:1.5rem}h1,h2{margin:.5rem 0}
 <button id="refresh">连接 / 刷新</button><p>令牌只用于当前页面请求；关闭页面后需重新输入。</p>
 <p id="message" role="status"></p></section>
 <section><h2>任务</h2><form id="newtask"><input id="name" required maxlength="200" placeholder="任务名称">
-<button>创建任务</button></form><label>当前任务 <select id="task"></select></label>
+<label>协议 <select id="protocol"><option value="1">v1</option><option value="2">v2 HEX + MD5</option></select></label><button>创建任务</button></form><label>当前任务 <select id="task"></select></label>
 <button id="progress">查看进度</button><button id="missing">导出缺包</button>
 <button id="recover">恢复文件</button><pre id="details"></pre></section>
 <section><button id="cancel">取消当前任务</button><p>停止领取和提交，保留已收数据包。</p></section>
@@ -76,7 +76,7 @@ async function progress(){
  const states={not_started:'未开始',incomplete:'缺包或缺少 FINISH',verified:'校验通过',failed:'校验失败'};
  table('details',[{项目:'数据包',结果:data.stored+' / '+(data.total_packets??'等待 START')},
   {项目:'缺包',结果:data.missing_count??'等待 START'},{项目:'重复 / 冲突',结果:data.duplicates+' / '+data.conflicts},
-  {项目:'FINISH',结果:data.finished?'已识别':'未识别'},{项目:'任务',结果:data.cancelled?'已取消':(data.recovery.status==='verified'?'已恢复':'运行中')},
+  {项目:'协议',结果:'v'+data.protocol_version},{项目:'FINISH',结果:data.finished?'已识别':'未识别'},{项目:'任务',结果:data.cancelled?'已取消':(data.recovery.status==='verified'?'已恢复':'运行中')},
   {项目:'恢复',结果:states[data.recovery.status]||data.recovery.status},
   {项目:'输出文件',结果:data.recovery.path||'尚未生成'}]);
  const videos=await api('/videos?task_id='+id);table('videos',videos);
@@ -93,7 +93,7 @@ async function refresh(){
    option.textContent=task.id+' · '+task.name;el('task').append(option);}
  if(tasks.some(t=>String(t.id)===prior))el('task').value=prior;
  const nodes=await api('/nodes');table('nodes',nodes);
- const settings=await api('/settings');table('settings',[{项目:'二维码协议',结果:'v'+settings.protocol_version},
+ const settings=await api('/settings');table('settings',[{项目:'二维码协议',结果:(settings.supported_protocol_versions||[1]).map(v=>'v'+v).join(' / ')},
   {项目:'租约 / 时间片 / 重叠',结果:settings.lease_seconds+' / '+settings.slice_seconds+' / '+settings.overlap_seconds+' 秒'},
   {项目:'在线超时',结果:settings.online_timeout_seconds+' 秒'},{项目:'输出目录',结果:settings.output_directory},
   {项目:'修改配置',结果:settings.configuration}]);
@@ -104,7 +104,7 @@ el('refresh').onclick=()=>action(refresh);
 el('progress').onclick=()=>action(progress);
 el('task').onchange=()=>action(progress);
 el('newtask').onsubmit=event=>{event.preventDefault();action(async()=>{
- await api('/tasks',{name:el('name').value});await refresh();});};
+ await api('/tasks',{name:el('name').value,protocol_version:Number(el('protocol').value)});await refresh();});};
 el('newvideo').onsubmit=event=>{event.preventDefault();action(async()=>{
  await api('/videos',{task_id:Number(selected()),path:el('path').value,
  duration_seconds:Number(el('duration').value)});await progress();});};

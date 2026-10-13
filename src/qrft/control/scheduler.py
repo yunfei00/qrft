@@ -9,8 +9,11 @@ import uuid
 
 def init_schema(db: sqlite3.Connection) -> None:
     db.execute(
-        "CREATE TABLE IF NOT EXISTS task_controls(task_id INTEGER PRIMARY KEY, cancelled INTEGER NOT NULL DEFAULT 0)"
+        "CREATE TABLE IF NOT EXISTS task_controls(task_id INTEGER PRIMARY KEY, cancelled INTEGER NOT NULL DEFAULT 0, paused INTEGER NOT NULL DEFAULT 0)"
     )
+    controls = {row[1] for row in db.execute("PRAGMA table_info(task_controls)")}
+    if "paused" not in controls:
+        db.execute("ALTER TABLE task_controls ADD COLUMN paused INTEGER NOT NULL DEFAULT 0")
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS slices (
@@ -57,7 +60,9 @@ def add_slices(
     return count
 
 
-def claim(db: sqlite3.Connection, node_id: str, lease_seconds: int = 120) -> dict | None:
+def claim(
+    db: sqlite3.Connection, node_id: str, lease_seconds: int = 120, task_id: int | None = None
+) -> dict | None:
     if lease_seconds <= 0:
         raise ValueError("lease_seconds must be positive")
     now = time.time()
@@ -76,10 +81,11 @@ def claim(db: sqlite3.Connection, node_id: str, lease_seconds: int = 120) -> dic
         SELECT s.id, s.video_id, s.start_ms, s.end_ms, v.path, v.task_id, s.attempts, s.checkpoint_ms
         FROM slices s JOIN videos v ON v.id=s.video_id
         WHERE (s.state='pending' OR (s.state='leased' AND s.lease_until <= ?))
-        AND NOT EXISTS (SELECT 1 FROM task_controls c WHERE c.task_id=v.task_id AND c.cancelled=1)
+        AND NOT EXISTS (SELECT 1 FROM task_controls c WHERE c.task_id=v.task_id AND (c.cancelled=1 OR c.paused=1))
+        AND (? IS NULL OR v.task_id=?)
         ORDER BY s.id LIMIT 1
         """,
-        (now,),
+        (now, task_id, task_id),
     ).fetchone()
     if row is None:
         db.commit()

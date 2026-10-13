@@ -2,6 +2,7 @@
 
 import json
 import threading
+import time
 
 import pytest
 
@@ -98,16 +99,20 @@ def test_acceptance_qt_worker_cancellation_and_window_close(tmp_path):
         checkbox.setChecked(key == "performance")
     window.start()
     window.cancel()
-    deadline = 100
-    while window.job.isRunning() and deadline:
+    try:
+        assert window.job.runner.cancel.is_set()
+        # Hosted Windows may take more than one second to flush reports/close
+        # monitor threads. Bound real elapsed time, not GUI event-loop ticks.
+        deadline = time.monotonic() + 10
+        while window.job.isRunning() and time.monotonic() < deadline:
+            app.processEvents()
+            QTest.qWait(10)
+        assert not window.job.isRunning(), "Cancellation exceeded 10 seconds"
         app.processEvents()
-        QTest.qWait(10)
-        deadline -= 1
-    assert not window.job.isRunning()
-    app.processEvents()
-    assert window.start_button.isEnabled()
-    assert (window.job.runner.root / "report.json").is_file()
-    window.close()
+        assert window.start_button.isEnabled()
+        assert (window.job.runner.root / "report.json").is_file()
+    finally:
+        window.close()
 
 
 def test_headless_selected_performance_does_not_claim_complete_candidate(tmp_path):
