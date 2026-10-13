@@ -2,6 +2,20 @@
 
 ## v2-P9 统一源码解码自动证据
 
+### 2026-10-13 完整原生 GUI / 多 Worker 自动验收补充
+
+在 Windows 11（10.0.26200）、Python 3.12.13 上，以 QtTest 驱动真实 PySide6 窗口和文件对话框，使用真实 v2 协议、OpenCV 二维码、MP4、Control HTTP/SQLite 及独立 Worker 进程完成一键闭环。报告记录的基线 Commit 为 `0cb500768512e4e09ec9ce62e95a38b8f71338bc`，验收开始时工作树含本次待提交修改；没有覆盖工作区或用户文件。总用时 5 分 21 秒，**27 PASS、0 FAIL、1 NOT TESTED**。唯一未测项是需要第二台物理 Windows 的 SMB/真实断网验收。
+
+通过项包括原生 GUI 启动/重开、真实 Qt 文件与目录对话框、真实拖放补传、首段 MP4 解码、missing TXT/CSV/JSON、补传视频并入原任务、源/恢复 MD5 `8F1445BAFE2C2095044AF7789462F475` 和逐字节相同、拒绝覆盖已有文件、重复视频幂等、两个独立 Worker 处理不同时间片、无 START、错误最终哈希、有效冲突隔离、坏帧 MD5 丢弃、v1/v2 混用及不同文件 START 拒绝、损坏/不存在视频错误提示、中文逗号空文件、HTTP 503 重试、长任务续租、Worker 被强制终止后的租约重分配与旧租约围栏、取消/继续/重扫、小窗口中文滚动、60 秒 UI 刷新和干净关闭。关闭后 SQLite `integrity_check=ok`，自有进程均退出。损坏 MP4 用例的 FFmpeg `moov atom not found` 是预期错误提示检查。
+
+本轮 GUI 稳定性采样 536 次：进程 RSS 211,746,816–222,539,776 字节，CPU 平均 6.57%、峰值 100.3%，进程读/写 I/O 分别为 3,688,610 / 122,332,910 字节，Qt 计时器触发 11,072 次。独立性能基准采用 64 KiB 随机二进制、合成 926×926/20 FPS/87 帧 MP4、双 Worker：编码 10.938 秒、扫描 3.000 秒、恢复 0.078 秒，47 个有效包（15.667 包/秒）、缺包 0、重复包 25；进程树 RSS 峰值 277,909,504 字节，CPU 峰值合计 240.4%，读/写 I/O 65,910,083 / 1,311,611 字节。源/恢复 MD5 `4177F189B7F3AE38A4F32A4EE666CF3B`、SHA256 `250f136c8fc717e39ddb9d7f0f6e29927b459bddbe8a922ba1dc870f18ea5517`。这些值只描述小型合成 MP4 工作负载，不是屏幕录制传输率；本轮没有测 1 GB 全链路、长视频或真实屏幕录制。
+
+最终原生验收 JSON/HTML、截图、GUI/Control/Worker 日志和隔离数据库保存在本机 `temp/p9-native-acceptance-cc5e22ad431044268ca98a25ee19788a/run/` 及同级 `workspace/`；性能原始 JSON、视频及随机源文件在 `temp/p9-benchmark-4bb535a0fea448278e51c2b883c787fb/`。这些本机证据未提交（含机器绝对路径和测试工作区）；[P9_AUTOMATED_ACCEPTANCE.json](P9_AUTOMATED_ACCEPTANCE.json) 和 [P9_DECODER_BENCHMARK_2026-10-13.json](P9_DECODER_BENCHMARK_2026-10-13.json) 保存了不含本机绝对路径的机器可读摘要。本文件记录可核对摘要。完整全仓 pytest 后续结果见下方本次交付补记。
+
+为处理本地 HTTP 连接在服务端提交状态后中断的情况，Control 客户端现在只对幂等/可安全对账的路由执行有限退避重试；GUI 对暂停、恢复、取消状态会再查持久化进度确认，避免丢失响应导致界面和后台进程状态分叉。实际连接中断、暂停/恢复/取消响应丢失和视频重扫重试均有回归测试；非幂等任务创建保持单次请求。
+
+最终工作树门禁复跑：Ruff 格式检查、Ruff 静态检查通过；pytest **211 passed、0 failed、无跳过**（167.32 秒），1 条既有 Starlette/httpx 弃用警告。详细通过项目和机器指标见 [脱敏自动验收 JSON](P9_AUTOMATED_ACCEPTANCE.json)。
+
 本地最终全量回归 **209 项通过、无跳过、1 项既有弃用警告（159.05 秒）**；Ruff 格式/静态检查通过，原生 Windows GUI 启动和中文布局检查、安全退出通过。真实 Worker 被终止后由独立替代进程等待租约过期并完成 MP4 恢复；实际 HTTP 服务返回一次 503 后请求退避重试通过。此为源码自动证据，不是用户人工 P9 验收。
 
 GitHub 代码提交 `69c7b48d5fe2863dc6798731caf9282c24ef5218`：[Windows Python CI 38261515130](https://github.com/yunfei00/qrft/actions/runs/38261515130) 成功，209 项 / 152.08 秒，源码原生 GUI 启动及二维码、ZXing、AVI、API/SQLite 步骤成功；仅源码测试，没有 EXE 构建。

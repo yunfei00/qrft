@@ -67,6 +67,7 @@ class DecoderWindow(QMainWindow):
         self.settings = settings or QSettings("QRFT", "SourceDecoder")
         self.session = None
         self.busy = False
+        self.pending_jobs = 0
         self.closing = False
         self.last_progress = {}
         self.started_at = None
@@ -209,10 +210,9 @@ class DecoderWindow(QMainWindow):
         QTimer.singleShot(0, self.connect_session)
 
     def submit(self, name, operation):
-        if self.busy or self.closing:
-            if not self.closing and name != "刷新":
-                self.status.setText("后台操作尚未完成，请稍候再执行当前操作。")
+        if self.closing or (self.busy and name == "刷新"):
             return False
+        self.pending_jobs += 1
         self.busy = True
         if name != "刷新":
             self.status.setText(f"正在执行：{name}…")
@@ -341,12 +341,7 @@ class DecoderWindow(QMainWindow):
     def cancel_task(self):
         task = self.task_id()
         if task:
-
-            def cancel():
-                self.session.stop_workers()
-                return self.session.client.request(f"/tasks/{task}/cancel", {})
-
-            self.submit("取消（数据保留，可继续）", cancel)
+            self.submit("取消（数据保留，可继续）", lambda: self.session.cancel(task))
 
     def rescan(self):
         task = self.task_id()
@@ -435,7 +430,8 @@ class DecoderWindow(QMainWindow):
         self.submit("刷新", snapshot)
 
     def done(self, name, result):
-        self.busy = False
+        self.pending_jobs = max(0, self.pending_jobs - 1)
+        self.busy = bool(self.pending_jobs)
         if name == "关闭":
             self.job.jobs.put(None)
             self.job.wait(5000)
@@ -578,7 +574,8 @@ class DecoderWindow(QMainWindow):
                 self.log.appendPlainText(f"[{path.name}]\n{text}")
 
     def failed(self, name, message):
-        self.busy = False
+        self.pending_jobs = max(0, self.pending_jobs - 1)
+        self.busy = bool(self.pending_jobs)
         if self.session:
             message = message.replace(self.session.token, "[已隐藏]")
         self.status.setText(f"{name}失败：{message}；请查看实时日志。")
@@ -591,6 +588,7 @@ class DecoderWindow(QMainWindow):
         if self.busy:
             return
         self.busy = True
+        self.pending_jobs += 1
         self.job.jobs.put(("关闭", lambda: self.session.close() if self.session else None))
 
     def closeEvent(self, event):
@@ -612,7 +610,15 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="QRFT 单机 / 分布式视频解码 GUI（无编码口令）")
     parser.add_argument("--workspace", type=Path)
     parser.add_argument("--smoke-test", action="store_true", help="原生窗口启动后安全退出")
+    parser.add_argument(
+        "--acceptance-output", type=Path, help="独占新目录：真实 Qt 控件完整自动验收"
+    )
+    parser.add_argument("--acceptance-stability-seconds", type=float, default=60)
     args = parser.parse_args(argv)
+    if args.acceptance_output:
+        from qrft.decoder_gui.acceptance import run
+
+        return run(args.acceptance_output, args.workspace, args.acceptance_stability_seconds)
     app = QApplication.instance() or QApplication([])
     app.setFont(QFont("Microsoft YaHei UI", 10))
     smoke_settings = (

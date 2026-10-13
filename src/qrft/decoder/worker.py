@@ -107,6 +107,7 @@ def process_slice(
     thread = threading.Thread(target=maintain, name="qrft-lease", daemon=True)
     thread.start()
     last_checkpoint = time.monotonic()
+    last_start = None
 
     def sampled(checkpoint_ms):
         nonlocal last_checkpoint
@@ -133,15 +134,18 @@ def process_slice(
             if errors:
                 raise errors[0]
             if frame.kind == "start":
-                request_json(
-                    base_url,
-                    token,
-                    "/tasks/manifest",
-                    {
-                        "task_id": task_id,
-                        "start_base64": base64.b64encode(serialize_frame(frame)).decode("ascii"),
-                    },
-                )
+                raw = serialize_frame(frame)
+                if raw != last_start:
+                    request_json(
+                        base_url,
+                        token,
+                        "/tasks/manifest",
+                        {
+                            "task_id": task_id,
+                            "start_base64": base64.b64encode(raw).decode("ascii"),
+                        },
+                    )
+                    last_start = raw
             elif frame.kind == "finish":
                 batch.append(base64.b64encode(serialize_frame(frame)).decode("ascii"))
             elif frame.kind == "data":

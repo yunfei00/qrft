@@ -227,6 +227,40 @@ def test_no_token_url_and_user_workspace_protection(tmp_path):
     assert user_file.read_bytes() == b"user database"
 
 
+def test_managed_start_reconciles_committed_pause_resume_with_lost_response(tmp_path):
+    session = ManagedSession(tmp_path / "workspace")
+    task = session.client.request("/tasks", {"name": "lost response", "protocol_version": 2})["id"]
+    upstream = session.client
+    lost = {
+        f"/tasks/{task}/pause",
+        f"/tasks/{task}/resume",
+        f"/tasks/{task}/cancel",
+    }
+
+    class LostResponseClient:
+        def __getattr__(self, name):
+            return getattr(upstream, name)
+
+        def request(self, route, payload=None, **kwargs):
+            result = upstream.request(route, payload, **kwargs)
+            if route in lost:
+                lost.remove(route)
+                raise RuntimeError("simulated response lost after server commit")
+            return result
+
+    session.client = LostResponseClient()
+    try:
+        session.start(task, count=1)
+        state = upstream.request(f"/tasks/{task}/progress")
+        assert not state["paused"] and len(session.workers) == 1
+        assert session.workers[0].poll() is None
+        session.cancel(task)
+        assert upstream.request(f"/tasks/{task}/progress")["cancelled"]
+        assert not lost
+    finally:
+        session.close()
+
+
 def test_actual_http_transient_failure_retries_without_token_logging():
     import threading
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -259,6 +293,47 @@ def test_actual_http_transient_failure_retries_without_token_logging():
             f"http://127.0.0.1:{server.server_port}", "test-only-token", "/packets/batch", {}
         ) == {"status": "ok"}
         assert len(attempts) == 2 and set(attempts) == {"Bearer test-only-token"}
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
+
+
+def test_control_client_retries_only_idempotent_requests_after_connection_abort():
+    import socket
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    attempts = {}
+
+    class AbortOnceServer(BaseHTTPRequestHandler):
+        def do_POST(self):
+            attempts[self.path] = attempts.get(self.path, 0) + 1
+            self.rfile.read(int(self.headers["Content-Length"]))
+            if attempts[self.path] == 1:
+                self.connection.shutdown(socket.SHUT_RDWR)
+                self.connection.close()
+                return
+            self.send_response(200)
+            self.send_header("Content-Length", "15")
+            self.end_headers()
+            self.wfile.write(b'{"status":"ok"}')
+
+        def log_message(self, *_):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), AbortOnceServer)
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+    client = ControlClient(f"http://127.0.0.1:{server.server_port}", "local-test-token")
+    try:
+        assert client.request("/tasks/1/pause", {}) == {"status": "ok"}
+        assert attempts["/tasks/1/pause"] == 2
+        assert client.request("/videos/2/rescan", {}) == {"status": "ok"}
+        assert attempts["/videos/2/rescan"] == 2
+        with pytest.raises(RuntimeError, match="网络或文件操作失败"):
+            client.request("/tasks", {"name": "must not duplicate"})
+        assert attempts["/tasks"] == 1
     finally:
         server.shutdown()
         thread.join(timeout=5)

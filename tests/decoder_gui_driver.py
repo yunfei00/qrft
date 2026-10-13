@@ -38,7 +38,10 @@ def exercise_gui(tmp_path):
                 return
             QTest.qWait(10)
         raise AssertionError(
-            f"{window.status.text()}\nWorker states: {[(p.args, p.poll()) for p in window.session.workers]}"
+            f"{window.status.text()}\n"
+            f"Worker states: {[(p.args, p.poll()) for p in window.session.workers]}\n"
+            f"Pending GUI jobs: {window.pending_jobs}; background thread: {window.job.isRunning()}\n"
+            f"GUI log:\n{window.log.toPlainText()[-12000:]}"
         )
 
     try:

@@ -1,5 +1,11 @@
 # QRFT 项目进度与交接记录
 
+## v2-P9 完整自动验收与故障闭环补充（2026-10-13）
+
+本地 Windows 11 原生 Qt 自动验收现已完成：真实 GUI 控件/对话框/拖放、合成 MP4 OpenCV/ZXing 解码、双独立 Worker、missing 三格式导出与补传、源/恢复 MD5 和字节校验、重复/冲突/损坏帧/版本与文件隔离、取消和恢复、HTTP 503、续租、Worker 终止后重领、旧租约围栏、60 秒 GUI 稳定性、退出清理及 SQLite 完整性。报告 **27 PASS、0 FAIL、1 NOT TESTED**，全量 pytest **211 passed**，Ruff 格式与静态检查通过。完整证据目录为 `temp/p9-native-acceptance-cc5e22ad431044268ca98a25ee19788a/run/` 与同级 `workspace/`；独立小规模性能报告为 `temp/p9-benchmark-4bb535a0fea448278e51c2b883c787fb/report.json`。详细实测数字及限制见 [ACCEPTANCE_RESULTS.md](ACCEPTANCE_RESULTS.md)。
+
+性能范围为 64 KiB、87 帧合成 MP4，不代表真实录屏传输率；1 GB、长视频及真实双 Windows/SMB/物理断网仍未测。唯一列为 NOT TESTED 的现场项目需要第二台物理 Windows 和 SMB 共享。里程碑仍按原口径为 7/10。当前改动以 `0cb500768512e4e09ec9ce62e95a38b8f71338bc` 为父提交；PR #7 保持 Draft，未合并、未打 Tag、未发布。待本地门禁完成后提交并推送，再记录该提交对应的 Windows 源码 CI。
+
 ## v2-P9 统一单机 / 分布式源码解码（2026-10-12）
 
 差距核对：基线已有 Control/SQLite、持久包库、START 乱序绑定、FINISH、缺包、流式哈希恢复、Worker HTTP 重试/心跳/续租/检查点；缺少解码 GUI、一键本地服务生命周期、任务暂停/恢复、桌面任务/节点/视频管理和实际 MP4 桌面集成测试。本轮新增 `decoder_gui/main.py` 与 `service.py`，全部复用现有 API、视频扫描及恢复核心；新增暂停兼容迁移、限定任务领取、可配置时间片、错误/恢复证据持久化。单机自动启动本地 Control/独立 Worker，分布式连接现有中心，Token 不保存到设置或 URL。编码端及冻结协议未修改。

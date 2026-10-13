@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -25,24 +27,68 @@ class ControlClient:
         self.token = token
 
     def request(self, route: str, payload=None, *, download: Path | None = None):
-        request = urllib.request.Request(
-            self.server + route,
-            data=None if payload is None else json.dumps(payload).encode(),
-            headers={"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"},
+        path = urllib.parse.urlsplit(route).path
+        method = "GET" if payload is None else "POST"
+        retryable = method == "GET" or (
+            path == "/nodes/heartbeat"
+            or path in {"/tasks/manifest", "/packets/batch"}
+            or re.fullmatch(r"/tasks/\d+/(pause|resume|cancel)", path) is not None
+            or re.fullmatch(r"/slices/\d+/(renew|checkpoint|error)", path) is not None
+            or re.fullmatch(r"/videos/\d+/rescan", path) is not None
         )
-        try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                if download is not None:
-                    with download.open("xb") as stream:
-                        while block := response.read(65536):
-                            stream.write(block)
-                    return str(download)
-                return json.load(response)
-        except urllib.error.HTTPError as exc:
-            detail = exc.read(16384).decode("utf-8", errors="replace")
-            raise RuntimeError(f"控制中心请求失败 ({exc.code}): {detail}") from None
-        except (OSError, ValueError) as exc:
-            raise RuntimeError(f"网络或文件操作失败：{type(exc).__name__}：{exc}") from None
+        attempts = 3 if retryable else 1
+        for attempt in range(attempts):
+            request = urllib.request.Request(
+                self.server + route,
+                data=None if payload is None else json.dumps(payload).encode(),
+                headers={
+                    "Authorization": f"Bearer {self.token}",
+                    "Content-Type": "application/json",
+                },
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    if download is not None:
+                        if download.exists():
+                            raise FileExistsError(download)
+                        staging = None
+                        try:
+                            with tempfile.NamedTemporaryFile(
+                                dir=download.parent, delete=False
+                            ) as stream:
+                                staging = Path(stream.name)
+                                received = 0
+                                while block := response.read(65536):
+                                    stream.write(block)
+                                    received += len(block)
+                                expected = response.headers.get("Content-Length")
+                                if expected is not None and received != int(expected):
+                                    raise OSError("缺包报告下载不完整")
+                                stream.flush()
+                                os.fsync(stream.fileno())
+                            os.link(staging, download)
+                        finally:
+                            if staging is not None:
+                                staging.unlink(missing_ok=True)
+                        return str(download)
+                    return json.load(response)
+            except urllib.error.HTTPError as exc:
+                if retryable and exc.code in {500, 502, 503, 504} and attempt + 1 < attempts:
+                    time.sleep(0.1 * (2**attempt))
+                    continue
+                detail = exc.read(16384).decode("utf-8", errors="replace")
+                raise RuntimeError(f"控制中心请求失败 ({exc.code}): {detail}") from None
+            except (ConnectionError, TimeoutError, urllib.error.URLError) as exc:
+                if retryable and attempt + 1 < attempts:
+                    time.sleep(0.1 * (2**attempt))
+                    continue
+                raise RuntimeError(
+                    f"网络或文件操作失败 [{route}]：{type(exc).__name__}：{exc}"
+                ) from None
+            except (OSError, ValueError) as exc:
+                raise RuntimeError(
+                    f"网络或文件操作失败 [{route}]：{type(exc).__name__}：{exc}"
+                ) from None
 
 
 def inspect_video(path: Path) -> dict:
@@ -138,18 +184,41 @@ class ManagedSession:
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
 
+    def set_task_flag(self, task_id: int, action: str, field: str, expected: bool):
+        try:
+            return self.client.request(f"/tasks/{task_id}/{action}", {})
+        except RuntimeError:
+            # The server may commit an idempotent state change before a local
+            # socket aborts its response. Reconcile through the durable state API
+            # before reporting failure or starting/stopping more processes.
+            try:
+                state = self.client.request(f"/tasks/{task_id}/progress")
+            except RuntimeError:
+                pass
+            else:
+                if bool(state.get(field)) == expected:
+                    return state
+            raise
+
+    def set_task_paused(self, task_id: int, paused: bool):
+        return self.set_task_flag(task_id, "pause" if paused else "resume", "paused", paused)
+
+    def cancel(self, task_id: int):
+        self.stop_workers()
+        return self.set_task_flag(task_id, "cancel", "cancelled", True)
+
     def start(self, task_id: int, count: int = 1, sample_fps: float = 60):
         if not 1 <= count <= 16 or sample_fps <= 0:
             raise ValueError("Worker 数量或采样参数无效")
         self.stop_workers()
         if self.active_task and self.active_task != task_id:
-            self.client.request(f"/tasks/{self.active_task}/pause", {})
-        self.client.request(f"/tasks/{task_id}/pause", {})
+            self.set_task_paused(self.active_task, True)
+        self.set_task_paused(task_id, True)
         self.active_task = task_id
         nodes = set()
         try:
             for _ in range(count):
-                node = f"desktop-{socket.gethostname()}-{uuid.uuid4().hex[:12]}"
+                node = f"desktop-{uuid.uuid4().hex[:16]}"
                 nodes.add(node)
                 self.workers.append(
                     self.spawn(
@@ -181,7 +250,7 @@ class ManagedSession:
                 time.sleep(0.1)
             else:
                 raise TimeoutError("等待本机 Worker 心跳超时")
-            self.client.request(f"/tasks/{task_id}/resume", {})
+            self.set_task_paused(task_id, False)
         except BaseException:
             self.stop_workers()
             raise
@@ -200,7 +269,7 @@ class ManagedSession:
 
     def pause(self, task_id: int):
         self.stop_workers()
-        return self.client.request(f"/tasks/{task_id}/pause", {})
+        return self.set_task_paused(task_id, True)
 
     def close(self):
         self.stop_workers()

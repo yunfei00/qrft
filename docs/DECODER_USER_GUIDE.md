@@ -155,8 +155,37 @@ uv run --no-sync python -m qrft.decoder.worker --server $server --node-id $node 
 
 真实双机验收：在 B 上确认共享可读；登记较长真实 MP4，A/B 都完成时间片；处理中断开 B 的网络或退出 Worker，等待租约到期并由 A 重领；重新接入 B；补传后最终 MD5 一致。保留两端日志、任务/节点 ID、时间片 attempts、哈希和系统信息。当前真实双 Windows/SMB 未验收，不能用本机测试代替。
 
-## 8. 错误处理与最终人工验收
+## 8. 开发者原生自动验收与性能基准
+
+验收运行器会启动真实 PySide6 GUI、Control 和独立 Worker 进程，生成专用 MP4/测试数据并操作本机 GUI。只在可交互的 Windows 桌面运行；不要将工作区指向已有用户任务目录。每次必须使用新的临时目录：
+
+```powershell
+$repo = 'D:\code_2026\qrft'
+Set-Location $repo
+$stamp = [guid]::NewGuid().ToString('N')
+$base = Join-Path $repo ("temp\p9-native-acceptance-" + $stamp)
+New-Item -ItemType Directory -Path $base | Out-Null
+$reportDir = Join-Path $base 'run'
+$workspace = Join-Path $base 'workspace'
+uv run --no-sync python -m qrft.decoder_gui.main --acceptance-output $reportDir --workspace $workspace --acceptance-stability-seconds 60
+```
+
+预期：进程退出码 0，`run\report.json` 为 27 PASS、0 FAIL，物理双机/SMB 一项列为 NOT TESTED；HTML 报告、截图、GUI 日志、测试数据库和 Control/Worker 日志留在 `run` 及 `workspace`。失败会生成带失败位置的 JSON 并返回非零。不要把本机多 Worker 结果当作第二台物理电脑验收。长 GUI 稳定性可将 60 调为 600、1800 或 3600 秒；过程可用 Ctrl+C 取消，取消时会尝试关闭本次创建的进程。
+
+可独立运行重复性能测量，输出只代表合成 MP4：
+
+```powershell
+$repo = 'D:\code_2026\qrft'
+Set-Location $repo
+$stamp = [guid]::NewGuid().ToString('N')
+$benchmarkDir = Join-Path $repo ("temp\p9-benchmark-" + $stamp)
+uv run --no-sync python scripts/decoder_benchmark.py --size-kib 64 --workers 2 --directory $benchmarkDir
+```
+
+预期：`report.json` 记录编码/扫描/恢复、有效包速率、CPU/RSS/I/O 和哈希；合成二维码吞吐不代表屏幕录制速度。更大数据会明显增加实际生成二维码和扫描时间；不能把哈希性能当二维码速度。
+
+## 9. 错误处理与最终人工验收
 
 无法打开视频：核对本机/UNC 路径、SMB 权限、MP4 编码和是否已完整保存。没有 START：补录包含 START 的同一文件录像，不能编造缺包。缺包：导出 TXT，录制选择性补传，导入原任务。协议/文件混用或有效内容冲突：建立新的隔离任务。网络中断：Worker 重试，失效租约重新分配；不能将错误时间片标为完成。文件已存在：应用拒绝覆盖，选择新任务目录或查看既有已验证结果。空间不足/权限问题：修复环境后保留原任务重试恢复。详细日志位于工作目录 `.qrft-decoder\logs`，对外提供前检查私人路径与数据，不提供 Token。
 
-本阶段只需一次最终 Windows GUI 人工验收，按 [UA-011](USER_ACTIONS.md)：可使用已验收 P8 的原始文件、首段和补传 MP4，验证导入、后台响应、暂停/继续、关闭重开、缺包导出、补传合并及恢复。自动生成 MP4 与原生启动烟测不替代这次桌面交互；真实双机/SMB 单独后续执行，不要求重复已经通过的编码录屏。
+本地原生 GUI 自动验收已按 [UA-011](USER_ACTIONS.md) 完成，详细结果、性能指标及未验收边界见 [ACCEPTANCE_RESULTS.md](ACCEPTANCE_RESULTS.md)。完整 HTML/JSON 报告、GUI 截图和 Control/Worker 日志保存在该记录列出的独占 `temp/p9-native-acceptance-*` 目录。自动生成的真实可解码 MP4 不是 Windows 截图工具录屏；P8 用户报告的录屏验收仍单独保留。真实双 Windows/SMB、物理断网及重连仍待第二台电脑，按本手册第 7 节执行，本机多进程不替代现场验收。
