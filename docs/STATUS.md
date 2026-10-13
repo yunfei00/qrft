@@ -1,5 +1,10 @@
 # QRFT 项目进度与交接记录
 
+## v2-P11 候选构件准备（2026-10-13）
+
+**状态：已准备执行计划，尚未启动 Codex 开发/构建；未合并、未打 Tag、未发布。** P10 已按报告通过 221 项完整门禁及限定规模压力测试，可进入 P11-A 打包适配与真实 EXE 验收。新增 [P11_WINDOWS_RC_PREPARATION.md](P11_WINDOWS_RC_PREPARATION.md) 作为唯一执行文档，核心阻塞点是现有旧四/五程序工作流缺少新解码 GUI EXE，且源码 GUI 的 sys.executable -m 子进程启动必须适配 PyInstaller 冻结环境。P11-A 先生成并验证六程序候选构件，保留 Windows uv 源码运行；用户后续明确授权才能合并 main、打 Tag、发布候选 Release。双 Windows/SMB/物理断网以及超大 QR 视频仍未验收。
+
+
 ## v2-P10 实测交付（2026-10-13）
 
 按 [P10 计划](P10_STABILITY_PERFORMANCE_PLAN.md) 完成本地受控验收，详细数字与匿名原始摘要见 [P10_STABILITY_PERFORMANCE_RESULTS.md](P10_STABILITY_PERFORMANCE_RESULTS.md) / [P10_BENCHMARK_SUMMARY.json](P10_BENCHMARK_SUMMARY.json)。基线 211 项、最终 **221 项 pytest 通过，无失败/跳过**；Ruff 格式/静态检查通过。已有 P8/P9 人工验收保持，不要求重复。
