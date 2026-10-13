@@ -2,6 +2,8 @@
 
 ## UA-011：v2-P9 统一解码 GUI 最终源码验收
 
+**本次 Windows 11 真实录像 GUI 验收从 [P9_REAL_MP4_ACCEPTANCE.md](P9_REAL_MP4_ACCEPTANCE.md) 第 1 步开始。** 这是最终现场验收的唯一逐步执行清单；复用 P8 的原始文件、第一段 MP4 和补传 MP4，完成首段缺包→停止重开→补传→文件 MD5/SHA256 对比。若遇到错误按该文档第 8 步反馈，停止当前环节、不重跑已通过步骤；不要求用户重复 Codex 已完成的自动验收。
+
 **状态：本地原生 Windows 自动验收 PASS（27 项）；真实双 Windows/SMB 与物理断网待第二台电脑。** 准备、启动、错误处理和分布式命令统一在 [DECODER_USER_GUIDE.md](DECODER_USER_GUIDE.md) 第 1～8 节。已有 P8 第 1～10 步 PASS 继续有效，不要求重录编码视频。
 
 原生 Qt 自动验收使用真实 PySide6 控件、文件对话框、拖放、Control/Worker 进程及真实生成的 MP4。结果、截图、日志和性能摘要见 [ACCEPTANCE_RESULTS.md](ACCEPTANCE_RESULTS.md)；本机完整证据保存在该记录列出的独占 `temp/p9-native-acceptance-*` 目录。若需人工复核 GUI，按手册第 2 节使用专用临时工作区。真实双 Windows/SMB、物理断网与重连仍需按 UA-006 在第二台电脑执行；本机多个进程不计为双机通过。
