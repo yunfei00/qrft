@@ -1,6 +1,6 @@
 # QRFT v2-P10 稳定性与性能验收执行方案（交给 Codex）
 
-> 状态：**待 Codex 执行**。本文件是实施任务，不是已经通过的验收结果；本次不合并 main、不打 Tag、不发布 Release、不打包 EXE。
+> 状态：**已执行；实际范围与限制见 [P10_STABILITY_PERFORMANCE_RESULTS.md](P10_STABILITY_PERFORMANCE_RESULTS.md)**。本文件保留原实施任务与验收口径，不把未运行项目计为通过；本次不合并 main、不打 Tag、不发布 Release、不打包 EXE。
 > 基线：`yunfei00/qrft`、`feature/qrft-v2-hex-md5`、PR #7 Draft；使用 Python 3.12 + uv 源码运行。
 > 已有事实：P8 的编码/真实 MP4 用户验收通过；P9 的 27 PASS / 0 FAIL / 1 NOT TESTED 是自动化结果；UA-011 的真实录像解码 GUI 第 1～7 步由用户在 ChatGPT 会话中反馈全部通过（详见 `ACCEPTANCE_RESULTS.md`）。
 > 协议 v1/v2 以及已验收 GUI/CLI 的操作行为冻结；本轮只允许修复经测量证实的稳定性/性能缺陷和添加诊断、自动测试与文档。

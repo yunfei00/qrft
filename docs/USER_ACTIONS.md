@@ -1,5 +1,9 @@
 # QRFT 用户操作手册（唯一操作入口）
 
+## P10 自动验收结果索引（无需用户重复操作）
+
+本轮软件核心门禁已通过，实测规模、1/2/4 Worker 对比、10/30 分钟原生 GUI、故障恢复、限制及开发者复现命令见 [P10_STABILITY_PERFORMANCE_RESULTS.md](P10_STABILITY_PERFORMANCE_RESULTS.md)。已有 P8/P9 真人验收继续有效，不要求重做。真实第二台 Windows/SMB/物理断网仍按 UA-006 与 [解码手册第 7 节](DECODER_USER_GUIDE.md) 单独执行；本机多进程不计真实双机。P11 本轮仅给候选版建议，不执行打包或发布。
+
 ## UA-011：v2-P9 统一解码 GUI 最终源码验收
 
 **本次 Windows 11 真实录像 GUI 验收从 [P9_REAL_MP4_ACCEPTANCE.md](P9_REAL_MP4_ACCEPTANCE.md) 第 1 步开始。** 这是最终现场验收的唯一逐步执行清单；复用 P8 的原始文件、第一段 MP4 和补传 MP4，完成首段缺包→停止重开→补传→文件 MD5/SHA256 对比。若遇到错误按该文档第 8 步反馈，停止当前环节、不重跑已通过步骤；不要求用户重复 Codex 已完成的自动验收。

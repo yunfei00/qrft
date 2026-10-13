@@ -249,7 +249,7 @@ class DecoderWindow(QMainWindow):
             self.workspace.setText(directory)
 
     def new_task(self):
-        if not self.session or self.busy:
+        if not self.session or self.closing:
             return
         name, ok = QInputDialog.getText(
             self, "新建隔离任务", "任务名称（一个任务只能属于一个原文件）"

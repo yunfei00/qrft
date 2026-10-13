@@ -1,5 +1,17 @@
 # QRFT 项目进度与交接记录
 
+## v2-P10 实测交付（2026-10-13）
+
+按 [P10 计划](P10_STABILITY_PERFORMANCE_PLAN.md) 完成本地受控验收，详细数字与匿名原始摘要见 [P10_STABILITY_PERFORMANCE_RESULTS.md](P10_STABILITY_PERFORMANCE_RESULTS.md) / [P10_BENCHMARK_SUMMARY.json](P10_BENCHMARK_SUMMARY.json)。基线 211 项、最终 **221 项 pytest 通过，无失败/跳过**；Ruff 格式/静态检查通过。已有 P8/P9 人工验收保持，不要求重复。
+
+64 KiB、1 MiB 的同一视频分别比较 1/2/4 Worker，各三次；1 MiB 中位扫描 50.844/26.579/16.250 秒，实测加速 1.913/3.129 倍。4 MiB、10 MiB 全链路及暂停/继续通过；10 MiB 为 7,490 个 DATA 包、扫描 265.375 秒、恢复 0.563 秒，缺包/冲突 0，字节/MD5/SHA256 一致。验收素材生成器支持有界 4 进程、最多 8 帧队列；同一 1 MiB 生成 140.078→48.875 秒，两份 MP4 SHA256 相同。编码端和协议参数未修改。
+
+100 MiB / 1 GiB 真实 v2 SQLite 入库、缺包导出、补回、冲突隔离、重开及流式恢复通过；1 GiB 766,959 包，RSS 峰值 58,007,552 字节。该测试不是 1 GiB QR 视频。原生 GUI + 重复 1 MiB 短视频持续负载 600.016 秒/21 次、1,800.109 秒/61 次通过，中途 GUI/Control 重开、真实 Worker/Control 崩溃、HTTP 503、检查点/租约重领/旧租约围栏、取消/继续及退出清理通过，日志未发现 ERROR/Traceback。
+
+复现并修复刷新期间“新建任务”点击被丢弃（先失败后通过回归）；仅修改该 GUI 条件，不重构界面。修正验收输入回读及短 SQL 查询时钟，原包库已只读高精度复测。证据保留在 `temp/p10-fabb1648a2ef4d4aa8babb9f750c4f1b/`，无用户数据覆盖或历史录像清理。
+
+未测：50/100 MiB 完整 QR 视频（时间/生成量预算）、1 GiB QR 视频（计划禁止）、60 分钟 GUI（剩余总预算不足）、单段长视频/新真人录屏吞吐、真实双 Windows/SMB/物理断网。P10 软件核心门禁 PASS，可准备 P11 候选版；硬件/全规模生产验收不能提前计为完成，原里程碑仍 7/10。PR #7 保持 Draft，本轮不合并、Tag、EXE 构建或 Release。最后代码提交和对应 CI 随交付补记。
+
 ## v2-P9 正式收尾与 v2-P10 执行计划（2026-10-13）
 
 **P9 单机核心功能验收收尾：** 用户在 ChatGPT 会话反馈，已完整执行 [P9_REAL_MP4_ACCEPTANCE.md](P9_REAL_MP4_ACCEPTANCE.md) 第 1～7 步，使用自己此前录制的 MP4 完成解码 GUI 首段缺包、停止重开、补传合并及 MD5/SHA256 对比，结论为 **UA-011 PASS（用户报告）**。不是 Codex 独立审阅用户日志，现场精确 Commit、哈希字符串、截图及路径均未提供，详见 [验收记录](ACCEPTANCE_RESULTS.md)。P8 用户 PASS 与 P9 27 项原生自动测试 PASS 继续独立保留，**不要求重复验收**。

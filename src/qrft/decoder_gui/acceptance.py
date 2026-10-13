@@ -235,14 +235,24 @@ class Actor:
         matches = [b for b in self.window.findChildren(QPushButton) if b.text() == text]
         assert len(matches) == 1, text
         button = matches[0]
+        self.window.raise_()
+        self.window.activateWindow()
         self.window.centralWidget().ensureWidgetVisible(button)
+        self.app.processEvents()
+        QTest.qWait(50)
+        assert button.isVisible() and button.isEnabled(), text
         QTest.mouseClick(button, Qt.MouseButton.LeftButton)
 
     def paste(self, edit, text):
         edit.setFocus()
-        self.app.clipboard().setText(text)
         QTest.keyClick(edit, Qt.Key.Key_A, Qt.KeyboardModifier.ControlModifier)
-        QTest.keyClick(edit, Qt.Key.Key_V, Qt.KeyboardModifier.ControlModifier)
+        if text.isascii():
+            QTest.keyClicks(edit, text)
+        else:
+            self.app.clipboard().setText(text)
+            QTest.qWait(50)
+            QTest.keyClick(edit, Qt.Key.Key_V, Qt.KeyboardModifier.ControlModifier)
+        assert edit.text() == text, "Qt test input did not reach the visible control"
 
     def handle_dialog(self):
         dialog = self.app.activeModalWidget()

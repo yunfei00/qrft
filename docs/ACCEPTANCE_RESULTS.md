@@ -1,5 +1,19 @@
 # QRFT 验收结果与证据
 
+## v2-P10 稳定性与性能自动验收（2026-10-13）
+
+**软件核心门禁 PASS**；实测表、匿名 JSON、复现命令、限制与 P11 建议见 [P10 实测报告](P10_STABILITY_PERFORMANCE_RESULTS.md)。本轮在原生 Windows 11 / Python 3.12 + uv 上自动执行，不要求重做已通过的 P8/P9。
+
+- 基线 211 passed，最终 **221 passed、无失败/跳过**；Ruff 两项通过，1 条既有弃用警告。
+- 21 次真实合成 MP4 全链路恢复：64 KiB / 1 MiB 同视频 1、2、4 Worker 各三次，加 4 MiB、并行渲染 1 MiB 对照与 10 MiB；每次完整字节、MD5/SHA256 相同，缺包/冲突 0。实际节点和时间片 receipts 保留在各原始报告。
+- 100 MiB / 1 GiB 真实 SQLite v2 包库压力、流式缺包和恢复、重复/冲突、关闭重开、既有结果保护通过；**不是同规模二维码视频**。
+- 原生 GUI + 重复短 MP4 连续运行 10/30 分钟通过，分别 21/61 次完整重扫；中途 GUI/Control 重开、SQLite integrity_check、后台/后端日志及自有进程清理通过。
+- HTTP 503、真实 Worker/Control 终止、实际租约过期/检查点接管/旧令牌围栏、活动任务取消/恢复和截断 MP4 拒绝通过。
+
+发现的 GUI 点击丢失问题已有先失败后通过的真实 Control/Qt 回归；Windows 短 SQL 查询采用高分辨率只读复测，原低分辨率报告没有被当作性能优化。原生输入失败尝试及最终证据保留在独占 `temp/p10-fabb1648a2ef4d4aa8babb9f750c4f1b/`，无历史验收目录删除。GitHub 提交的 [P10_BENCHMARK_SUMMARY.json](P10_BENCHMARK_SUMMARY.json) 不含 Token、主机名或本机绝对路径。
+
+**未运行/未测**：50/100 MiB QR 视频、1 GiB QR 视频、60 分钟 GUI、单段长视频/真人录屏性能及真实双机 SMB/物理断网。限制原因和估算均见报告；只把实际完成的范围计 PASS。P9 真人 MP4 用户反馈仍单独保留如下，原里程碑 7/10 不变。
+
 ## v2-P9 / UA-011：用户报告真实 Windows MP4 单机 GUI 验收 PASS（2026-10-13）
 
 **验收结论：PASS（仅依据用户在 ChatGPT 会话中的反馈，不是 Codex 独立获取的现场日志）。** 用户按照 [P9_REAL_MP4_ACCEPTANCE.md](P9_REAL_MP4_ACCEPTANCE.md) 的指南操作后明确回复“这个验收都通过了”。该指南第 1～7 步是同一轮验收，包含同步/确认素材、独立工作区和单机 GUI、首段录屏解码及缺包 TXT/CSV/JSON 导出、停止关闭重开后数据保持、同任务补传录像合并、文件恢复及原始/恢复大小、MD5、SHA256 比对。

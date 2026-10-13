@@ -2,7 +2,10 @@
 
 import hashlib
 import json
+import os
 import random
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -11,6 +14,23 @@ import pytest
 from qrft.core.qr_image import v2_image
 from qrft.decoder_gui.service import ControlClient, ManagedSession, inspect_video
 from qrft.encoder_cli.playback import iter_encoded_frames
+
+
+def test_new_task_dialog_accepts_click_during_real_background_refresh(tmp_path):
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(Path(__file__).with_name("decoder_gui_driver.py")),
+            str(tmp_path),
+            "busy-dialog",
+        ],
+        env={**os.environ, "QT_QPA_PLATFORM": "offscreen"},
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=40,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def mp4(frames, path):
