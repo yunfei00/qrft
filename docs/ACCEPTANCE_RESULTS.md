@@ -16,6 +16,8 @@
 
 最终工作树门禁复跑：Ruff 格式检查、Ruff 静态检查通过；pytest **211 passed、0 failed、无跳过**（167.32 秒），1 条既有 Starlette/httpx 弃用警告。详细通过项目和机器指标见 [脱敏自动验收 JSON](P9_AUTOMATED_ACCEPTANCE.json)。
 
+代码与验收工具已提交并推送：`494f0cf887a5fe5601510329b992f999814598bc`。该提交的 [Windows Python CI 38328640529](https://github.com/yunfei00/qrft/actions/runs/38328640529) **成功**（3 分 5 秒）：格式、静态检查、全量 pytest、Windows 原生源码 GUI 启动/安全退出、二维码图片、ZXing 字节往返、AVI 端到端以及 Control API/SQLite 全通过。PR [#7](https://github.com/yunfei00/qrft/pull/7) 仍为 Open / Draft；未合并、未打 Tag、未发布。真实双 Windows/SMB 是唯一现场待测项。
+
 本地最终全量回归 **209 项通过、无跳过、1 项既有弃用警告（159.05 秒）**；Ruff 格式/静态检查通过，原生 Windows GUI 启动和中文布局检查、安全退出通过。真实 Worker 被终止后由独立替代进程等待租约过期并完成 MP4 恢复；实际 HTTP 服务返回一次 503 后请求退避重试通过。此为源码自动证据，不是用户人工 P9 验收。
 
 GitHub 代码提交 `69c7b48d5fe2863dc6798731caf9282c24ef5218`：[Windows Python CI 38261515130](https://github.com/yunfei00/qrft/actions/runs/38261515130) 成功，209 项 / 152.08 秒，源码原生 GUI 启动及二维码、ZXing、AVI、API/SQLite 步骤成功；仅源码测试，没有 EXE 构建。
