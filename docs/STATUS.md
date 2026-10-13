@@ -1,5 +1,14 @@
 # QRFT 项目进度与交接记录
 
+## v2-P9 正式收尾与 v2-P10 执行计划（2026-10-13）
+
+**P9 单机核心功能验收收尾：** 用户在 ChatGPT 会话反馈，已完整执行 [P9_REAL_MP4_ACCEPTANCE.md](P9_REAL_MP4_ACCEPTANCE.md) 第 1～7 步，使用自己此前录制的 MP4 完成解码 GUI 首段缺包、停止重开、补传合并及 MD5/SHA256 对比，结论为 **UA-011 PASS（用户报告）**。不是 Codex 独立审阅用户日志，现场精确 Commit、哈希字符串、截图及路径均未提供，详见 [验收记录](ACCEPTANCE_RESULTS.md)。P8 用户 PASS 与 P9 27 项原生自动测试 PASS 继续独立保留，**不要求重复验收**。
+
+**P10 状态：已批准计划、待 Codex 自动执行。** 以 [P10_STABILITY_PERFORMANCE_PLAN.md](P10_STABILITY_PERFORMANCE_PLAN.md) 为唯一详细执行范围：先 64 KiB 基线、1 MiB 全链路，再按磁盘/运行时间上限推进 10 MiB 和有条件的 50–100 MiB；1/2/4 Worker 比较，长时间、异常重试/租约、SQLite 可靠性及报告。已验收 v2 协议/编码端/解码端功能冻结，只有经复现的缺陷允许修复；不得虚称未运行的大规模二维码链路通过。
+
+**P11 状态：待 P10 结果再评估。** 仍保持 `feature/qrft-v2-hex-md5` / PR #7 Draft，不合并 main、不打 Tag、不打包 EXE、不发布 Release。真实双 Windows/SMB 和物理断网未验收，旧里程碑保持 7/10；小文件 GUI 人工 PASS 不能代替双机或压力测试。
+
+
 ## v2-P9 完整自动验收与故障闭环补充（2026-10-13）
 
 本地 Windows 11 原生 Qt 自动验收现已完成：真实 GUI 控件/对话框/拖放、合成 MP4 OpenCV/ZXing 解码、双独立 Worker、missing 三格式导出与补传、源/恢复 MD5 和字节校验、重复/冲突/损坏帧/版本与文件隔离、取消和恢复、HTTP 503、续租、Worker 终止后重领、旧租约围栏、60 秒 GUI 稳定性、退出清理及 SQLite 完整性。报告 **27 PASS、0 FAIL、1 NOT TESTED**，全量 pytest **211 passed**，Ruff 格式与静态检查通过。完整证据目录为 `temp/p9-native-acceptance-cc5e22ad431044268ca98a25ee19788a/run/` 与同级 `workspace/`；独立小规模性能报告为 `temp/p9-benchmark-4bb535a0fea448278e51c2b883c787fb/report.json`。详细实测数字及限制见 [ACCEPTANCE_RESULTS.md](ACCEPTANCE_RESULTS.md)。
