@@ -5,8 +5,17 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      build_encoder2100:
+        description: Build and verify independent QRFT2100 release ZIP
+        type: boolean
+        default: false
 
 jobs:
+  encoder2100-release:
+    if: github.event_name == 'workflow_dispatch' && inputs.build_encoder2100
+    needs: test
+    uses: ./.github/workflows/build-encoder2100.yml
   test:
     runs-on: windows-latest
     env:

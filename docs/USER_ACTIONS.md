@@ -2,7 +2,7 @@
 
 ## UA-012：QRFT2100 独立命令行编码器
 
-**直接从 [ENCODER_2100_USER_GUIDE.md 第 0 节](ENCODER_2100_USER_GUIDE.md) 开始**，先看最简单的播放命令，再按需要看参数表和测试步骤。
+**发行用户从 [ENCODER_2100_USER_GUIDE.md 第 8 节：ZIP 解压后运行](ENCODER_2100_USER_GUIDE.md#8-zip-解压后运行发行用户推荐) 开始**，完整保留 `_internal`，无需安装 Python/uv。版本归档见 [ENCODER_2100_RELEASE.md](ENCODER_2100_RELEASE.md)。源码开发者保留第 0～7 节操作。
 
 播放二维码现在只有源文件或文件夹路径必填：
 
@@ -15,7 +15,7 @@ uv run --no-sync python -m qrft.encoder2100.cli play "D:\ExampleFolder"
 
 文件夹自动在 RAM 构造确定性 ZIP，默认打包预算 128 MiB，无临时 ZIP 或磁盘回退。Folder Content MD5 是逻辑身份，Archive ZIP MD5 才是 START/实际传输校验；目录补传必须携带原任务 `--expected-archive-md5`，不能只依据逻辑摘要混合数据。START/FINISH 当前各一次，总帧 N+2；首帧仍等待 Space，FINISH 保留到 Esc。
 
-`info`、`export`（需要 `--output`）和完整参数、可复制测试、故障处理统一见新手册。文件夹完整命令与验收证据见 [ENCODER_2100_FOLDER_TESTS.md](ENCODER_2100_FOLDER_TESTS.md)。独立编码器仍不做 GUI、正式解码器或 EXE。自动历史证据见 [ENCODER_2100_ACCEPTANCE.md](ENCODER_2100_ACCEPTANCE.md)，物理录屏识别率仍未验收。
+`info`、`export`（需要 `--output`）和完整参数、可复制测试、故障处理统一见新手册。文件夹完整命令与源码验收证据见 [ENCODER_2100_FOLDER_TESTS.md](ENCODER_2100_FOLDER_TESTS.md)。独立编码器不做 GUI 或正式解码器；本轮单独交付 QRFT-Encoder2100.exe 的完整 ZIP，不是旧四程序合集。自动历史证据见 [ENCODER_2100_ACCEPTANCE.md](ENCODER_2100_ACCEPTANCE.md)，物理录屏识别率仍未验收。
 
 ## P10 自动验收结果索引（无需用户重复操作）
 

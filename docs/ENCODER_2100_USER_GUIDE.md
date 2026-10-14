@@ -1,6 +1,6 @@
 # QRFT2100 独立命令行编码器：Windows 使用与测试手册
 
-> **从第 0 节开始即可。** 开发分支：`feature/encoder-cli-2100`。源码运行，不需要 GUI、Control、Worker 或解码器。验收索引：[UA-012](USER_ACTIONS.md)。编码采用 **QRFT2100：2100 字节/包、v2 风格的三段大写 HEX、QR Version40-L**；与旧 v2 固定 1400 字节的解码器**不兼容**。协议见 [ENCODER_2100_PROTOCOL.md](ENCODER_2100_PROTOCOL.md)。
+> **下载 ZIP 的用户直接从第 8 节开始，无需 Python 或 uv。** 第 0～7 节保留为源码/开发者操作。开发分支：`feature/encoder-cli-2100`，不需要 GUI、Control、Worker 或解码器。验收索引：[UA-012](USER_ACTIONS.md)。编码采用 **QRFT2100：2100 字节/包、v2 风格的三段大写 HEX、QR Version40-L**；与旧 v2 固定 1400 字节的解码器**不兼容**。协议见 [ENCODER_2100_PROTOCOL.md](ENCODER_2100_PROTOCOL.md)。
 
 ## 0. 最简单的使用方法：只填文件或文件夹路径
 
@@ -208,3 +208,34 @@ uv run --no-sync python -m qrft.encoder2100.cli play "$folder"
 所有输出目录及显式日志路径必须位于源目录之外。符号链接、Junction、循环目录及检测到的打包中增删改均拒绝；请保持源目录静止，当前检查不等同于 VSS 原子快照。
 
 完整可复制的建样本、查看双摘要、时间戳不变性、PNG、缺包补传和内存限制操作见 [文件夹内存 ZIP 与稳定 MD5 测试说明](ENCODER_2100_FOLDER_TESTS.md)。本轮实际结果见 [验收记录](ENCODER_2100_ACCEPTANCE.md)；无需重复已完成的自动测试。
+
+## 8. ZIP 解压后运行（发行用户推荐）
+
+从 [encoder2100-v0.1.0 Release](https://github.com/yunfei00/qrft/releases/tag/encoder2100-v0.1.0) 下载 `QRFT-Encoder2100-Windows-x64-v0.1.0.zip` 与同名 `.zip.sha256`。先校验下载文件，再完整解压；**不要只复制 EXE，保留整个 QRFT-Encoder2100 目录与 _internal**。不安装 Python/uv、不进入源码目录。
+
+```powershell
+$downloads = Join-Path $HOME 'Downloads'
+$zip = Join-Path $downloads 'QRFT-Encoder2100-Windows-x64-v0.1.0.zip'
+$sum = Get-Content -LiteralPath ($zip + '.sha256') -Raw
+$actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
+if ($actual -ne ($sum.Trim() -split '\s+')[0]) { throw 'ZIP SHA256 不一致，请停止运行' }
+$destination = Join-Path $downloads ('QRFT2100-' + [guid]::NewGuid().ToString('N'))
+Expand-Archive -LiteralPath $zip -DestinationPath $destination
+Set-Location (Join-Path $destination 'QRFT-Encoder2100')
+.\QRFT-Encoder2100.exe info "D:\Data\example.bin"
+.\QRFT-Encoder2100.exe play "D:\Data\ExampleFolder"
+.\QRFT-Encoder2100.exe export "D:\Data\ExampleFolder" --output "D:\Output\QR"
+```
+
+最后三条请替换为实际存在的源路径及尚不存在的输出目录；每条启动后都静默等待手动输入 `qsnfj`、Enter，字符不可见，最多三次，不支持 -h/--help。首帧等待 Space；Space 开始/暂停/继续、Esc 退出，FINISH 保留到 Esc。完整白色区域录屏、50ms 目标、默认三进程和五秒英文进度行为同第 4 节，无默认日志。
+
+所有第 1 节参数在 EXE 中保持相同，将源码命令前缀替换为 `.\QRFT-Encoder2100.exe` 即可。文件夹 RAM ZIP 默认预算 128 MiB，无磁盘中转；目录补传必须带原 Archive ZIP MD5：
+
+```powershell
+$originalArchiveMd5 = Read-Host '粘贴原任务 Archive ZIP MD5（32位HEX）'
+.\QRFT-Encoder2100.exe play "D:\Data\ExampleFolder" --missing "D:\Data\missing.txt" --expected-archive-md5 $originalArchiveMd5
+```
+
+不要用 Folder Content MD5 替代 ZIP MD5。内存超限、源变化、错误 ZIP MD5、已有输出或输出位于源目录内均拒绝。冻结程序的三个生成子进程直接运行同一发行 EXE，不需要再次输入口令，也不调用系统 Python。
+
+解压根目录包含 README.md、USER_GUIDE.md、VERSION.txt、SHA256SUMS.txt。VERSION 记录准确源 Commit、版本和构建库；内部校验表不包含自身。故障说明与版本验收边界见 [发行 README](ENCODER_2100_DISTRIBUTION_README.md) 和 [版本归档](ENCODER_2100_RELEASE.md)。真实 Windows 截图工具录屏/不同显示器识别率没有以合成视频冒充通过。
