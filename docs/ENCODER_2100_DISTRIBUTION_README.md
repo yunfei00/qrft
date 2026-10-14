@@ -47,6 +47,6 @@ Windows 11 截图工具录屏必须包含完整白色区域与静区；先保存
 
 QRFT2100：2100 字节 DATA、大写 HEX、固定 QR Version40-L。**不兼容旧 v2 1400 字节解码器**，本产品不包含正式 QRFT2100 解码器、Control、Worker 或 GUI。MD5 仅用于完整性校验，不是安全认证。
 
-下载时将 ZIP.sha256 与 `Get-FileHash .\QRFT-Encoder2100-Windows-x64-v0.1.0.zip -Algorithm SHA256` 比对；内部 SHA256SUMS.txt 不包含自身，列出每个发行文件。VERSION.txt 记录版本、源 Commit 与构建运行库信息。依赖许可信息随 `_internal` 保留。
+下载时将 ZIP.sha256 与 `Get-FileHash .\QRFT-Encoder2100-Windows-x64-v0.1.0.zip -Algorithm SHA256` 比对；内部 SHA256SUMS.txt 不包含自身，列出每个发行文件。VERSION.txt 记录版本、源 Commit 与构建运行库信息。实际 Python、qrcode、Pillow、OpenCV、NumPy 及 PyInstaller（含 bootloader 例外说明）版本的许可文本位于 THIRD_PARTY_LICENSES，运行库自带的许可资源也保留在 `_internal`。
 
 命令无输出通常是在等待隐藏输入。缺少 DLL 请重新完整解压，不能只复制 EXE。显示空间不足时不强制缩放二维码；内存超限请减小目录或明确提高预算；输出已存在时换一个新路径。不要关闭安全软件或绕过系统安全提示。

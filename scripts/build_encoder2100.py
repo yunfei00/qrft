@@ -86,6 +86,25 @@ def build(root):
     assert not any(name.startswith(forbidden) for name in modules)
     assert "qrft.encoder2100.cli" in modules and "qrft.encoder2100.player" in modules
     product = root / "dist" / PRODUCT
+    notices = product / "THIRD_PARTY_LICENSES"
+    notices.mkdir()
+    shutil.copyfile(Path(sys.base_prefix) / "LICENSE.txt", notices / "Python-LICENSE.txt")
+    for package in ("qrcode", "pillow", "opencv-python", "numpy", "pyinstaller"):
+        distribution = importlib.metadata.distribution(package)
+        copied = 0
+        for item in distribution.files or []:
+            relative = item.as_posix()
+            if ".dist-info/" in relative and any(
+                token in relative.lower() for token in ("license", "copying")
+            ):
+                original = Path(distribution.locate_file(item))
+                if original.is_file():
+                    destination = notices / package / relative.split(".dist-info/", 1)[1]
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(original, destination)
+                    copied += 1
+        if not copied:
+            raise RuntimeError(f"Missing distribution license for {package}")
     shutil.copyfile(REPO / "docs/ENCODER_2100_DISTRIBUTION_README.md", product / "README.md")
     shutil.copyfile(REPO / "docs/ENCODER_2100_USER_GUIDE.md", product / "USER_GUIDE.md")
     for name in ("LICENSE", "LICENSE.txt", "LICENSE.md"):

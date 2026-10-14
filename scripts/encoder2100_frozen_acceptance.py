@@ -176,6 +176,11 @@ def run(archive, root):
         runtime_zips = set(root.rglob("*.zip"))
         exe = bundle / f"{PRODUCT}.exe"
         assert exe.is_file() and (bundle / "_internal/python312.dll").is_file()
+        assert (bundle / "THIRD_PARTY_LICENSES/Python-LICENSE.txt").is_file()
+        assert all(
+            any((bundle / "THIRD_PARTY_LICENSES" / package).rglob("*"))
+            for package in ("qrcode", "pillow", "opencv-python", "numpy")
+        )
         for line in (bundle / "SHA256SUMS.txt").read_text(encoding="utf-8").splitlines():
             expected, name = line.split("  ", 1)
             assert digest(bundle / name) == expected, name
@@ -382,14 +387,18 @@ def run(archive, root):
         )
 
 
-def native(root, explicit_log):
+def native(root, explicit_log, source_override=None):
     report = json.loads((root / "frozen-report.json").read_text(encoding="utf-8"))
     exe = Path(report["exe"])
     # More than 5 seconds of DATA, with enough parallel work to observe 3 workers.
     mode = "log" if explicit_log else "default"
-    source = root / f"Native Folder 中文 {mode}"
-    source.mkdir()
-    (source / "binary.bin").write_bytes(random.Random(40).randbytes(2100 * 400))
+    if source_override is None:
+        source = root / f"Native Folder 中文 {mode}"
+        source.mkdir()
+        (source / "binary.bin").write_bytes(random.Random(40).randbytes(2100 * 400))
+    else:
+        source = source_override.resolve(strict=True)
+        mode = f"file-{mode}"
     args = [exe, "play", source, "--workers", "3"]
     before = snapshot(exe.parent)
     if explicit_log:
@@ -452,9 +461,12 @@ if __name__ == "__main__":
     parser.add_argument("--zip", type=Path)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--native", action="store_true")
+    parser.add_argument(
+        "--source", type=Path, help="Existing source for optional native file playback"
+    )
     parser.add_argument("--log", action="store_true")
     args = parser.parse_args()
     if args.native:
-        native(args.root.resolve(), args.log)
+        native(args.root.resolve(), args.log, args.source)
     else:
         run(args.zip.resolve(), args.root)

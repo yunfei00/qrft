@@ -10,6 +10,7 @@
 QRFT-Encoder2100/
   QRFT-Encoder2100.exe
   _internal/                 # 完整 Python/DLL/编码依赖及其许可资源
+  THIRD_PARTY_LICENSES/      # Python/qrcode/Pillow/OpenCV/NumPy/PyInstaller 许可文本
   README.md                 # 中文 Windows 发行说明
   USER_GUIDE.md
   VERSION.txt
@@ -39,6 +40,9 @@ if ($LASTEXITCODE -ne 0) { throw '冻结 ZIP 验收失败，不得发布' }
 uv run --no-sync python scripts/encoder2100_frozen_acceptance.py --root "$evidence" --native
 # 此次默认不写播放器日志；在原生窗口验证等待/暂停/继续/结束保留后 Esc。
 if ($LASTEXITCODE -ne 0) { throw '冻结播放验收失败，不得发布' }
+uv run --no-sync python scripts/encoder2100_frozen_acceptance.py --root "$evidence" --native --source (Join-Path $evidence 'Native Folder 中文 default\binary.bin')
+# 同一冻结 EXE 的普通文件播放，仍由 Space 开始、Esc 结束。
+if ($LASTEXITCODE -ne 0) { throw '冻结普通文件播放失败，不得发布' }
 ```
 
 自动验收驱动在源码侧使用真实 ConPTY 手动输入等效测试按键，未将口令放在 EXE 参数/环境/管道中，未修改产品校验。子 EXE PATH 只有 System32，CWD 为系统临时目录下的全新中文解压目录，无源码/venv；校验 Python/uv 不可查找、冻结模块路径及内置 runtime SHA256。开发者 QA 使用 Python 不代表发行用户需要 Python。
@@ -50,6 +54,8 @@ if ($LASTEXITCODE -ne 0) { throw '冻结播放验收失败，不得发布' }
 ## 本机预验收与最终发行证据
 
 本机候选构件预验收（2026-10-15）：Ruff 通过；完整回归 **307 passed / 0 failed / 0 skipped，254.47 秒**；源码普通文件 100/100 满载 PNG、7/7 合成 MP4，目录 5/5 PNG、5/5 合成 MP4 通过。首份本地冻结 ZIP 已完成 10 类检查、18 次 EXE 调用、独立 ZXing/内存 ZIP 还原及双摘要验证。原生默认播放与显式诊断播放分别运行，实际三个冻结 worker 正常退出；诊断序列 403 帧（START 1、DATA 401、FINISH 1），暂停保持包号、继续、FINISH 保留与 Esc 通过，终端普通进度间隔约 5 秒。本地候选仅作预验收；最终发行字节及精确提交以成功的 CI 构件、Release 的 SHA256 和附加验收 JSON 为准，不把基线源码 CI 当成冻结发行结果。
+
+发行目录审计补齐实际安装版本的 Python、qrcode、Pillow、OpenCV、NumPy 与 PyInstaller 许可文本后，本地最终完整回归再次 **307 passed / 0 failed / 0 skipped，257.86 秒**，Ruff 通过；包含许可文件的候选 ZIP 10 类/18 次交互式 EXE 检查通过。独立打包预验收 CI run `38604283063` 的源码与冻结 EXE 两个任务均成功；最终发布前仍须对后续最终提交再跑 CI、下载原构件、本机复验，不能发布前一候选 ZIP。
 
 ## 尚未验收的物理环境
 
