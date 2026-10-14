@@ -95,6 +95,50 @@ def resolve_workers(requested: int | None) -> int:
     return requested
 
 
+class ConsoleProgress:
+    """Refresh a single English-only progress row every five seconds."""
+
+    def __init__(self, total, refresh_seconds=5.0):
+        self.total = total
+        self.refresh_seconds = refresh_seconds
+        self.started_at = None
+        self.last_update_at = None
+        self.width = 0
+        self.finished = False
+
+    def start(self, now):
+        if self.started_at is None:
+            self.started_at = now
+            self.update(0, now, force=True)
+
+    def update(self, shown, now, *, final=None, force=False):
+        if self.finished or (self.started_at is None and final is None):
+            return
+        if (
+            final is None
+            and not force
+            and self.last_update_at is not None
+            and now - self.last_update_at < self.refresh_seconds
+        ):
+            return
+        elapsed = max(0, int(now - (self.started_at if self.started_at is not None else now)))
+        hours, remainder = divmod(elapsed, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        percent = shown / self.total * 100 if self.total else (100.0 if final == "DONE" else 0.0)
+        clock = time.strftime("%H:%M:%S", time.localtime())
+        line = (
+            f"[{clock}] DATA {shown}/{self.total} ({percent:.1f}%) "
+            f"| elapsed {hours:02d}:{minutes:02d}:{seconds:02d}"
+        )
+        if final is not None:
+            line += f" | {final}"
+        print("\r" + line.ljust(self.width), end="\n" if final is not None else "", flush=True)
+        self.width = max(self.width, len(line))
+        self.last_update_at = now
+        if final is not None:
+            self.finished = True
+
+
 class Frames:
     """At most capacity futures; hashing/reading stays in the parent process."""
 
@@ -153,7 +197,7 @@ def play(
 
     if not 1 <= interval_ms <= 60000 or not 1 <= capacity <= 16:
         raise ValueError("interval-ms 需为 1～60000；prefetch 需为 1～16")
-    effective_workers = resolve_workers(workers)
+    resolve_workers(workers)
     frames = source.frames(ranges)
     label, text = next(frames)
     picture = render(text)  # START preflight before opening a window or writing logs.
@@ -165,7 +209,7 @@ def play(
     pending = None
     selected_data = sum(b - a + 1 for a, b in ranges)
     shown_data = 0
-    last_progress = 0.0
+    progress = ConsoleProgress(selected_data)
     # Default playback writes no files. Detailed JSONL is explicit opt-in only.
     log_context = (
         log_path.open("x", encoding="utf-8", buffering=1) if log_path is not None else nullcontext()
@@ -177,19 +221,6 @@ def play(
                 log.write(
                     json.dumps({"event": event, "time": time.perf_counter(), **fields}) + "\n"
                 )
-
-        def progress(*, force=False):
-            nonlocal last_progress
-            now = time.perf_counter()
-            if not force and now - last_progress < 0.5 and shown_data < selected_data:
-                return
-            last_progress = now
-            percent = 100.0 if not selected_data else shown_data / selected_data * 100
-            line = (
-                f"\rDATA {shown_data}/{selected_data} ({percent:.1f}%) "
-                f"| 总帧 {position}/{total} | {state.status}"
-            )
-            print(line, end="\n" if force else "", flush=True)
 
         def display():
             pixels = canvas(picture, label, state.status, position, total)
@@ -211,11 +242,6 @@ def play(
                 cv2.moveWindow(TITLE, rect.left + (rect.right - rect.left - WIDTH) // 2, rect.top)
             display()
             record("display", packet_id=label, position=position, state=state.status)
-            print(
-                f"QRFT2100 已就绪：DATA {selected_data} 包，间隔{interval_ms}ms，"
-                f"生成进程 {effective_workers}，按 Space 开始/暂停，Esc 退出。",
-                flush=True,
-            )
             # Keep compatibility with 2-arg test doubles when auto worker selection is used.
             pending = (
                 Frames(frames, capacity) if workers is None else Frames(frames, capacity, workers)
@@ -230,9 +256,11 @@ def play(
                     visible = False
                 if key == 27 or not visible:
                     record("exit", complete=state.status == "FINISHED", position=position)
-                    progress(force=True)
-                    if state.status != "FINISHED":
-                        print("播放提前结束；已显示进度如上。", flush=True)
+                    progress.update(
+                        shown_data,
+                        now,
+                        final="DONE" if state.status == "FINISHED" else "STOPPED",
+                    )
                     return 0 if state.status == "FINISHED" else 130
                 if user:
                     down = bool(user.GetAsyncKeyState(32) & 0x8000)
@@ -245,18 +273,20 @@ def play(
                 else:
                     edge = latch.press(key, now)
                 if edge:
+                    was_ready = state.status == "READY"
                     state.space(now)
                     display()
                     record("state", state=state.status, position=position)
-                    progress(force=True)
+                    if was_ready:
+                        progress.start(now)
+                progress.update(shown_data, now)
                 if not state.due(now):
                     continue
                 if not pending.queue:
                     state.status = "FINISHED"
                     display()
                     record("completed", position=position)
-                    progress(force=True)
-                    print("播放完成；请先保存录屏，再按 Esc 关闭。", flush=True)
+                    progress.update(shown_data, now, final="DONE")
                     continue
                 packet_id, future = pending.queue[0]
                 if not future.done():
@@ -264,7 +294,6 @@ def play(
                         state.status = "BUFFERING"
                         display()
                         record("buffering", position=position)
-                        print("二维码正在生成，保持上一帧等待；不会跳包。", flush=True)
                     continue
                 picture = future.result()
                 pending.queue.popleft()
@@ -276,13 +305,14 @@ def play(
                 state.deadline = shown + state.interval
                 if packet_id not in (START_ID, FINISH_ID):
                     shown_data += 1
-                    progress()
                 pending.fill()
         except cv2.error as exc:
             record("failed", error="OpenCV", position=position)
+            progress.update(shown_data, time.perf_counter(), final="ERROR")
             raise RuntimeError("OpenCV 播放窗口失败；请检查本地图形桌面或终端输出") from exc
         except BaseException as exc:
             record("failed", error=type(exc).__name__, position=position)
+            progress.update(shown_data, time.perf_counter(), final="ERROR")
             raise
         finally:
             if pending:

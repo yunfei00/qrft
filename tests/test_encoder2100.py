@@ -17,6 +17,7 @@ from PIL import Image
 from qrft.encoder2100 import cli, encoder
 from qrft.encoder2100.encoder import Source, export, select
 from qrft.encoder2100.player import (
+    ConsoleProgress,
     QR_SIZE,
     QR_X,
     QR_Y,
@@ -481,3 +482,42 @@ def test_worker_count_sent_to_real_pool(monkeypatch):
         frames = player.Frames((number for number in ()), 4, workers)
         frames.close()
     assert created == [3, 2]
+
+
+def test_console_progress_five_second_throttle_and_final(capsys, monkeypatch):
+    from qrft.encoder2100 import player
+
+    monkeypatch.setattr(player.time, "strftime", lambda *args: "23:16:05")
+    progress = ConsoleProgress(30605, refresh_seconds=5)
+    progress.update(10, 99)  # Silent before playback starts.
+    assert capsys.readouterr().out == ""
+    progress.start(100)
+    progress.update(2645, 104.99)
+    out = capsys.readouterr().out
+    assert out.count("\r") == 1
+    assert "DATA 0/30605 (0.0%) | elapsed 00:00:00" in out
+    progress.update(2645, 105.0)
+    out = capsys.readouterr().out
+    assert out.count("\r") == 1
+    assert "[23:16:05] DATA 2645/30605 (8.6%) | elapsed 00:00:05" in out
+    assert "\n" not in out
+    progress.update(2646, 106.0)
+    assert capsys.readouterr().out == ""
+    progress.update(2646, 106.0, final="STOPPED")
+    out = capsys.readouterr().out
+    assert out.count("\r") == 1 and out.endswith("\n")
+    assert "DATA 2646/30605 (8.6%)" in out and "| STOPPED" in out
+    progress.update(30000, 200, final="DONE")
+    assert capsys.readouterr().out == ""  # Final line emitted exactly once.
+
+
+def test_console_progress_zero_data_and_long_elapsed(capsys, monkeypatch):
+    from qrft.encoder2100 import player
+
+    monkeypatch.setattr(player.time, "strftime", lambda *args: "01:02:03")
+    p = ConsoleProgress(0)
+    p.start(0)
+    p.update(0, 3670, final="DONE")
+    out = capsys.readouterr().out
+    assert "[01:02:03] DATA 0/0 (100.0%) | elapsed 01:01:10 | DONE" in out
+    assert "BUFFERING" not in out and "二维码" not in out
