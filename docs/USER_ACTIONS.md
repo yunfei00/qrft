@@ -2,12 +2,15 @@
 
 ## UA-012：QRFT2100 P1 独立命令行编码器
 
-本次新编码器唯一详细入口：[ENCODER_2100_USER_GUIDE.md](ENCODER_2100_USER_GUIDE.md) 第 1～5 节。
-分支 `feature/encoder-cli-2100`，Python 3.12 + uv 源码运行；固定 2100 字节、40-L、字母数字模式、925×925，不提供 GUI、EXE 或新解码器，不兼容旧 1400 协议。
-CLI 手动隐藏校验、文件检查、PNG、普通/范围/缺包播放、日志和失败处理均按该手册，不沿用下方历史 v2 命令。
-自动验收证据见 [ENCODER_2100_ACCEPTANCE.md](ENCODER_2100_ACCEPTANCE.md)，无需重复自动测试。
-真实屏幕录制/不同显示器 DPI、物理录制设备识别率仍待设备验证；若需要现场验证，按第 4 节记录显示器/DPI、录制工具及 FPS、录屏 MP4、播放日志，不把合成 MP4 当成真实录屏。
-下方 UA-001～011 保留旧系统历史记录和操作入口，不受本次独立 P1 修改影响。
+**唯一操作入口：[ENCODER_2100_USER_GUIDE.md](ENCODER_2100_USER_GUIDE.md)**。已经重写为可直接执行的 Windows PowerShell 使用/测试文档，**先读第 0 节命令速查和第 2 节完整参数表**，再按第 1、3、4、5、6 节依次验收。CLI 必须使用实际子命令和文件路径：
+
+- 文件检查：\`uv run --no-sync python -m qrft.encoder2100.cli info "$source"\`
+- PNG 导出：\`uv run --no-sync python -m qrft.encoder2100.cli export "$source" --output "$png"\`
+- 二维码播放：\`uv run --no-sync python -m qrft.encoder2100.cli play "$source" --interval-ms 50 --log "$playLog"\`
+
+**上述变量都由手册第 1 节定义，不可直接在未初始化的 PowerShell 里运行。** CLI 每次静默等待手动输入 \`qsnfj\` 回车；无 \`-h\`/\`--help\`。详见完整参数表，包括 \`--start-id\`、\`--end-id\`、\`--missing\`、\`--interval-ms\`、\`--prefetch\`、\`--fullscreen\`、强制必填的 \`--output\`/\`--log\`、示例、通过条件和错误处理。
+
+当前仅交付独立 QRFT2100 命令行编码器（2100 字节 / 大写 HEX / Version40-L / 925×925），不做正式解码器、GUI 或 EXE，不兼容旧 1400 字节协议。既有自动证据见 [ENCODER_2100_ACCEPTANCE.md](ENCODER_2100_ACCEPTANCE.md)。真实 Windows 截图工具录屏识别率仍未人工验收，不得把合成 MP4 当作真实录屏；无需重复已经完成的软件自动化测试。
 
 ## P10 自动验收结果索引（无需用户重复操作）
 
