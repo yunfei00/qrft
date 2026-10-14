@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
+from contextlib import nullcontext
 from collections import deque
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
@@ -84,14 +86,23 @@ class KeyEdge:
         return edge
 
 
+def resolve_workers(requested: int | None) -> int:
+    """Use up to three local QR generators unless explicitly overridden."""
+    if requested is None:
+        return max(1, min(3, os.cpu_count() or 1))
+    if not 1 <= requested <= 8:
+        raise ValueError("workers 需为 1～8")
+    return requested
+
+
 class Frames:
     """At most capacity futures; hashing/reading stays in the parent process."""
 
-    def __init__(self, frames, capacity):
+    def __init__(self, frames, capacity, workers=None):
         self.frames = iter(frames)
         self.capacity = capacity
         self.queue = deque()
-        self.pool = ProcessPoolExecutor(max_workers=2)
+        self.pool = ProcessPoolExecutor(max_workers=resolve_workers(workers))
         self.exhausted = False
 
     def fill(self):
@@ -135,11 +146,12 @@ def windows_desktop(fullscreen):
     return user, rect
 
 
-def play(source, ranges, *, log_path, interval_ms=50, fullscreen=False, capacity=4):
+def play(source, ranges, *, log_path=None, interval_ms=50, fullscreen=False, capacity=4, workers=None):
     import cv2
 
     if not 1 <= interval_ms <= 60000 or not 1 <= capacity <= 16:
         raise ValueError("interval-ms 需为 1～60000；prefetch 需为 1～16")
+    effective_workers = resolve_workers(workers)
     frames = source.frames(ranges)
     label, text = next(frames)
     picture = render(text)  # START preflight before opening a window or writing logs.
@@ -149,10 +161,33 @@ def play(source, ranges, *, log_path, interval_ms=50, fullscreen=False, capacity
     latch = KeyEdge()
     opened = False
     pending = None
-    with log_path.open("x", encoding="utf-8", buffering=1) as log:
+    selected_data = sum(b - a + 1 for a, b in ranges)
+    shown_data = 0
+    last_progress = 0.0
+    # Default playback writes no files. Detailed JSONL is explicit opt-in only.
+    log_context = (
+        log_path.open("x", encoding="utf-8", buffering=1)
+        if log_path is not None
+        else nullcontext()
+    )
+    with log_context as log:
 
         def record(event, **fields):
-            log.write(json.dumps({"event": event, "time": time.perf_counter(), **fields}) + "\n")
+            if log is not None:
+                log.write(json.dumps({"event": event, "time": time.perf_counter(), **fields}) + "\n")
+
+        def progress(*, force=False):
+            nonlocal last_progress
+            now = time.perf_counter()
+            if not force and now - last_progress < 0.5 and shown_data < selected_data:
+                return
+            last_progress = now
+            percent = 100.0 if not selected_data else shown_data / selected_data * 100
+            line = (
+                f"\rDATA {shown_data}/{selected_data} ({percent:.1f}%) "
+                f"| 总帧 {position}/{total} | {state.status}"
+            )
+            print(line, end="\n" if force else "", flush=True)
 
         def display():
             pixels = canvas(picture, label, state.status, position, total)
@@ -174,7 +209,13 @@ def play(source, ranges, *, log_path, interval_ms=50, fullscreen=False, capacity
                 cv2.moveWindow(TITLE, rect.left + (rect.right - rect.left - WIDTH) // 2, rect.top)
             display()
             record("display", packet_id=label, position=position, state=state.status)
-            pending = Frames(frames, capacity)
+            print(
+                f"QRFT2100 已就绪：DATA {selected_data} 包，默认50ms，"
+                f"生成进程 {effective_workers}，按 Space 开始/暂停，Esc 退出。",
+                flush=True,
+            )
+            # Keep compatibility with 2-arg test doubles when auto worker selection is used.
+            pending = Frames(frames, capacity) if workers is None else Frames(frames, capacity, workers)
             pending.fill()
             while True:
                 key = cv2.waitKey(5) & 255
@@ -185,6 +226,9 @@ def play(source, ranges, *, log_path, interval_ms=50, fullscreen=False, capacity
                     visible = False
                 if key == 27 or not visible:
                     record("exit", complete=state.status == "FINISHED", position=position)
+                    progress(force=True)
+                    if state.status != "FINISHED":
+                        print("播放提前结束；已显示进度如上。", flush=True)
                     return 0 if state.status == "FINISHED" else 130
                 if user:
                     down = bool(user.GetAsyncKeyState(32) & 0x8000)
@@ -200,12 +244,14 @@ def play(source, ranges, *, log_path, interval_ms=50, fullscreen=False, capacity
                     state.space(now)
                     display()
                     record("state", state=state.status, position=position)
+                    progress(force=True)
                 if not state.due(now):
                     continue
                 if not pending.queue:
                     state.status = "FINISHED"
                     display()
                     record("completed", position=position)
+                    progress(force=True)
                     print("播放完成；请先保存录屏，再按 Esc 关闭。", flush=True)
                     continue
                 packet_id, future = pending.queue[0]
@@ -225,7 +271,8 @@ def play(source, ranges, *, log_path, interval_ms=50, fullscreen=False, capacity
                 record("display", packet_id=label, position=position, state=state.status)
                 state.deadline = shown + state.interval
                 if packet_id not in (START_ID, FINISH_ID):
-                    print(f"DATA {packet_id:08d}；剩余帧 {total - position}", flush=True)
+                    shown_data += 1
+                    progress()
                 pending.fill()
         except cv2.error as exc:
             record("failed", error="OpenCV", position=position)

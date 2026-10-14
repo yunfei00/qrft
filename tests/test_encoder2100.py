@@ -16,7 +16,7 @@ from PIL import Image
 
 from qrft.encoder2100 import cli, encoder
 from qrft.encoder2100.encoder import Source, export, select
-from qrft.encoder2100.player import QR_SIZE, QR_X, QR_Y, Frames, KeyEdge, State, canvas
+from qrft.encoder2100.player import QR_SIZE, QR_X, QR_Y, Frames, KeyEdge, State, canvas, resolve_workers
 from qrft.encoder2100.protocol import FINISH_ID, START_ID, data_frame, inspect_frame
 from qrft.encoder2100.qr import image, png, qr_code
 
@@ -247,7 +247,8 @@ def test_cancel_hashing_before_any_export(tmp_path):
 
 
 @pytest.mark.parametrize("mode", ["escape", "window-close", "interrupt"])
-def test_player_early_exit_closes_owned_resources(tmp_path, monkeypatch, mode):
+@pytest.mark.parametrize("with_log", [False, True])
+def test_player_early_exit_closes_owned_resources(tmp_path, monkeypatch, mode, with_log):
     import cv2
 
     from qrft.encoder2100 import player
@@ -279,11 +280,13 @@ def test_player_early_exit_closes_owned_resources(tmp_path, monkeypatch, mode):
     monkeypatch.setattr(cv2, "waitKey", wait)
     monkeypatch.setattr(cv2, "getWindowProperty", lambda *args: 0 if mode == "window-close" else 1)
     monkeypatch.setattr(cv2, "destroyWindow", lambda *args: closed.append("window"))
+    options = {"log_path": tmp_path / "player.log"} if with_log else {}
     if mode == "interrupt":
         with pytest.raises(KeyboardInterrupt):
-            player.play(Source(path), [(0, 0)], log_path=tmp_path / "player.log")
+            player.play(Source(path), [(0, 0)], **options)
     else:
-        assert player.play(Source(path), [(0, 0)], log_path=tmp_path / "player.log") == 130
+        assert player.play(Source(path), [(0, 0)], **options) == 130
+    assert (tmp_path / "player.log").exists() is with_log
     assert closed == ["prefetch", "window"]
 
 
@@ -374,3 +377,86 @@ def test_real_cli_gate_export_and_help(tmp_path):
         [*command, "export", str(source), "--output", str(rejected)], inputs=("QSNFJ", "bad", "bad")
     )
     assert result.returncode == 1 and not rejected.exists()
+
+
+def test_worker_defaults_and_validation(monkeypatch):
+    from qrft.encoder2100 import player
+
+    monkeypatch.setattr(player.os, "cpu_count", lambda: 8)
+    assert resolve_workers(None) == 3
+    monkeypatch.setattr(player.os, "cpu_count", lambda: 2)
+    assert resolve_workers(None) == 2
+    monkeypatch.setattr(player.os, "cpu_count", lambda: None)
+    assert resolve_workers(None) == 1
+    assert resolve_workers(3) == 3
+    assert resolve_workers(6) == 6
+    with pytest.raises(ValueError, match="workers"):
+        resolve_workers(0)
+    with pytest.raises(ValueError, match="workers"):
+        resolve_workers(9)
+
+
+def test_cli_play_only_requires_source_and_overrides(monkeypatch, tmp_path):
+    from qrft.encoder2100 import player
+
+    path = tmp_path / "source.mp4"
+    path.write_bytes(bytes(range(256)) * 17)
+    calls = []
+
+    def fake_play(source, ranges, **kwargs):
+        calls.append((source, ranges, kwargs))
+        return 0
+
+    monkeypatch.setattr(cli, "authenticate", lambda: True)
+    monkeypatch.setattr(player, "play", fake_play)
+    assert cli.main(["play", str(path)]) == 0
+    source, ranges, options = calls.pop()
+    assert source.metadata.packets == 3
+    assert ranges == [(0, 2)]
+    assert options == {
+        "log_path": None,
+        "interval_ms": 50,
+        "fullscreen": False,
+        "capacity": 4,
+        "workers": None,
+    }
+    custom_log = tmp_path / "optional.jsonl"
+    assert (
+        cli.main(
+            [
+                "play", str(path), "--start-id", "1", "--end-id", "1",
+                "--interval-ms", "100", "--prefetch", "5", "--workers", "3",
+                "--fullscreen", "--log", str(custom_log),
+            ]
+        )
+        == 0
+    )
+    _, ranges, options = calls.pop()
+    assert ranges == [(1, 1)]
+    assert options == {
+        "log_path": custom_log,
+        "interval_ms": 100,
+        "fullscreen": True,
+        "capacity": 5,
+        "workers": 3,
+    }
+
+
+def test_worker_count_sent_to_real_pool(monkeypatch):
+    from qrft.encoder2100 import player
+
+    created = []
+
+    class FakeExecutor:
+        def __init__(self, max_workers):
+            created.append(max_workers)
+
+        def shutdown(self, **kwargs):
+            pass
+
+    monkeypatch.setattr(player, "ProcessPoolExecutor", FakeExecutor)
+    monkeypatch.setattr(player.os, "cpu_count", lambda: 8)
+    for workers in (None, 2):
+        frames = player.Frames(iter(()), 4, workers)
+        frames.close()
+    assert created == [3, 2]
