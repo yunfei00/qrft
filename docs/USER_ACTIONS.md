@@ -7,7 +7,7 @@
 播放二维码现在只有源文件路径必填：
 
 ```powershell
-uv run --no-sync python -m qrft.encoder2100.cli play "C:\Users\yunfei\Videos\屏幕录制\屏幕录制 2026-10-11 090440.mp4"
+uv run --no-sync python -m qrft.encoder2100.cli play "D:\Videos\example.mp4"
 ```
 
 默认采用 QRFT2100（沿用 v2 三段大写 HEX 帧格式但每包 2100 字节，**不兼容旧 v2 1400 字节解码器**）、50ms、从 DATA 0 到最后、CPU 自动选择最多 3 个二维码生成工作进程；**默认没有本地播放日志**，PowerShell 显示进度。只有明确指定 `--interval-ms`、`--workers`、`--start-id`、`--end-id`、`--missing`、`--prefetch`、`--fullscreen`、`--log` 时才使用自定义行为。每次启动交互式 CLI 仍需手动输入隐藏口令 `qsnfj` 回车。
