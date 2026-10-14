@@ -174,10 +174,23 @@
     "passed": 274,
     "failed": 0,
     "skipped": 0,
-    "seconds": 226.06,
+    "seconds": 221.01,
     "encoder2100_tests": 53,
     "existing_warning_count": 1,
     "ruff_format": "PASS",
-    "ruff_check": "PASS"
+    "ruff_check": "PASS",
+    "OPENBLAS_NUM_THREADS": 1,
+    "OMP_NUM_THREADS": 1
+  },
+  "intermediate_environment_failure": {
+    "passed": 272,
+    "failed": 2,
+    "new_encoder_failures": 0,
+    "old_failures": [
+      "dual-worker repair timeout",
+      "OpenBLAS memory allocation failure"
+    ],
+    "tests_changed": false,
+    "full_rerun_passed": 274
   }
 }

@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: windows-latest
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -44,3 +47,17 @@ jobs:
       - name: 控制中心 API 与 SQLite 测试
         run: |
           uv run --no-sync pytest -q tests/test_control_api.py tests/test_control_packets.py tests/test_worker.py tests/test_distributed_recovery.py
+      - name: QRFT2100 实际 PNG/MP4、权限拒绝与流式性能验收（不打包）
+        if: hashFiles('src/qrft/encoder2100/cli.py') != ''
+        run: uv run --no-sync python scripts/encoder2100_acceptance.py benchmark --root temp/encoder2100-ci
+      - name: 上传 QRFT2100 源码验收证据
+        if: always() && hashFiles('src/qrft/encoder2100/cli.py') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: QRFT2100-source-evidence
+          path: |
+            temp/encoder2100-ci/report.json
+            temp/encoder2100-ci/synthetic.mp4
+            temp/encoder2100-ci/benchmark-png/
+            temp/encoder2100-ci/retransmit/
+          if-no-files-found: warn

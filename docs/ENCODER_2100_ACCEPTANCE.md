@@ -23,6 +23,8 @@
 
 原生按键验收发现极短 Space 按键可能在 GetAsyncKeyState 轮询前松开；现在同时处理 waitKey 的短按事件和物理按下沿，长按不重复切换。修复前失败日志保留。
 
+CI 接入复跑中有一次 **272 passed / 2 failed**：旧双 Worker 补传等待 40 秒超时，旧纯编码进程报 `OpenBLAS error: Memory allocation still failed after 10 retries`。失败日志与工作区保留在 `temp/encoder2100-ci-fix-regression*`；旧双 Worker 测试不改代码单独复测 1 passed（6.64 秒）。为避免多进程回归时 BLAS 线程池过度分配，源码 CI/开发者测试命令增加仅对测试子进程生效的 OPENBLAS_NUM_THREADS=1、OMP_NUM_THREADS=1，不更改独立 Worker 数、用户全局环境、任何断言或旧业务代码。随后完整复测 **274 passed / 0 failed / 0 skipped，221.01 秒**，日志 `temp/encoder2100-bounded-regression.log`，不隐瞒中间失败。
+
 ## 原生播放器与 CLI
 
 - 真实交互式 ConPTY 中完成 CLI 隐藏输入、正确口令、大小写错误、三次拒绝、帮助/未知参数拒绝；非交互管道拒绝，不执行写入。
@@ -61,9 +63,9 @@
 权限测试在本轮新建目录上设置当前 SID 写拒绝，再经真实 CLI 验证返回 2、没有输出，finally 恢复该测试目录 ACL；不调整用户目录或系统设置。
 磁盘不足用故障注入模拟 OS 余量为零，未填满磁盘；权限异常另有故障注入回归。不存在/错误路径、已存在输出拒绝、已有用户文件保留、导出取消保留日志且不产出完整清单、编码期间源文件改变、重复编码一致均覆盖。
 
-最终本地全量回归 **274 passed / 0 failed / 0 skipped**，226.06 秒；其中独立编码器 **53 项**（单独执行 73.77 秒），另有既有 Starlette/httpx 弃用警告 1 条。Ruff 格式检查（129 个文件）、静态检查、git diff --check 均通过，没有删除或跳过既有测试。
-Commit 可在 [本开发分支](https://github.com/yunfei00/qrft/tree/feature/encoder-cli-2100) 查看；推送后的精确提交 CI 结果见 [QRFT2100 Source Acceptance](https://github.com/yunfei00/qrft/actions/workflows/encoder2100.yml?query=branch%3Afeature%2Fencoder-cli-2100)，本地实测与 CI 机器性能分别报告，不将两台机器的数字混用。
-可复现命令见 [使用手册](ENCODER_2100_USER_GUIDE.md) 第 6 节；CI 工作流 `encoder2100.yml` 只跑源码、全量回归及真实 PNG/MP4/流式验收，上传证据，不打包。
+最终本地全量回归 **274 passed / 0 failed / 0 skipped**，221.01 秒（早一轮 226.06 秒亦全通过）；其中独立编码器 **53 项**（单独执行 73.77 秒），另有既有 Starlette/httpx 弃用警告 1 条。Ruff 格式检查（129 个文件）、静态检查、git diff --check 均通过，没有删除或跳过既有测试。
+Commit 可在 [本开发分支](https://github.com/yunfei00/qrft/tree/feature/encoder-cli-2100) 查看；推送后的精确提交 CI 结果见 [Windows Python CI](https://github.com/yunfei00/qrft/actions/workflows/ci.yml?query=branch%3Afeature%2Fencoder-cli-2100)，本地实测与 CI 机器性能分别报告，不将两台机器的数字混用。
+可复现命令见 [使用手册](ENCODER_2100_USER_GUIDE.md) 第 6 节；使用已有 `ci.yml`，在现有全量源码回归之外新增 QRFT2100 实际 PNG/MP4/流式验收及证据上传，不打包。新文件工作流在默认分支尚未注册时不能 workflow_dispatch，因此不依赖新工作流或提前合并 main。
 旧 PR 的 EXE 工作流不适用于本轮，所以提交使用 `[skip ci]`，随后显式 dispatch 源码验收工作流；源码门禁仍必须完整通过。
 
 机器可读指标：[ENCODER_2100_METRICS.json](ENCODER_2100_METRICS.json)，包含源码 SHA256、识别结果和实际帧间隔。

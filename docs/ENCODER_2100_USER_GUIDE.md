@@ -24,7 +24,7 @@ git pull --ff-only origin feature/encoder-cli-2100
 if ($LASTEXITCODE -ne 0) { throw '同步失败；不要强制覆盖' }
 uv python install 3.12
 if ($LASTEXITCODE -ne 0) { throw 'Python 安装失败' }
-uv sync --locked --python 3.12 --extra encoder
+uv sync --locked --python 3.12 --no-dev --extra encoder
 if ($LASTEXITCODE -ne 0) { throw '依赖安装失败' }
 $work = Join-Path $repo ('temp\encoder2100-user-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $work | Out-Null
@@ -46,7 +46,7 @@ uv run --no-sync python -m qrft.encoder2100.cli info "$source"
 ```
 
 程序启动后静默等待，**手动输入小写 `qsnfj` 并按 Enter**；字符及星号不可见，没有提示文字是正常状态。
-大小写敏感、最多三次，错误后非零退出。不支持 -h/--help，无交互终端、输入管道和重定向均拒绝；不可用环境变量或参数绕过。
+大小写敏感、最多三次，错误后非零退出。不支持 -h/--help，无交互终端、标准输入管道或输入重定向均拒绝；不可用环境变量或参数绕过。
 这是本地操作限制，不是软件授权、防逆向或安全认证。不要把输入写入日志。
 预期：显示原始文件名、大小、整体 MD5、预计 DATA 数；空文件为 0。
 文件不存在、目录代替文件、START 文件名过长或编码期间源文件改变均报错，不能继续报告成功。
@@ -116,6 +116,7 @@ uv run --no-sync python -m qrft.encoder2100.cli play "$source" --missing "$missi
 ## 6. 开发者自动验证与故障处理
 
 不需要用户重跑 Codex 已完成的自动验收。需要复现时在源码目录执行：
+本节安装所有 extras 是为了运行仓库既有回归；这些旧系统依赖不是独立编码器的运行要求，第 1 节即可运行编码器。
 
 ```powershell
 Set-Location $repo
@@ -124,12 +125,24 @@ if ($LASTEXITCODE -ne 0) { throw '测试依赖同步失败' }
 uv run --no-sync ruff format --check .
 uv run --no-sync ruff check .
 $testTemp = Join-Path $work 'pytest'
-uv run --no-sync pytest -q --basetemp "$testTemp"
-$evidence = Join-Path $work 'benchmark'
-uv run --no-sync python scripts/encoder2100_acceptance.py benchmark --root "$evidence"
+$previousBlas = $env:OPENBLAS_NUM_THREADS
+$previousOmp = $env:OMP_NUM_THREADS
+try {
+    $env:OPENBLAS_NUM_THREADS = '1'
+    $env:OMP_NUM_THREADS = '1'
+    uv run --no-sync pytest -q --basetemp "$testTemp"
+    if ($LASTEXITCODE -ne 0) { throw '全量测试失败，请保留日志排查' }
+    $evidence = Join-Path $work 'benchmark'
+    uv run --no-sync python scripts/encoder2100_acceptance.py benchmark --root "$evidence"
+    if ($LASTEXITCODE -ne 0) { throw '编码器独立验收失败' }
+} finally {
+    $env:OPENBLAS_NUM_THREADS = $previousBlas
+    $env:OMP_NUM_THREADS = $previousOmp
+}
 ```
 
 benchmark 创建独立目录及约 1 GiB 流式测试文件，含 PNG/合成 MP4/JSON；先保证至少 3 GiB 空闲空间，不自动删除证据。
+线程上限只用于本次测试及其子进程，finally 恢复当前终端原值，不修改系统设置，也不减少独立 Worker 进程数量；用于避免多进程回归时 BLAS 线程池过度分配。
 测试辅助脚本没有口令，直接调用编码核心做验收，不是普通用户 CLI，也不是正式解码入口。
 详细结果与自动/物理边界见 [ENCODER_2100_ACCEPTANCE.md](ENCODER_2100_ACCEPTANCE.md)。
 失败时保留终端报错、operations.jsonl、playback.jsonl、report.json；容量错误不截断名称、不降块，源文件改变则重新检查/导出到新目录。
