@@ -8,7 +8,7 @@
 
 ```powershell
 Set-Location 'D:\code_2026\qrft'
-uv run --no-sync python -m qrft.encoder2100.cli play "C:\Users\yunfei\Videos\屏幕录制\屏幕录制 2026-10-11 090440.mp4"
+uv run --no-sync python -m qrft.encoder2100.cli play "D:\Videos\example.mp4"
 ```
 
 **这条命令只有源文件路径是必须的。** 这里的 MP4 是作为**普通二进制文件进行二维码编码**，不是对 MP4 进行解码。启动后 CLI 静默等待，请手动输入 `qsnfj` 回车（输入不回显）；随后出现固定窗口，首张 START 静止等待。点击播放器窗口按 Space 开始/暂停/恢复，播放完保存录屏后按 Esc 退出。
