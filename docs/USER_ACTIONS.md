@@ -1,5 +1,14 @@
 # QRFT 用户操作手册（唯一操作入口）
 
+## UA-012：QRFT2100 P1 独立命令行编码器
+
+本次新编码器唯一详细入口：[ENCODER_2100_USER_GUIDE.md](ENCODER_2100_USER_GUIDE.md) 第 1～5 节。
+分支 `feature/encoder-cli-2100`，Python 3.12 + uv 源码运行；固定 2100 字节、40-L、字母数字模式、925×925，不提供 GUI、EXE 或新解码器，不兼容旧 1400 协议。
+CLI 手动隐藏校验、文件检查、PNG、普通/范围/缺包播放、日志和失败处理均按该手册，不沿用下方历史 v2 命令。
+自动验收证据见 [ENCODER_2100_ACCEPTANCE.md](ENCODER_2100_ACCEPTANCE.md)，无需重复自动测试。
+真实屏幕录制/不同显示器 DPI、物理录制设备识别率仍待设备验证；若需要现场验证，按第 4 节记录显示器/DPI、录制工具及 FPS、录屏 MP4、播放日志，不把合成 MP4 当成真实录屏。
+下方 UA-001～011 保留旧系统历史记录和操作入口，不受本次独立 P1 修改影响。
+
 ## P10 自动验收结果索引（无需用户重复操作）
 
 本轮软件核心门禁已通过，实测规模、1/2/4 Worker 对比、10/30 分钟原生 GUI、故障恢复、限制及开发者复现命令见 [P10_STABILITY_PERFORMANCE_RESULTS.md](P10_STABILITY_PERFORMANCE_RESULTS.md)。已有 P8/P9 真人验收继续有效，不要求重做。真实第二台 Windows/SMB/物理断网仍按 UA-006 与 [解码手册第 7 节](DECODER_USER_GUIDE.md) 单独执行；本机多进程不计真实双机。P11 本轮仅给候选版建议，不执行打包或发布。
