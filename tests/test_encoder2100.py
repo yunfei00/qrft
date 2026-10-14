@@ -17,10 +17,10 @@ from PIL import Image
 from qrft.encoder2100 import cli, encoder
 from qrft.encoder2100.encoder import Source, export, select
 from qrft.encoder2100.player import (
-    ConsoleProgress,
     QR_SIZE,
     QR_X,
     QR_Y,
+    ConsoleProgress,
     Frames,
     KeyEdge,
     State,
