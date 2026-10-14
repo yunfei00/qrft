@@ -97,9 +97,7 @@ def large_source(root):
         source = Source(path)
         hashed = time.perf_counter() - started
         amount = 0
-        for packet_id, text in source.frames(
-            select(source.metadata.packets), repeat_controls=False
-        ):
+        for packet_id, text in source.frames(select(source.metadata.packets)):
             if packet_id < 88888888:
                 amount += len(bytes.fromhex(text[:-48]))
         assert amount == 1024**3
@@ -197,7 +195,7 @@ def benchmark(root):
             "zxing_attempts": 100,
             **monitor.summary(),
         }
-        # Actual MP4: first 4 full blocks + short tail, standard 20+5+20 sequence.
+        # Actual MP4: first 4 full blocks + short tail, standard 1+5+1 sequence.
         video_source = root / "video-original.bin"
         original = payload[: CHUNK_SIZE * 4 + 11]
         video_source.write_bytes(original)
@@ -285,6 +283,7 @@ def main():
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--missing", type=Path)
     parser.add_argument("--fullscreen", action="store_true")
+    parser.add_argument("--source", type=Path)
     args = parser.parse_args()
     if args.mode == "benchmark":
         benchmark(args.root)
@@ -298,7 +297,7 @@ def main():
             "-m",
             "qrft.encoder2100.cli",
             "play",
-            str(args.root / "中文,MiX.bin"),
+            str(args.source or args.root / "中文,MiX.bin"),
             "--log",
             str(args.root / "native-player.jsonl"),
         ]
@@ -317,7 +316,7 @@ def main():
             for line in (args.root / "native-player.jsonl").read_text().splitlines()
         ]
         display = [x for x in events if x["event"] == "display"]
-        source = Source(args.root / "中文,MiX.bin")
+        source = Source(args.source or args.root / "中文,MiX.bin")
         selected = select(source.metadata.packets, missing=args.missing)
         expected_ids = [number for number, _ in source.frames(selected)]
         assert [e["packet_id"] for e in display] == expected_ids

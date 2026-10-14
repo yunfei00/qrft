@@ -193,6 +193,8 @@ def windows_desktop(fullscreen):
 def play(
     source, ranges, *, log_path=None, interval_ms=50, fullscreen=False, capacity=4, workers=None
 ):
+    if log_path is not None:
+        source.check_output(log_path)
     import cv2
 
     if not 1 <= interval_ms <= 60000 or not 1 <= capacity <= 16:
@@ -202,7 +204,7 @@ def play(
     label, text = next(frames)
     picture = render(text)  # START preflight before opening a window or writing logs.
     user, rect = windows_desktop(fullscreen)
-    total = 40 + sum(b - a + 1 for a, b in ranges)
+    total = 2 + sum(b - a + 1 for a, b in ranges)
     state, position = State(interval_ms / 1000), 1
     latch = KeyEdge()
     opened = False

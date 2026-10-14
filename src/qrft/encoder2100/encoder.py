@@ -8,6 +8,7 @@ import shutil
 from dataclasses import asdict
 from pathlib import Path
 
+from .archive import DEFAULT_MAX_ARCHIVE_MIB, MemoryReader, build_archive, reject_link
 from .protocol import CHUNK_SIZE, FINISH_ID, START_ID, Metadata, data_frame, frame
 
 
@@ -17,9 +18,42 @@ def check_cancel(cancelled):
 
 
 class Source:
-    def __init__(self, path: Path, cancelled=None):
+    def __init__(
+        self,
+        path: Path,
+        cancelled=None,
+        *,
+        max_archive_mib=DEFAULT_MAX_ARCHIVE_MIB,
+        expected_archive_md5=None,
+    ):
         self.path = Path(path)
         self.cancelled = cancelled
+        self._archive = None
+        self.archive_details = None
+        self.expected_archive_md5 = expected_archive_md5
+        reject_link(self.path, self.path.lstat())
+        if self.path.is_dir():
+            self._archive, self.archive_details = build_archive(
+                self.path, max_mib=max_archive_mib, cancelled=cancelled
+            )
+            details = self.archive_details
+            self.metadata = Metadata(
+                (self.path.resolve().name or "folder") + ".zip",
+                details["zip_size"],
+                details["archive_zip_md5"],
+                (details["zip_size"] + CHUNK_SIZE - 1) // CHUNK_SIZE,
+            )
+            if expected_archive_md5 is not None:
+                import re
+
+                if not re.fullmatch(r"[0-9A-Fa-f]{32}", expected_archive_md5) or (
+                    expected_archive_md5.upper() != self.metadata.md5
+                ):
+                    self.close()
+                    raise ValueError("Archive ZIP MD5 mismatch; retransmission refused")
+            return
+        if expected_archive_md5 is not None:
+            raise ValueError("expected-archive-md5 is only valid for folder inputs")
         before = self.path.stat()
         if not self.path.is_file():
             raise ValueError("输入必须为普通文件")
@@ -41,17 +75,40 @@ class Source:
         )
 
     def check(self):
+        if self.archive_details is not None:
+            if self._archive.closed:
+                raise ValueError("Archive source is closed")
+            return  # The completed RAM snapshot is immutable; no live folder reads.
         state = self.path.stat()
         if (state.st_size, state.st_mtime_ns, state.st_ino) != self.signature:
             raise ValueError("源文件在编码期间改变；请保留原文件重新编码")
 
-    def frames(self, ranges, *, repeat_controls=True):
+    def open_stream(self):
+        return MemoryReader(self._archive) if self._archive is not None else self.path.open("rb")
+
+    def describe(self):
+        return {
+            **asdict(self.metadata),
+            **(self.archive_details or {}),
+            "input_kind": "folder" if self._archive is not None else "file",
+        }
+
+    def close(self):
+        if self._archive is not None:
+            self._archive.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()
+
+    def frames(self, ranges):
         check_cancel(self.cancelled)
         self.check()
-        for _ in range(20 if repeat_controls else 1):
-            check_cancel(self.cancelled)
-            yield START_ID, self.metadata.start()
-        with self.path.open("rb") as stream:
+        self.validate_selection(ranges)
+        yield START_ID, self.metadata.start()
+        with self.open_stream() as stream:
             for first, last in ranges:
                 stream.seek(first * CHUNK_SIZE)
                 for packet_id in range(first, last + 1):
@@ -63,9 +120,24 @@ class Source:
                         raise ValueError("源文件读取不完整")
                     yield packet_id, data_frame(data, packet_id)
         self.check()
-        for _ in range(20 if repeat_controls else 1):
-            check_cancel(self.cancelled)
-            yield FINISH_ID, frame(b"finish", FINISH_ID)
+        check_cancel(self.cancelled)
+        yield FINISH_ID, frame(b"finish", FINISH_ID)
+
+    def validate_selection(self, ranges):
+        if self.archive_details is not None and self.expected_archive_md5 is None:
+            full = (
+                len(ranges) == 1 and ranges[0][0] == 0 and ranges[0][1] == self.metadata.packets - 1
+            )
+            if not full:
+                raise ValueError("Folder partial selection requires original Archive ZIP MD5")
+
+    def check_output(self, path):
+        if self.archive_details is not None and Path(path).resolve().is_relative_to(
+            self.path.resolve()
+        ):
+            raise ValueError(
+                "Output must be outside the input folder; source directory is read-only"
+            )
 
 
 def select(packets: int, start=0, end=None, missing: Path | None = None):
@@ -108,6 +180,8 @@ def select(packets: int, start=0, end=None, missing: Path | None = None):
 def export(source: Source, output: Path, ranges):
     from .qr import png
 
+    source.validate_selection(ranges)
+    source.check_output(output)
     # Preflight before creating any export resources, including START overflow.
     start_png = png(source.metadata.start())
     finish_png = png(frame(b"finish", FINISH_ID))
@@ -121,7 +195,7 @@ def export(source: Source, output: Path, ranges):
 
         record(state="started", protocol="QRFT2100", metadata=asdict(source.metadata))
         try:
-            for packet_id, text in source.frames(ranges, repeat_controls=False):
+            for packet_id, text in source.frames(ranges):
                 check_cancel(source.cancelled)
                 image = (
                     start_png
@@ -141,12 +215,12 @@ def export(source: Source, output: Path, ranges):
             source.check()
             result = {
                 "protocol": "QRFT2100",
-                **asdict(source.metadata),
+                **source.describe(),
                 "chunk_size": CHUNK_SIZE,
                 "ranges": ranges,
                 "selected_packets": sum(b - a + 1 for a, b in ranges),
                 "png_count": written,
-                "control_repeats": 20,
+                "control_repeats": 1,
                 "complete": True,
             }
             with (output / "manifest.json").open("x", encoding="utf-8") as stream:

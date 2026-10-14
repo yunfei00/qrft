@@ -2,16 +2,18 @@
 
 > **从第 0 节开始即可。** 开发分支：`feature/encoder-cli-2100`。源码运行，不需要 GUI、Control、Worker 或解码器。验收索引：[UA-012](USER_ACTIONS.md)。编码采用 **QRFT2100：2100 字节/包、v2 风格的三段大写 HEX、QR Version40-L**；与旧 v2 固定 1400 字节的解码器**不兼容**。协议见 [ENCODER_2100_PROTOCOL.md](ENCODER_2100_PROTOCOL.md)。
 
-## 0. 最简单的使用方法：只填文件路径
+## 0. 最简单的使用方法：只填文件或文件夹路径
 
 在已同步到本分支、安装了编码器依赖的 PowerShell 中执行：
 
 ```powershell
 Set-Location 'D:\code_2026\qrft'
 uv run --no-sync python -m qrft.encoder2100.cli play "D:\Videos\example.mp4"
+# 文件夹自动在 RAM 打包；不需要 --zip 或 --folder
+uv run --no-sync python -m qrft.encoder2100.cli play "D:\ExampleFolder"
 ```
 
-**这条命令只有源文件路径是必须的。** 这里的 MP4 是作为**普通二进制文件进行二维码编码**，不是对 MP4 进行解码。启动后 CLI 静默等待，请手动输入 `qsnfj` 回车（输入不回显）；随后出现固定窗口，首张 START 静止等待。点击播放器窗口按 Space 开始/暂停/恢复，播放完保存录屏后按 Esc 退出。
+**这条命令只有源路径是必须的，可以是文件或目录。** 这里的 MP4 是作为**普通二进制文件进行二维码编码**，不是对 MP4 进行解码；目录自动打包为内存 ZIP，详见第 7 节。启动后 CLI 静默等待，请手动输入 `qsnfj` 回车（输入不回显）；随后出现固定窗口，首张 START 静止等待。点击播放器窗口按 Space 开始/暂停/恢复，播放完保存录屏后按 Esc 退出。
 
 默认参数：QRFT2100（2100 字节/包、全大写 HEX、v2 风格帧）、**50ms**、全部 DATA（0 到最后）、窗口模式、预缓存 4、根据 CPU 自动启动**最多 3 个二维码生成工作进程**。PowerShell **只用一行英文进度每约 5 秒原地刷新**，默认不生成本地播放日志，不需要 `--log`。例如：`[23:16:05] DATA 2645/30605 (8.6%) | elapsed 00:03:12`。完成显示 `DONE`，提前退出显示 `STOPPED`；暂停、二维码生成缓冲期间没有额外的中文提示。二维码生成时间可能超过 50ms，因此实际播放间隔可能更长；不会跳过数据包。
 
@@ -30,7 +32,9 @@ uv run --no-sync python -m qrft.encoder2100.cli play "源文件"
 
 | 参数 | 用在哪个命令 | 是否必填 | 默认与说明 |
 |---|---|---|---|
-| 源文件路径 | `info / export / play` | **是** | 支持任意文件格式，中文或空格请加引号 |
+| 源路径 | `info / export / play` | **是** | 支持普通文件或文件夹，中文或空格请加引号；目录自动 RAM ZIP |
+| `--max-archive-mib` | `info / export / play` | 否 | 默认 128，允许 4～4096；目录 RAM 预算含清单与余量，太小会安全拒绝；无磁盘回退 |
+| `--expected-archive-md5` | `info / export / play` | 目录补传必填 | 原任务实际 ZIP MD5；目录选范围/缺包必须提供，错误则拒绝；普通文件不使用此参数 |
 | `--output` | `export` | **是** | 新 PNG 目录，必须不存在，以免覆盖 |
 | `--start-id` | `export / play` | 否 | 默认 0，按 DATA 包编号选择 |
 | `--end-id` | `export / play` | 否 | 默认最后一包，闭区间（包含该编号） |
@@ -123,7 +127,7 @@ if ($manifest.md5 -ne (Get-FileHash -LiteralPath $source -Algorithm MD5).Hash) {
 uv run --no-sync python -m qrft.encoder2100.cli play "$source"
 ```
 
-预期：先手动输入口令，首张 START 等待 Space；完成共 **43 帧**（START 20 + DATA 3 + FINISH 20），终端每约 5 秒刷新一行 DATA 数字进度，完成显示 DONE（无需中文缓冲提示）；按 Esc 后退出码 0。中途按 Esc 返回 130，**不代表已有屏幕录像文件丢失**。
+预期：先手动输入口令，首张 START 等待 Space；完成共 **5 帧**（START 1 + DATA 3 + FINISH 1），终端每约 5 秒刷新一行 DATA 数字进度，完成显示 DONE（无需中文缓冲提示）；FINISH 保留显示，按 Esc 后退出码 0。中途按 Esc 返回 130，**不代表已有屏幕录像文件丢失**。
 
 第四项：缺包范围（补传）
 
@@ -144,6 +148,7 @@ if ($report.selected_packets -ne 2 -or $report.png_count -ne 4) { throw '补传�
 
 - 播放器默认固定窗口，QR 白色区域大小 925×925，位置不随二维码帧变化；状态文字在区域外。
 - 首帧静止等待 Space；Space 开始/暂停/恢复，Esc 退出；播放完成后最后一帧保留，先保存录屏再 Esc。
+- START/FINISH 各一次，DATA 每包一次，总帧数为 N+2；空文件也有 START 和 FINISH，目录的空 ZIP 仍有自身字节和 DATA。
 - 如果用 Windows 11 截图工具，框选**完整白色区域，包括静区**，不要裁掉边缘。默认 50ms 只是目标，二维码生成/调度可能使间隔延长。
 - PowerShell 只显示英文数字进度：`[HH:MM:SS] DATA 已播放/总包数 (百分比) | elapsed HH:MM:SS`。启动后按 Space 才开始计时，每约 5 秒在**同一行**刷新；完成、提前退出、出错分别以 `DONE`、`STOPPED`、`ERROR` 结束并换行。暂停时包数不变，缓冲时没有额外提示。
 - 默认**不生成本地播放日志**；只有指定 `--log` 才创建供排障使用的 JSONL（可保存详细缓冲事件）。
@@ -167,6 +172,8 @@ if ($report.selected_packets -ne 2 -or $report.png_count -ne 4) { throw '补传�
 
 ## 6. 开发者测试与历史证据
 
+本轮文件夹内存 ZIP、稳定内容指纹、单次控制帧的最新验收和可复制命令见 [ENCODER_2100_FOLDER_TESTS.md](ENCODER_2100_FOLDER_TESTS.md)。以下 45 帧等数字属于此前控制帧各 20 次的历史证据，不适用于当前 N+2 序列。
+
 编码器之前的 2100 字节 PNG/ZXing、45 帧合成 MP4、50ms 实际时序及历史 274 项回归结果见 [ENCODER_2100_ACCEPTANCE.md](ENCODER_2100_ACCEPTANCE.md) 与 [ENCODER_2100_METRICS.json](ENCODER_2100_METRICS.json)。**历史结果不能冒充这次 CLI 修改后的重新验证**。
 
 要复测当前改动的关键用例（需先安装测试依赖）：
@@ -176,9 +183,28 @@ Set-Location 'D:\code_2026\qrft'
 uv sync --locked --python 3.12 --all-extras --group dev
 uv run --no-sync ruff format --check .
 uv run --no-sync ruff check .
-uv run --no-sync pytest -q tests/test_encoder2100.py
+uv run --no-sync pytest -q tests/test_encoder2100.py tests/test_encoder2100_folder.py
 ```
 
 完整全量 pytest 和真实原生 Windows 播放器验收仍以当前提交对应的 CI 和 Windows 原生实测为准；CI 若没有触发或未通过，必须在验收记录中如实保留，不得借用旧提交结果。
 
 **反馈方式：** 直接提供命令、屏幕中最后错误信息以及本次 PowerShell 输出；口令不要包含在终端记录中。
+
+## 7. 文件夹内存 ZIP 与稳定内容 MD5
+
+`info`、`play`、`export` 自动识别目录，无需额外模式开关。以下命令在交互式 PowerShell 中运行，手动输入口令；将示例目录换成实际目录：
+
+```powershell
+Set-Location 'D:\code_2026\qrft'
+$folder = 'D:\ExampleFolder'
+uv run --no-sync python -m qrft.encoder2100.cli info "$folder"
+uv run --no-sync python -m qrft.encoder2100.cli play "$folder"
+```
+
+目录作为 `<folder>.zip` 传输：ZIP 全程保存在 RAM，原文件分块读取，不创建任何磁盘临时 ZIP。默认打包预算 128 MiB，可用 `--max-archive-mib` 显式设置 4～4096；超限直接报错，无磁盘回退。该预算包含 ZIP 和目录清单余量，不代表整个 Python/二维码进程树的内存上限。
+
+`info` 同时显示文件数、子目录数、原始字节数、ZIP 大小、DATA 包数、内存估算及两种摘要：**Folder Content MD5** 标识稳定的相对路径/目录结构/文件内容；**Archive ZIP MD5** 校验实际发送字节，START 始终使用后者。修改时间或搬迁父目录不改变逻辑摘要；压缩库版本变化可能改变 ZIP 字节。因此目录选择性补传必须指定原任务 `--expected-archive-md5`，ZIP MD5 不同即拒绝，不能只凭 Folder MD5 混包。
+
+所有输出目录及显式日志路径必须位于源目录之外。符号链接、Junction、循环目录及检测到的打包中增删改均拒绝；请保持源目录静止，当前检查不等同于 VSS 原子快照。
+
+完整可复制的建样本、查看双摘要、时间戳不变性、PNG、缺包补传和内存限制操作见 [文件夹内存 ZIP 与稳定 MD5 测试说明](ENCODER_2100_FOLDER_TESTS.md)。本轮实际结果见 [验收记录](ENCODER_2100_ACCEPTANCE.md)；无需重复已完成的自动测试。

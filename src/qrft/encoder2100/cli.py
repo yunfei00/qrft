@@ -8,7 +8,6 @@ import hmac
 import json
 import sys
 import warnings
-from dataclasses import asdict
 from pathlib import Path
 
 
@@ -51,6 +50,8 @@ def main(argv=None):
     for command in ("info", "export", "play"):
         sub = commands.add_parser(command)
         sub.add_argument("source", type=Path)
+        sub.add_argument("--max-archive-mib", type=int, default=128)
+        sub.add_argument("--expected-archive-md5")
         if command != "info":
             sub.add_argument("--start-id", type=int, default=0)
             sub.add_argument("--end-id", type=int)
@@ -65,18 +66,37 @@ def main(argv=None):
                 "--workers", type=int, help="二维码生成工作进程数（默认自动，最多3个）"
             )
             sub.add_argument("--log", type=Path, help="可选：显式启用本地诊断日志；默认不写入")
+    source = None
     try:
         args = parser.parse_args(arguments)
         from .encoder import Source, export, select
 
-        source = Source(args.source)
+        source = Source(
+            args.source,
+            max_archive_mib=args.max_archive_mib,
+            expected_archive_md5=args.expected_archive_md5,
+        )
         if args.command == "info":
             from .qr import qr_code
 
             qr_code(source.metadata.start())
-            print(json.dumps(asdict(source.metadata), ensure_ascii=False, indent=2))
+            print(json.dumps(source.describe(), ensure_ascii=False, indent=2))
             return 0
         ranges = select(source.metadata.packets, args.start_id, args.end_id, args.missing)
+        if (
+            source.archive_details is not None
+            and args.expected_archive_md5 is None
+            and (args.missing is not None or args.start_id != 0 or args.end_id is not None)
+        ):
+            raise ValueError(
+                "Folder retransmission requires --expected-archive-md5 from original task"
+            )
+        if source.archive_details is not None:
+            print(f"Folder Content MD5: {source.archive_details['folder_content_md5']}")
+            print(f"Archive ZIP MD5: {source.metadata.md5}")
+            print(
+                f"ZIP Size: {source.metadata.size} bytes | DATA Packets: {source.metadata.packets}"
+            )
         if args.command == "export":
             result = export(source, args.output, ranges)
             print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -96,9 +116,18 @@ def main(argv=None):
     except (KeyboardInterrupt, InterruptedError):
         print("操作已取消，保留本次输出。", file=sys.stderr)
         return 130
+    except MemoryError:
+        print(
+            "RAM allocation failed; reduce archive size or memory budget. No disk fallback.",
+            file=sys.stderr,
+        )
+        return 2
     except (ValueError, OSError, RuntimeError) as exc:
         print(f"操作失败：{exc}", file=sys.stderr)
         return 2
+    finally:
+        if source is not None:
+            source.close()
 
 
 if __name__ == "__main__":

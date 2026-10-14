@@ -1,0 +1,176 @@
+{
+  "status": "PASS",
+  "screen_recording": false,
+  "folder": {
+    "name": "Input 中文.zip",
+    "size": 5991,
+    "md5": "091CBC0DA2451228DC0639285BC6E72F",
+    "packets": 3,
+    "format": "QRFT2100-FOLDER-1",
+    "folder_content_md5": "5EB77EABFC97A9AD463F887DE488B43B",
+    "folder_content_sha256": "51EC5522628B3783B04B2801C031EFFF68068CF1483CBDB40F109DA75CD68B2A",
+    "archive_zip_md5": "091CBC0DA2451228DC0639285BC6E72F",
+    "archive_zip_sha256": "3C165759597FEA5188BC03F4419439A725C204AB2514D3EA0C2386C17B421F1E",
+    "zip_size": 5991,
+    "archive_buffer_allocated_bytes": 6289,
+    "original_file_bytes": 5515,
+    "memory_limit_bytes": 134217728,
+    "memory_budget_bytes": 2171409,
+    "file_count": 3,
+    "directory_count": 2,
+    "python_version": "3.12.13",
+    "zlib_version": "1.3.1",
+    "zlib_runtime_version": "1.3.1",
+    "compression_level": 6,
+    "input_kind": "folder"
+  },
+  "packaging_seconds": 0.011113099986687303,
+  "rss": {
+    "rss_peak_bytes": 43798528,
+    "cpu_peak_percent": 0.0,
+    "cpu_average_percent": 0,
+    "sample_count": 1
+  },
+  "repeated_zip_byte_exact": true,
+  "png_recognized": 5,
+  "mp4_recognized": 5,
+  "control_counts": {
+    "START": 1,
+    "FINISH": 1
+  },
+  "memory_unzip_verified": true,
+  "retransmission_byte_exact": true,
+  "temporary_archive_files": 0,
+  "streaming_40_mib": {
+    "name": "Streaming.zip",
+    "size": 8424174,
+    "md5": "59EC6CDEE37FA08F5B81C0D98BA552E8",
+    "packets": 4012,
+    "format": "QRFT2100-FOLDER-1",
+    "folder_content_md5": "7D979EFBCE40087D379D34D8441BF8D7",
+    "folder_content_sha256": "BB08D6D22AD540AE5EA62EE7FCF907A3C89633C05AA13039C566331FE581D8DD",
+    "archive_zip_md5": "59EC6CDEE37FA08F5B81C0D98BA552E8",
+    "archive_zip_sha256": "39C2BB060E1590305B8E48E9CEB43B448146CCD41714BCDB471C1ECB6DB97634",
+    "zip_size": 8424174,
+    "archive_buffer_allocated_bytes": 8983321,
+    "original_file_bytes": 41943040,
+    "memory_limit_bytes": 134217728,
+    "memory_budget_bytes": 12652250,
+    "file_count": 2,
+    "directory_count": 0,
+    "python_version": "3.12.13",
+    "zlib_version": "1.3.1",
+    "zlib_runtime_version": "1.3.1",
+    "compression_level": 6,
+    "input_kind": "folder",
+    "seconds": 0.6942283000098541,
+    "rss": {
+      "rss_peak_bytes": 35782656,
+      "cpu_peak_percent": 151.2,
+      "cpu_average_percent": 97.31,
+      "sample_count": 21
+    }
+  },
+  "memory_limit_rejection": "PASS",
+  "native_player": {
+    "displayed_frames": 5,
+    "completed": true,
+    "state_changes": [
+      {
+        "event": "state",
+        "time": 643273.779768,
+        "state": "PLAYING",
+        "position": 1
+      }
+    ],
+    "interval_seconds_min": 0.06377240002620965,
+    "interval_seconds_median": 0.07391999999526888,
+    "interval_seconds_max": 0.08052940003108233,
+    "buffering_events": 0,
+    "active_interval_seconds_min": 0.06377240002620965,
+    "active_interval_seconds_median": 0.07391999999526888,
+    "active_interval_seconds_p95": 0.07391999999526888,
+    "active_interval_seconds_max": 0.08052940003108233,
+    "active_interval_jitter_stdev_seconds": 0.006891661653595635,
+    "note": "includes measured pause if present; synthetic content/native OpenCV, not screen recorder throughput",
+    "initial_wait_and_finish_hold": "PASS: native Windows Computer Use, screenshots and explicit diagnostic log"
+  },
+  "source_sha256": {
+    "__init__.py": "39001de6de8922dd120113ea4ffb14ff734e302109ac17d80269eeea0d6308b4",
+    "archive.py": "4be8edcf38f037958ffdf70b6d3267002bc3f2a590fcfd6a1e6cfba27109c858",
+    "cli.py": "370add2cb755434303dc1d0db9e698d72673436884054152103569958eddecfc",
+    "codewords.py": "242f636bdf10a89b5b6f3d780073e6e63f4d2abb6f9e46f672cdcd6ad93ec3aa",
+    "encoder.py": "fca27f50a53a4b6892d9f7b07f3fa25ba3c72f6f239f3afde8b0b8a08f476ee8",
+    "player.py": "2ffd143cf77b43cb77e04d2543b2e752185f359d847266778b91fba8c532f062",
+    "protocol.py": "0f8f7543a3616b2b7f3deed6d457af3e5ddabf2ed4372b8eac4a51de96d26f0d",
+    "qr.py": "7b4567daa066b013a33e9a765f20e80530246b1468378c2f8bb4647224b0ace8"
+  },
+  "baseline_commit": "e3701b4645e1717b59cb510937f963c9f4b238f4",
+  "real_junction_and_cycle": "PASS",
+  "file_symlink_creation": "NOT RUN: WinError 1314 on this host; file symlink guard tested using lstat fault injection",
+  "local_regression": {
+    "passed": 305,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 276.8,
+    "ruff_format": "PASS",
+    "ruff_check": "PASS",
+    "log": "temp/folder2100-delivery-regression.log"
+  },
+  "ordinary_file_regression": {
+    "status": "PASS",
+    "png": {
+      "count": 100,
+      "full_payload_bytes": 2100,
+      "wire_characters": 4248,
+      "version": 40,
+      "mode": "ALPHANUMERIC",
+      "pixels": [
+        925,
+        925
+      ],
+      "generation_seconds_first": 0.2414301000535488,
+      "generation_seconds_total": 21.10015759943053,
+      "generation_seconds_median": 0.20961765001993626,
+      "png_bytes_min": 18566,
+      "png_bytes_max": 19214,
+      "zxing_success": 100,
+      "zxing_attempts": 100,
+      "rss_peak_bytes": 61071360,
+      "cpu_peak_percent": 208.3,
+      "cpu_average_percent": 96.16877323420074,
+      "sample_count": 539
+    },
+    "synthetic_mp4": {
+      "frames": 7,
+      "fps": 20,
+      "decoded_frames": 7,
+      "md5": "96BF0DA2E75693B14DDBA0D8E8AE840A",
+      "byte_exact": true,
+      "screen_recording": false,
+      "bytes": 4786702
+    },
+    "one_gib_stream_only": {
+      "bytes": 1073741824,
+      "hash_seconds": 1.8855747999623418,
+      "whole_stream_seconds": 23.50019659998361,
+      "rss_peak_bytes": 28590080,
+      "cpu_peak_percent": 208.3,
+      "cpu_average_percent": 98.87312588401697,
+      "sample_count": 708
+    },
+    "permission_denial": {
+      "status": "PASS",
+      "actual_os_denial": true,
+      "exit_code": 2
+    }
+  },
+  "evidence_paths": {
+    "folder_report": "temp/folder2100-final-proof/report.json",
+    "ordinary_report": "temp/folder2100-file-benchmark/report.json",
+    "native_log": "temp/folder2100-native/native-player.jsonl",
+    "native_timing": "temp/folder2100-native/player-timing.json",
+    "ready_screenshot": "docs/assets/encoder2100-folder/ready.jpg",
+    "finish_screenshot": "docs/assets/encoder2100-folder/finished.jpg"
+  }
+}

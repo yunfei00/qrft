@@ -1,5 +1,17 @@
 # QRFT2100 P1 独立编码器自动验收
 
+## 当前更新：文件夹 RAM ZIP、双摘要与单次控制帧
+
+最新功能、稳定序列规范、实际 MD5/SHA256、字节重现和内存报告见 [文件夹测试说明](ENCODER_2100_FOLDER_TESTS.md) 与 [机器可读指标](ENCODER_2100_FOLDER_METRICS.json)。普通文件逻辑保留；目录自动 RAM ZIP、默认打包预算 128 MiB；目录补传强制原 Archive ZIP MD5；START/FINISH 当前各一次，总帧为 N+2，PNG 结构不变。首帧等待和 FINISH 保留已通过原生窗口自动验证。
+
+2026-10-15 本地最终回归：**305 passed / 0 failed / 0 skipped，276.80 秒**；Ruff 格式与静态检查通过。普通文件另跑 100/100 满载 PNG、7/7 合成 MP4；目录样本 5/5 PNG、5/5 合成 MP4，经独立 ZXing 识别、按编号还原 ZIP、内存解压逐项检查通过。START/FINISH 均为一次，目录补传 DATA 与原始编码完全一致，磁盘临时 ZIP 为零。
+
+40 MiB 原始目录流式打包为 8424174 字节 ZIP；独立进程打包耗时 0.694 秒，RSS 峰值 35782656 字节（约 34.13 MiB），不是二维码传输吞吐率。默认预算是 128 MiB 的打包预算，并非整个播放器进程树 RSS 硬上限。实际内存上限失败、源文件变化、真实 Junction/循环目录拒绝均验证；本机无创建文件 symlink 权限，拒绝逻辑由故障注入测试覆盖，不冒称真实 symlink 创建通过。原生截图见 [首帧等待](assets/encoder2100-folder/ready.jpg)、[FINISH 保留](assets/encoder2100-folder/finished.jpg)。新版本真实截图工具录屏尚未实测。
+
+下方为此前版本历史验收，20 次控制帧、45/140/42 帧及性能数字仅属于当时版本，不能作为当前重复次数或本轮新测试结果；旧指标 JSON 保留，不篡改历史证据。本轮全量回归和 CI 结果见上述最新记录与对应分支 Actions。
+
+## 历史基线：独立编码器首次交付
+
 日期：2026-10-14（Asia/Shanghai）。Windows 11 10.0.26200、Python 3.12.13、uv 源码运行。
 基线：最新 origin/main `d6770e4`，独立分支 `feature/encoder-cli-2100`。远端旧 PR #7 在本轮开始时已经 Merged，本轮未修改其分支、状态或评论。
 本轮不修改旧 Decoder、Control、Worker、GUI 业务实现，不合并、Tag、Release 或构建 EXE。

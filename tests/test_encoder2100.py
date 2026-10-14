@@ -95,9 +95,9 @@ def test_source_control_order_and_png_recovery(tmp_path, size, name):
     source = Source(path)
     ranges = select(source.metadata.packets)
     frames = list(source.frames(ranges))
-    assert [i for i, _ in frames[:20]] == [START_ID] * 20
-    assert [i for i, _ in frames[-20:]] == [FINISH_ID] * 20
-    assert len(frames) == source.metadata.packets + 40
+    assert frames[0][0] == START_ID
+    assert frames[-1][0] == FINISH_ID
+    assert len(frames) == source.metadata.packets + 2
     result = export(source, tmp_path / "png", ranges)
     assert result["complete"]
     start = independently_read(Image.open(tmp_path / "png" / "88888888.png"))[1]
@@ -126,8 +126,8 @@ def test_missing_ranges_and_identical_reencoding(tmp_path):
     missing.write_text("3\n1-2\n00000001\n# comment\n", encoding="utf-8-sig")
     ranges = select(5, missing=missing)
     assert ranges == [(1, 3)]
-    full = dict(source.frames(select(5), repeat_controls=False))
-    subset = dict(source.frames(ranges, repeat_controls=False))
+    full = dict(source.frames(select(5)))
+    subset = dict(source.frames(ranges))
     assert set(subset) == {START_ID, FINISH_ID, 1, 2, 3}
     assert all(full[i] == subset[i] for i in subset)
     assert list(source.frames(ranges)) == list(source.frames(ranges))
@@ -182,8 +182,8 @@ def test_export_interrupt_disk_permission_and_protection(tmp_path, monkeypatch):
     assert not list((tmp_path / "disk-full").glob("*.png"))
     with pytest.raises(FileNotFoundError):
         Source(tmp_path / "absent")
-    with pytest.raises(ValueError):
-        Source(tmp_path)
+    with Source(tmp_path) as folder:
+        assert folder.archive_details is not None
     with pytest.raises(OSError):
         export(source, path / "bad", ranges)
     original_open = Path.open

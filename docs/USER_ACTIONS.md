@@ -4,15 +4,18 @@
 
 **直接从 [ENCODER_2100_USER_GUIDE.md 第 0 节](ENCODER_2100_USER_GUIDE.md) 开始**，先看最简单的播放命令，再按需要看参数表和测试步骤。
 
-播放二维码现在只有源文件路径必填：
+播放二维码现在只有源文件或文件夹路径必填：
 
 ```powershell
 uv run --no-sync python -m qrft.encoder2100.cli play "D:\Videos\example.mp4"
+uv run --no-sync python -m qrft.encoder2100.cli play "D:\ExampleFolder"
 ```
 
 默认采用 QRFT2100（沿用 v2 三段大写 HEX 帧格式但每包 2100 字节，**不兼容旧 v2 1400 字节解码器**）、50ms、从 DATA 0 到最后、CPU 自动选择最多 3 个二维码生成工作进程；**默认没有本地播放日志**；PowerShell 用英文数字在同一行每约 5 秒刷新一次，如 `[23:16:05] DATA 2645/30605 (8.6%) | elapsed 00:03:12`。完成/中断只给出 `DONE`/`STOPPED` 终态，不逐包打印、不显示缓冲中文提示。只有明确指定 `--interval-ms`、`--workers`、`--start-id`、`--end-id`、`--missing`、`--prefetch`、`--fullscreen`、`--log` 时才使用自定义行为。每次启动交互式 CLI 仍需手动输入隐藏口令 `qsnfj` 回车。
 
-`info`、`export`（需要 `--output`）和完整参数、可复制测试、故障处理统一见新手册。独立编码器仍不做 GUI、正式解码器或 EXE。自动历史证据见 [ENCODER_2100_ACCEPTANCE.md](ENCODER_2100_ACCEPTANCE.md)，物理录屏识别率仍未验收。
+文件夹自动在 RAM 构造确定性 ZIP，默认打包预算 128 MiB，无临时 ZIP 或磁盘回退。Folder Content MD5 是逻辑身份，Archive ZIP MD5 才是 START/实际传输校验；目录补传必须携带原任务 `--expected-archive-md5`，不能只依据逻辑摘要混合数据。START/FINISH 当前各一次，总帧 N+2；首帧仍等待 Space，FINISH 保留到 Esc。
+
+`info`、`export`（需要 `--output`）和完整参数、可复制测试、故障处理统一见新手册。文件夹完整命令与验收证据见 [ENCODER_2100_FOLDER_TESTS.md](ENCODER_2100_FOLDER_TESTS.md)。独立编码器仍不做 GUI、正式解码器或 EXE。自动历史证据见 [ENCODER_2100_ACCEPTANCE.md](ENCODER_2100_ACCEPTANCE.md)，物理录屏识别率仍未验收。
 
 ## P10 自动验收结果索引（无需用户重复操作）
 
