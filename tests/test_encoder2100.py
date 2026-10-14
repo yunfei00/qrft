@@ -16,7 +16,16 @@ from PIL import Image
 
 from qrft.encoder2100 import cli, encoder
 from qrft.encoder2100.encoder import Source, export, select
-from qrft.encoder2100.player import QR_SIZE, QR_X, QR_Y, Frames, KeyEdge, State, canvas, resolve_workers
+from qrft.encoder2100.player import (
+    QR_SIZE,
+    QR_X,
+    QR_Y,
+    Frames,
+    KeyEdge,
+    State,
+    canvas,
+    resolve_workers,
+)
 from qrft.encoder2100.protocol import FINISH_ID, START_ID, data_frame, inspect_frame
 from qrft.encoder2100.qr import image, png, qr_code
 
@@ -424,9 +433,21 @@ def test_cli_play_only_requires_source_and_overrides(monkeypatch, tmp_path):
     assert (
         cli.main(
             [
-                "play", str(path), "--start-id", "1", "--end-id", "1",
-                "--interval-ms", "100", "--prefetch", "5", "--workers", "3",
-                "--fullscreen", "--log", str(custom_log),
+                "play",
+                str(path),
+                "--start-id",
+                "1",
+                "--end-id",
+                "1",
+                "--interval-ms",
+                "100",
+                "--prefetch",
+                "5",
+                "--workers",
+                "3",
+                "--fullscreen",
+                "--log",
+                str(custom_log),
             ]
         )
         == 0
@@ -457,6 +478,6 @@ def test_worker_count_sent_to_real_pool(monkeypatch):
     monkeypatch.setattr(player, "ProcessPoolExecutor", FakeExecutor)
     monkeypatch.setattr(player.os, "cpu_count", lambda: 8)
     for workers in (None, 2):
-        frames = player.Frames(iter(()), 4, workers)
+        frames = player.Frames((number for number in ()), 4, workers)
         frames.close()
     assert created == [3, 2]

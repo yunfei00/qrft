@@ -61,7 +61,9 @@ def main(argv=None):
             sub.add_argument("--interval-ms", type=int, default=50)
             sub.add_argument("--fullscreen", action="store_true")
             sub.add_argument("--prefetch", type=int, default=4)
-            sub.add_argument("--workers", type=int, help="二维码生成工作进程数（默认自动，最多3个）")
+            sub.add_argument(
+                "--workers", type=int, help="二维码生成工作进程数（默认自动，最多3个）"
+            )
             sub.add_argument("--log", type=Path, help="可选：显式启用本地诊断日志；默认不写入")
     try:
         args = parser.parse_args(arguments)

@@ -146,7 +146,9 @@ def windows_desktop(fullscreen):
     return user, rect
 
 
-def play(source, ranges, *, log_path=None, interval_ms=50, fullscreen=False, capacity=4, workers=None):
+def play(
+    source, ranges, *, log_path=None, interval_ms=50, fullscreen=False, capacity=4, workers=None
+):
     import cv2
 
     if not 1 <= interval_ms <= 60000 or not 1 <= capacity <= 16:
@@ -166,15 +168,15 @@ def play(source, ranges, *, log_path=None, interval_ms=50, fullscreen=False, cap
     last_progress = 0.0
     # Default playback writes no files. Detailed JSONL is explicit opt-in only.
     log_context = (
-        log_path.open("x", encoding="utf-8", buffering=1)
-        if log_path is not None
-        else nullcontext()
+        log_path.open("x", encoding="utf-8", buffering=1) if log_path is not None else nullcontext()
     )
     with log_context as log:
 
         def record(event, **fields):
             if log is not None:
-                log.write(json.dumps({"event": event, "time": time.perf_counter(), **fields}) + "\n")
+                log.write(
+                    json.dumps({"event": event, "time": time.perf_counter(), **fields}) + "\n"
+                )
 
         def progress(*, force=False):
             nonlocal last_progress
@@ -210,12 +212,14 @@ def play(source, ranges, *, log_path=None, interval_ms=50, fullscreen=False, cap
             display()
             record("display", packet_id=label, position=position, state=state.status)
             print(
-                f"QRFT2100 已就绪：DATA {selected_data} 包，默认50ms，"
+                f"QRFT2100 已就绪：DATA {selected_data} 包，间隔{interval_ms}ms，"
                 f"生成进程 {effective_workers}，按 Space 开始/暂停，Esc 退出。",
                 flush=True,
             )
             # Keep compatibility with 2-arg test doubles when auto worker selection is used.
-            pending = Frames(frames, capacity) if workers is None else Frames(frames, capacity, workers)
+            pending = (
+                Frames(frames, capacity) if workers is None else Frames(frames, capacity, workers)
+            )
             pending.fill()
             while True:
                 key = cv2.waitKey(5) & 255
@@ -276,7 +280,7 @@ def play(source, ranges, *, log_path=None, interval_ms=50, fullscreen=False, cap
                 pending.fill()
         except cv2.error as exc:
             record("failed", error="OpenCV", position=position)
-            raise RuntimeError("OpenCV 播放窗口失败；请检查本地图形桌面与播放日志") from exc
+            raise RuntimeError("OpenCV 播放窗口失败；请检查本地图形桌面或终端输出") from exc
         except BaseException as exc:
             record("failed", error=type(exc).__name__, position=position)
             raise
