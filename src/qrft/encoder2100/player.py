@@ -6,9 +6,9 @@ import json
 import os
 import sys
 import time
-from contextlib import nullcontext
 from collections import deque
 from concurrent.futures import ProcessPoolExecutor
+from contextlib import nullcontext
 from dataclasses import dataclass
 from functools import lru_cache
 
