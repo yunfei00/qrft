@@ -1,5 +1,11 @@
 # QRFT 二维码协议：v1 兼容与 v2 HEX + MD5
 
+## 当前单机入口补充（2026-10-15）
+
+`python -m qrft decode 项目目录` 仅解析已有 V2 / QRFT2100，不新增 v1 兼容逻辑。当前独立编码器 START 是 `文件名,实际传输MD5,总包数,QRFT2100`、分块 2100、控制帧各一次，冻结规范见 [ENCODER_2100_PROTOCOL.md](ENCODER_2100_PROTOCOL.md)。下方 1400 字节/控制帧 20 次描述属于旧 V2，仍按其真实 START 识别，不能与 QRFT2100 混任务。
+
+两种协议均无线上文件大小和文件 ID，单机项目按首次有效 START 的完整元数据锁定；task_id 是内部派生标识，大小由整块和末块推导。目录 START MD5 保持实际 ZIP 字节 MD5，ZIP comment 的 Folder Content MD5/SHA256 单独流式验证。没有修改任何已发布帧格式；既有 v1 实现和依赖保留。项目恢复与限制见 [单机手册](SINGLE_DECODER_USER_GUIDE.md)。
+
 更新日期：2026-10-12。v2 按本次确认格式实现，所有额外的 version/file_size/SHA256 都是内部状态或离线信息，**不会插入 v2 帧**。开发分支 feature/qrft-v2-hex-md5，软件版本 0.4.0.dev0；旧 0.3.0rc1 Release 不支持 v2，本轮不合并、不发布。
 
 ## v2 唯一线格式

@@ -1,6 +1,6 @@
 # QRFT2100 P1 独立编码协议
 
-本协议独立于旧 v1/v2，不声称旧解码器兼容；本阶段只交付命令行编码器。
+本协议独立于旧 v1/v2，不声称旧解码器兼容；encoder2100-v0.1.0 发行只包含独立命令行编码器。后续新增的 [单机项目源码入口](SINGLE_DECODER_USER_GUIDE.md) 已显式支持此 QRFT2100 标记，不修改这里冻结的线格式；旧 GUI/Control/Worker 不因此自动支持 QRFT2100。
 所有帧在线上均为 `CONTENT_HEX + CONTENT_MD5_HEX + PACKET_ID_HEX`，只允许 `0-9A-F`，无分隔符。
 CONTENT_HEX 是原始内容的大写 HEX；紧随其后是原始内容 MD5 的 32 位大写 HEX；最后是八位十进制 ASCII 包号的大写 HEX（16 字符）。MD5 是完整性检查，不是安全认证。
 

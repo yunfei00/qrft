@@ -1,5 +1,9 @@
 # QRFT 用户操作手册（唯一操作入口）
 
+## UA-013：V2 / QRFT2100 单机项目视频解码
+
+从 [SINGLE_DECODER_USER_GUIDE.md 第 1 节](SINGLE_DECODER_USER_GUIDE.md) 开始。将同一任务视频放入项目 `videos`，运行 `uv run --no-sync python -m qrft decode "D:\QRFT\project001"`；无解码口令、无 GUI/Control/Worker。重复运行跳过未变成功视频，新增补传仍放原项目；缺包报告可直接用于编码器，目录补传必须使用原 Archive ZIP MD5。恢复输出及 JSON 结果、项目结构、续跑和失败处理均在该手册，不需用户重做已有自动测试。新 QRFT2100 真实录屏识别率仍未计通过；本阶段不发布解码 EXE。
+
 ## UA-012：QRFT2100 独立命令行编码器
 
 **发行用户从 [ENCODER_2100_USER_GUIDE.md 第 8 节：ZIP 解压后运行](ENCODER_2100_USER_GUIDE.md#8-zip-解压后运行发行用户推荐) 开始**，完整保留 `_internal`，无需安装 Python/uv。版本归档见 [ENCODER_2100_RELEASE.md](ENCODER_2100_RELEASE.md)。源码开发者保留第 0～7 节操作。
