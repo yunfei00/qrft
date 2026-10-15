@@ -1,5 +1,9 @@
 # QRFT 系统架构
 
+## 当前单机项目入口（2026-10-15）
+
+新增 `qrft.single_decoder`，根 CLI `python -m qrft decode PROJECT`。复用 `encoder2100.protocol.inspect_frame` / `core.protocol_v2.decode_v2` 的严格 HEX/MD5；OpenCV 顺序读全部帧，ZXing read_barcodes 处理多码，无服务端或进程池。`state/project.db` 的唯一 packets BLOB 与 receipts 视频来源分开；视频大小/mtime/SHA256 决定跳过或来源撤销，25 帧事务同时提交进度与包，项目文件锁防并行状态污染。报告与恢复均位于项目内，按包号流式重组，哈希/ZIP 逻辑指纹通过后不覆盖地原子发布。旧 GUI/Control/Worker 未重构，不接管旧数据库。详细规则见 SINGLE_DECODER_USER_GUIDE.md。
+
 ## v2-P9 统一源码桌面解码（未打包）
 
 `qrft.decoder_gui.main` 的 PySide6 窗口通过后台 JobQueue 调用鉴权 Control API，不复制协议、包库、恢复算法。默认自动管理 localhost Control 和 1～16 个独立源码 Worker；工作目录 `.qrft-decoder` 有所有权标记，任务、视频、包、检查点、恢复证据均存入已有 SQLite 模式。关闭只清理本程序创建的进程，不删除数据。分布式模式连接现有 Control，使用相同任务及恢复流程；本机 Worker 自动接入，其他主机使用既有 Worker 入口及只读 SMB。

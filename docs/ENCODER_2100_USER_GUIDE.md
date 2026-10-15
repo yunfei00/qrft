@@ -153,7 +153,7 @@ if ($report.selected_packets -ne 2 -or $report.png_count -ne 4) { throw '补传�
 - PowerShell 只显示英文数字进度：`[HH:MM:SS] DATA 已播放/总包数 (百分比) | elapsed HH:MM:SS`。启动后按 Space 才开始计时，每约 5 秒在**同一行**刷新；完成、提前退出、出错分别以 `DONE`、`STOPPED`、`ERROR` 结束并换行。暂停时包数不变，缓冲时没有额外提示。
 - 默认**不生成本地播放日志**；只有指定 `--log` 才创建供排障使用的 JSONL（可保存详细缓冲事件）。
 - MP4/ZIP/PDF/EXE 都可以作为**源文件二进制内容**编码；这里的 `play` 是播放二维码，不是直接播放 MP4 视频。
-- 本阶段没有 QRFT2100 正式解码器，不能用旧 1400 字节协议的解码器验证新二维码。已做过独立 ZXing PNG/合成 MP4 检查，但真实 Windows 截图工具录屏的识别率仍未验收。
+- encoder2100-v0.1.0 ZIP 本身只包含编码器；后续源码已新增 [V2/QRFT2100 单机项目解码](SINGLE_DECODER_USER_GUIDE.md)，旧 1400 字节 GUI/Control/Worker 不能冒充 QRFT2100 解码器。真实 Windows 截图工具录屏的 QRFT2100 识别率仍未验收。
 
 ## 5. 常见报错
 

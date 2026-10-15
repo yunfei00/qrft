@@ -62,6 +62,19 @@ jobs:
       - name: QRFT2100 内存 ZIP、稳定内容摘要与单次控制帧验收
         if: hashFiles('src/qrft/encoder2100/archive.py') != ''
         run: uv run --no-sync python scripts/encoder2100_folder_acceptance.py --root temp/encoder2100-folder-ci
+      - name: 单机项目真实 MP4 缺包补传与文件夹双摘要闭环
+        if: hashFiles('src/qrft/single_decoder/project.py') != ''
+        run: uv run --no-sync python scripts/single_decoder_acceptance.py --root temp/single-decoder-ci
+      - name: 上传单机解码验收报告与合成视频
+        if: always() && hashFiles('src/qrft/single_decoder/project.py') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: QRFT-single-decoder-evidence
+          path: |
+            temp/single-decoder-ci/acceptance.json
+            temp/single-decoder-ci/project/reports/
+            temp/single-decoder-ci/project/videos/
+          if-no-files-found: error
       - name: 上传 QRFT2100 源码验收证据
         if: always() && hashFiles('src/qrft/encoder2100/cli.py') != ''
         uses: actions/upload-artifact@v4

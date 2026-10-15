@@ -1,5 +1,24 @@
 # QRFT — 二维码二进制文件传输与视频恢复系统
 
+## 当前：V2 / QRFT2100 单机项目解码
+
+独立编码器已作为 [encoder2100-v0.1.0](https://github.com/yunfei00/qrft/releases/tag/encoder2100-v0.1.0) 发布，PR #8 已合并 main。新增单进程、无需 Control/Worker/GUI 的项目目录入口：自动扫描多个视频、SQLite 续跑、去重/冲突隔离、完整缺包清单、流式 MD5 恢复和文件夹 ZIP 内容指纹验证。操作见 [单机解码手册](docs/SINGLE_DECODER_USER_GUIDE.md)，索引 UA-013。
+
+```powershell
+Set-Location 'D:\code_2026\qrft'
+uv sync --locked --python 3.12 --no-dev --extra encoder --extra decoder
+# 编码：静默等待手动口令 qsnfj，Space 播放；将录屏放入项目 videos 目录。
+uv run --no-sync python -m qrft.encoder2100.cli play "D:\Data\ExampleFolder"
+# 解码：无需口令，多视频和补传都放在同一项目，重复运行自动跳过未变的成功视频。
+uv run --no-sync python -m qrft decode "D:\QRFT\project001"
+```
+
+缺包见 `reports/missing_packets.txt`，输出在 `output`，最终结论见 `reports/decode_result.json`。当前 QRFT2100 为 2100 字节/包、START/FINISH 各一次；旧 V2 为 1400 字节，项目按 START 锁定，不能混用。线上没有文件大小/文件 ID，不擅自添加字段；ZIP MD5 与 Folder Content MD5 分开校验。恢复 ZIP 不自动解压。合成视频自动测试不等同真实屏幕录制。
+
+## 历史系统与既有 GUI / 分布式入口
+
+以下 P8～P11、旧候选版及其“不合并/不发布”文字是对应阶段历史记录；不替代上面的当前单机操作。
+
 v2-P9 新增统一源码解码 GUI：单机自动管理 localhost Control 和独立 Worker；导入同任务 MP4/AVI、后台扫描、缺包导出、补传合并、哈希恢复；分布式模式复用现有 HTTP/SQLite。运行 `uv run --no-sync python -m qrft.decoder_gui.main`，完整操作见 [源码解码手册](docs/DECODER_USER_GUIDE.md)，最终桌面验收为 [UA-011](docs/USER_ACTIONS.md)。GUI 无编码 CLI 口令，本阶段不打包。
 
 v2-P10 的分级视频、1/2/4 Worker、真实 SQLite、大文件流式恢复、原生 GUI 长时负载和故障测试见 [稳定性/性能结果](docs/P10_STABILITY_PERFORMANCE_RESULTS.md) 与 [机器可读摘要](docs/P10_BENCHMARK_SUMMARY.json)。开发者入口为 `scripts/p10_acceptance.py` / `scripts/p10_report.py`，复现命令和资源保护说明在结果文档中；已有 P8/P9 用户验收不要求重复。合成视频及存储速度不代表真实录屏或 SMB 速度。

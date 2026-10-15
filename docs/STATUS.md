@@ -1,5 +1,19 @@
 # QRFT 项目进度与交接记录
 
+## V2 / QRFT2100 单机项目解码（2026-10-15）
+
+编码基线 `0620848d2a8c4841f55e7a7610b9d9c90e82edd6` 先复跑 Ruff 和 **307 项 / 231.66 秒**完整回归，通过后按本轮新授权将 PR #8 合并 main，合并提交 `67a2a385f6261b33ac8844a2abe6fd2609b55fbc`。encoder2100-v0.1.0 Tag、Release 和其发行字节保持原样。main 源码 CI [38660418802](https://github.com/yunfei00/qrft/actions/runs/38660418802) 通过；旧多程序 Delivery 首次真实目录快照保护报错，保留日志 `temp/single-decoder-baseline-delivery-failure.log`，未改协议、测试或源码变化校验，同提交原工作流重跑 [38660418741 / attempt 2](https://github.com/yunfei00/qrft/actions/runs/38660418741/attempts/2) 通过，其他旧 Windows 构建也通过，不把第一次失败藏为成功。
+
+从该 main 建立 `feature/v2-single-decoder`，新增独立 `python -m qrft decode PROJECT`，不依赖 GUI/Control/Worker，不新增 v1 解析。复用已有严格 V2/QRFT2100 HEX+MD5 解析；START 锁定 1400/2100 版本与单文件任务，线上缺少大小/文件 ID 如实记录，内部派生任务标识不伪装为新协议字段。视频和补传自动扫描、每帧所有条码、SQLite 唯一 BLOB 与来源分离、事务检查点、进程崩溃续跑、SHA256 源身份与变更撤销、完整缺包 TXT、MD5 流式安全恢复、目录 ZIP 的 Folder Content MD5/SHA256 均实现；ZIP 不自动解压。
+
+新增模块 `single_decoder/{project,protocol,video,folder,main}.py` 与根 `__main__.py`，新增真实视频测试 `tests/test_single_decoder.py`、可复现脚本 `scripts/single_decoder_acceptance.py`，用户入口 UA-013 / [单机手册](SINGLE_DECODER_USER_GUIDE.md)。37 项专项测试包括实际 MP4/ZXing、多码、补传、冲突、最终 MD5/目录指纹失败、硬退出、变更来源、项目迁移、输出保护与非法路径；最小 encoder+decoder 依赖环境恢复通过（无 Qt/API/Worker）。最终完整回归 **344 passed / 262.88 秒，无失败或跳过**，Ruff 格式/静态检查通过；仅一项既有 Starlette/httpx 弃用警告，日志 `temp/single-decoder-final-full.log`。精确提交 CI 见本分支 PR/Actions，旧里程碑不因此擅自增加，本轮不发新 Release/Tag。
+
+本机真实合成 MP4 失包→补传→恢复：5202 原始目录字节→5800 字节 ZIP、3 个 DATA；恢复 ZIP MD5 `CBB052529622F4946956CA2858300618`，Folder Content MD5 `C2A64CA0D5A59B50601B9F020B6EA8BD`，目录 SHA256 `D1BD99D92B2671633F79A80891880988CC443AA3735B0E757B484D76A65DCDF1`，ZIP 逐字节一致；再次运行跳过两个 completed 视频，CLI 返回 0。数据库实际为 5 个唯一包 BLOB、7 条来源记录，同内容不重复存储。报告为 `temp/single-decoder-delivery-proof/acceptance.json`，CI 重新生成并上传本提交证据；不同运行库的 ZIP 不能只凭逻辑摘要混包。合成 MP4 不冒充新 QRFT2100 实际录屏、不同显示器或双机 SMB 验收。
+
+开发中首次测试 21 PASS / 1 FAIL 为测试辅助 SQLite context 未关闭导致 Windows 目录移动失败；修正测试辅助的提交/关闭后保持原搬迁断言通过。数据库内容损坏测试另需真正提交修改才能验证，已修正辅助事务，未弱化生产校验或跳过测试。实际码识别/文件恢复核心始终用真实编码、视频与 ZXing 验证。
+
+故障注入复现 OpenCV 原生 `cv2.error` 会中止整个项目；生产代码现将其转为该视频的读取失败并安全释放句柄，后续真实视频继续恢复。新增回归先失败、修复后通过，再完成上述 344 项全量门禁；未掩盖读取错误或移除断言。
+
 ## v2-P11 候选构件准备（2026-10-13）
 
 **状态：已准备执行计划，尚未启动 Codex 开发/构建；未合并、未打 Tag、未发布。** P10 已按报告通过 221 项完整门禁及限定规模压力测试，可进入 P11-A 打包适配与真实 EXE 验收。新增 [P11_WINDOWS_RC_PREPARATION.md](P11_WINDOWS_RC_PREPARATION.md) 作为唯一执行文档，核心阻塞点是现有旧四/五程序工作流缺少新解码 GUI EXE，且源码 GUI 的 sys.executable -m 子进程启动必须适配 PyInstaller 冻结环境。P11-A 先生成并验证六程序候选构件，保留 Windows uv 源码运行；用户后续明确授权才能合并 main、打 Tag、发布候选 Release。双 Windows/SMB/物理断网以及超大 QR 视频仍未验收。
