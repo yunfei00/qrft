@@ -1,5 +1,22 @@
 # QRFT 用户操作手册（唯一操作入口）
 
+## UA-012：QRFT2100 独立命令行编码器
+
+**发行用户从 [ENCODER_2100_USER_GUIDE.md 第 8 节：ZIP 解压后运行](ENCODER_2100_USER_GUIDE.md#8-zip-解压后运行发行用户推荐) 开始**，完整保留 `_internal`，无需安装 Python/uv。版本归档见 [ENCODER_2100_RELEASE.md](ENCODER_2100_RELEASE.md)。源码开发者保留第 0～7 节操作。
+
+播放二维码现在只有源文件或文件夹路径必填：
+
+```powershell
+uv run --no-sync python -m qrft.encoder2100.cli play "D:\Videos\example.mp4"
+uv run --no-sync python -m qrft.encoder2100.cli play "D:\ExampleFolder"
+```
+
+默认采用 QRFT2100（沿用 v2 三段大写 HEX 帧格式但每包 2100 字节，**不兼容旧 v2 1400 字节解码器**）、50ms、从 DATA 0 到最后、CPU 自动选择最多 3 个二维码生成工作进程；**默认没有本地播放日志**；PowerShell 用英文数字在同一行每约 5 秒刷新一次，如 `[23:16:05] DATA 2645/30605 (8.6%) | elapsed 00:03:12`。完成/中断只给出 `DONE`/`STOPPED` 终态，不逐包打印、不显示缓冲中文提示。只有明确指定 `--interval-ms`、`--workers`、`--start-id`、`--end-id`、`--missing`、`--prefetch`、`--fullscreen`、`--log` 时才使用自定义行为。每次启动交互式 CLI 仍需手动输入隐藏口令 `qsnfj` 回车。
+
+文件夹自动在 RAM 构造确定性 ZIP，默认打包预算 128 MiB，无临时 ZIP 或磁盘回退。Folder Content MD5 是逻辑身份，Archive ZIP MD5 才是 START/实际传输校验；目录补传必须携带原任务 `--expected-archive-md5`，不能只依据逻辑摘要混合数据。START/FINISH 当前各一次，总帧 N+2；首帧仍等待 Space，FINISH 保留到 Esc。
+
+`info`、`export`（需要 `--output`）和完整参数、可复制测试、故障处理统一见新手册。文件夹完整命令与源码验收证据见 [ENCODER_2100_FOLDER_TESTS.md](ENCODER_2100_FOLDER_TESTS.md)。独立编码器不做 GUI 或正式解码器；本轮单独交付 QRFT-Encoder2100.exe 的完整 ZIP，不是旧四程序合集。自动历史证据见 [ENCODER_2100_ACCEPTANCE.md](ENCODER_2100_ACCEPTANCE.md)，物理录屏识别率仍未验收。
+
 ## P10 自动验收结果索引（无需用户重复操作）
 
 本轮软件核心门禁已通过，实测规模、1/2/4 Worker 对比、10/30 分钟原生 GUI、故障恢复、限制及开发者复现命令见 [P10_STABILITY_PERFORMANCE_RESULTS.md](P10_STABILITY_PERFORMANCE_RESULTS.md)。已有 P8/P9 真人验收继续有效，不要求重做。真实第二台 Windows/SMB/物理断网仍按 UA-006 与 [解码手册第 7 节](DECODER_USER_GUIDE.md) 单独执行；本机多进程不计真实双机。P11 本轮仅给候选版建议，不执行打包或发布。

@@ -5,10 +5,22 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      build_encoder2100:
+        description: Build and verify independent QRFT2100 release ZIP
+        type: boolean
+        default: false
 
 jobs:
+  encoder2100-release:
+    if: github.event_name == 'workflow_dispatch' && inputs.build_encoder2100
+    needs: test
+    uses: ./.github/workflows/build-encoder2100.yml
   test:
     runs-on: windows-latest
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -44,3 +56,22 @@ jobs:
       - name: 控制中心 API 与 SQLite 测试
         run: |
           uv run --no-sync pytest -q tests/test_control_api.py tests/test_control_packets.py tests/test_worker.py tests/test_distributed_recovery.py
+      - name: QRFT2100 实际 PNG/MP4、权限拒绝与流式性能验收（不打包）
+        if: hashFiles('src/qrft/encoder2100/cli.py') != ''
+        run: uv run --no-sync python scripts/encoder2100_acceptance.py benchmark --root temp/encoder2100-ci
+      - name: QRFT2100 内存 ZIP、稳定内容摘要与单次控制帧验收
+        if: hashFiles('src/qrft/encoder2100/archive.py') != ''
+        run: uv run --no-sync python scripts/encoder2100_folder_acceptance.py --root temp/encoder2100-folder-ci
+      - name: 上传 QRFT2100 源码验收证据
+        if: always() && hashFiles('src/qrft/encoder2100/cli.py') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: QRFT2100-source-evidence
+          path: |
+            temp/encoder2100-ci/report.json
+            temp/encoder2100-ci/synthetic.mp4
+            temp/encoder2100-ci/benchmark-png/
+            temp/encoder2100-ci/retransmit/
+            temp/encoder2100-folder-ci/report.json
+            temp/encoder2100-folder-ci/folder-synthetic.mp4
+          if-no-files-found: warn
