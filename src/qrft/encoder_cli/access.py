@@ -5,9 +5,15 @@ import hmac
 import sys
 import warnings
 
+# Development builds skip both password matching and the interactive-terminal requirement.
+# Set this back to True when restoring the operator check for a release.
+PASSWORD_CHECK_ENABLED = False
+
 
 def authenticate() -> bool:
-    """Require a real terminal and hidden input before any application output."""
+    """Temporarily allow unattended development use without prompting."""
+    if not PASSWORD_CHECK_ENABLED:
+        return True
     if not sys.stdin.isatty() or not sys.stderr.isatty():
         print("需要交互式终端，已拒绝运行。", file=sys.stderr)
         return False
@@ -27,8 +33,3 @@ def authenticate() -> bool:
         print("校验未通过。", file=sys.stderr)
     print("重试次数已用完，已拒绝运行。", file=sys.stderr)
     return False
-
-
-class SilentArgumentParserMixin:
-    def error(self, message):
-        raise ValueError("参数无效，请参考编码器操作文档。")

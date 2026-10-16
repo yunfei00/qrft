@@ -1,4 +1,4 @@
-"""Authenticate before parsing or side effects; plain console never initializes Qt."""
+"""Development access, public usage help and optional operator-check regressions."""
 
 import getpass
 import subprocess
@@ -6,10 +6,11 @@ import sys
 
 import pytest
 
-from qrft.encoder_cli import entrypoint
+from qrft.encoder_cli import access, entrypoint
 
 
 def terminal(monkeypatch, capsys, inputs):
+    monkeypatch.setattr(access, "PASSWORD_CHECK_ENABLED", True)
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     monkeypatch.setattr(sys.stderr, "isatty", lambda: True)
     values = iter(inputs)
@@ -52,33 +53,32 @@ def test_retry_then_success(monkeypatch, capsys):
     assert len(calls) == 2
 
 
-@pytest.mark.parametrize(
-    "arguments", [["-h"], ["--help"], ["export", "--help"], ["--unknown"], ["export"], ["play"]]
-)
-def test_authenticated_invalid_parameters_have_no_help(monkeypatch, capsys, arguments):
+@pytest.mark.parametrize("arguments", [["--unknown"], ["export"], ["play"]])
+def test_reenabled_gate_invalid_parameters_show_usage(monkeypatch, capsys, arguments):
     terminal(monkeypatch, capsys, ["qsnfj"])
     assert entrypoint.main(arguments) == 2
     output = capsys.readouterr()
     assert not output.out
-    assert "usage" not in output.err and "--output" not in output.err
+    assert "usage" in output.err
 
 
 @pytest.mark.parametrize("module", ["entrypoint", "main"])
-def test_real_pipe_refused_and_no_side_effects(tmp_path, module):
+def test_help_from_pipe_does_not_create_output(tmp_path, module):
     output = tmp_path / "never-created"
     command = [
         sys.executable,
         "-m",
         f"qrft.encoder_cli.{module}",
+        *(["export"] if module == "entrypoint" else []),
         "unused",
         "--output",
         str(output),
         "--help",
     ]
-    result = subprocess.run(command, input=b"qsnfj\n", capture_output=True, timeout=15, check=False)
-    assert result.returncode != 0
-    assert b"usage" not in result.stdout + result.stderr
-    assert b"--output" not in result.stdout + result.stderr
+    result = subprocess.run(command, input=b"", capture_output=True, timeout=15, check=False)
+    assert result.returncode == 0
+    assert b"usage" in result.stdout
+    assert b"--output" in result.stdout
     assert not output.exists()
 
 
@@ -102,7 +102,6 @@ def test_pure_export_does_not_import_qt(tmp_path):
     # Isolated interpreter ensures imports from GUI tests cannot mask a CLI dependency.
     code = """import sys
 import qrft.encoder_cli.entrypoint as cli
-cli.authenticate = lambda: True
 assert cli.main(sys.argv[1:]) == 0
 assert not any(k.startswith("PySide6") for k in sys.modules)
 """
@@ -126,7 +125,7 @@ assert not any(k.startswith("PySide6") for k in sys.modules)
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Real Windows ConPTY test")
-def test_real_windows_terminal_export_md5_and_invalid_password(tmp_path):
+def test_real_windows_terminal_export_without_password(tmp_path):
     pytest.importorskip("winpty")
     pytest.importorskip("qrcode")
     pytest.importorskip("zxingcpp")
@@ -152,8 +151,6 @@ def test_real_windows_terminal_export_md5_and_invalid_password(tmp_path):
         "--output",
         str(output),
     ]
-    denied = run_encoder(command, inputs=("wrong", "QSNFJ", "qsnfJ"))
-    assert denied.returncode == 1 and not output.exists()
     result = run_encoder(command)
     assert result.returncode == 0, result.stdout
     paths = [
@@ -170,3 +167,29 @@ def test_real_windows_terminal_export_md5_and_invalid_password(tmp_path):
         restored
         and hashlib.md5(restored.read_bytes()).digest() == hashlib.md5(source.read_bytes()).digest()
     )
+
+
+def test_development_mode_never_reads_password_or_requires_tty(monkeypatch, capsys):
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(sys.stderr, "isatty", lambda: False)
+    monkeypatch.setattr(
+        getpass, "getpass", lambda *_: pytest.fail("password prompt in development")
+    )
+    assert access.PASSWORD_CHECK_ENABLED is False
+    assert entrypoint.main([]) == 0
+    output = capsys.readouterr()
+    assert "--help" in output.out and "2100" in output.out
+    assert not output.err
+
+
+@pytest.mark.parametrize(
+    "arguments", [["--help"], ["info", "--help"], ["export", "--help"], ["play", "--help"]]
+)
+def test_development_help_is_available_without_password(arguments, capsys):
+    with pytest.raises(SystemExit) as raised:
+        entrypoint.main(arguments)
+    assert raised.value.code == 0
+    output = capsys.readouterr()
+    assert "usage" in output.out and not output.err
+    if len(arguments) > 1:
+        assert "--chunk-size" in output.out

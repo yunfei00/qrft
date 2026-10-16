@@ -22,9 +22,13 @@ uv sync --locked --all-extras --group dev
 
 ## 编码：只有 CLI
 
-编码命令会先等待终端交互口令 `qsnfj`（输入不回显），之后执行参数。命令行管道输入不受支持。
+研发阶段暂时关闭编码端口令匹配和交互终端限制，无需输入口令，可直接从命令行或脚本运行。`src/qrft/encoder_cli/access.py` 的 `PASSWORD_CHECK_ENABLED = False` 控制此临时行为；发布时可恢复为 `True`。这不影响调度中心的 API Token。
 
 ```powershell
+# 不带参数或使用 --help 查看总帮助；子命令也支持 --help
+uv run --no-sync python -m qrft encode --help
+uv run --no-sync python -m qrft encode play --help
+
 # 默认 2100 字节；文件和文件夹都可作为输入
 uv run --no-sync python -m qrft encode info "D:\Data\example.bin"
 uv run --no-sync python -m qrft encode play "D:\Data\example.bin"

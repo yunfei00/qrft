@@ -1,4 +1,4 @@
-"""Drive the encoder through a real Windows ConPTY without bypassing its gate."""
+"""Drive the encoder through a real Windows ConPTY."""
 
 import os
 import subprocess
@@ -6,7 +6,7 @@ import threading
 import time
 
 
-def run_encoder(command, *, cwd=None, env=None, timeout=120, check_cancel=None, inputs=("qsnfj",)):
+def run_encoder(command, *, cwd=None, env=None, timeout=120, check_cancel=None, inputs=()):
     from winpty import PtyProcess
 
     process = PtyProcess.spawn(
