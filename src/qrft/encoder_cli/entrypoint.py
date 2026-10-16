@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from qrft.encoder_cli.access import authenticate
+from qrft.encoder_cli.archive import DEFAULT_MAX_ARCHIVE_MIB
 
 
 class CommandParser(argparse.ArgumentParser):
@@ -40,6 +41,7 @@ def main(argv: list[str] | None = None) -> int:
 
 也可使用 python -m qrft encode 或 QRFT-Encoder-CLI.exe，后接相同子命令。
 默认每包 2100 字节；补传须使用与首次传输相同的分块大小。
+文件夹压缩前总文件大小不超过 4 GiB，压缩后 ZIP 不超过 2 GiB。
 播放窗口：Space 开始/暂停/继续，Esc 结束。使用 <子命令> --help 查看参数。""",
     )
     commands = parser.add_subparsers(dest="command", required=True)
@@ -52,7 +54,10 @@ def main(argv: list[str] | None = None) -> int:
         sub.add_argument("source", type=Path, help="待传输的文件或文件夹路径")
         sub.add_argument("--chunk-size", type=int, help="每包字节数，默认 2100，范围 1..2124")
         sub.add_argument(
-            "--max-archive-mib", type=int, default=128, help="目录 ZIP 内存上限，默认 128 MiB"
+            "--max-archive-mib",
+            type=int,
+            default=DEFAULT_MAX_ARCHIVE_MIB,
+            help="目录 ZIP 内存预算，默认 4096 MiB（含开销）；压缩前最多 4 GiB，ZIP 最多 2 GiB",
         )
         sub.add_argument("--expected-archive-md5", help="目录补传必填：首次传输的 ZIP MD5")
         sub.add_argument("--protocol", choices=["v2"], default="v2", help="仅支持 v2 协议")

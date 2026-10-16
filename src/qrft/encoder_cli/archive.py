@@ -14,7 +14,9 @@ import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_MAX_ARCHIVE_MIB = 128
+DEFAULT_MAX_ARCHIVE_MIB = 4096
+MAX_ARCHIVE_BYTES = 2 * 1024**3
+MAX_SOURCE_BYTES = 4 * 1024**3
 FORMAT = "QRFT-FOLDER-1"
 PREFIX = b"QRFT-FOLDER-CONTENT\x00\x01"
 BLOCK = 64 * 1024
@@ -47,6 +49,7 @@ class Entry:
 
 def inventory(root: Path, limit: int, cancelled=None):
     entries, visited, charge = [], set(), RESERVE
+    original_bytes = 0
     pending = [(root, "")]
     while pending:
         directory, relative = pending.pop()
@@ -82,6 +85,9 @@ def inventory(root: Path, limit: int, cancelled=None):
                         raise ValueError("Folder archive memory limit exceeded (directories)")
                     pending.append((Path(child.path), path))
                 elif stat.S_ISREG(child_state.st_mode):
+                    original_bytes += child_state.st_size
+                    if original_bytes > MAX_SOURCE_BYTES:
+                        raise ValueError("Folder source size limit exceeded (maximum 4 GiB)")
                     charge += 4096 + 8 * len(path.encode("utf-8"))
                     if charge >= limit:
                         raise ValueError("Folder archive memory limit exceeded (files)")
@@ -92,13 +98,16 @@ def inventory(root: Path, limit: int, cancelled=None):
 
 
 class BoundedRAM(io.BytesIO):
-    def __init__(self, capacity):
+    def __init__(self, capacity, *, limit_message=None):
         super().__init__()
         self.capacity = capacity
+        self.limit_message = limit_message or (
+            "Folder archive memory limit exceeded (ZIP bytes); no disk fallback"
+        )
 
     def write(self, data):
         if self.tell() + len(data) > self.capacity:
-            raise ValueError("Folder archive memory limit exceeded (ZIP bytes); no disk fallback")
+            raise ValueError(self.limit_message)
         return super().write(data)
 
 
@@ -204,7 +213,7 @@ def checked_open(path: Path, root: Path, expected):
 
 
 def build_archive(path: Path, *, max_mib=DEFAULT_MAX_ARCHIVE_MIB, cancelled=None):
-    if not isinstance(max_mib, int) or not 4 <= max_mib <= 4096:
+    if type(max_mib) is not int or not 4 <= max_mib <= 4096:
         raise ValueError("max-archive-mib must be 4..4096")
     reject_link(path, path.lstat())
     root = path.resolve(strict=True)
@@ -214,7 +223,14 @@ def build_archive(path: Path, *, max_mib=DEFAULT_MAX_ARCHIVE_MIB, cancelled=None
     capacity = (limit - 2 * overhead) * 4 // 5
     if capacity <= 0:
         raise ValueError("Folder archive memory limit exceeded (snapshot metadata)")
-    archive = BoundedRAM(capacity)
+    archive = BoundedRAM(
+        min(capacity, MAX_ARCHIVE_BYTES),
+        limit_message=(
+            "Folder ZIP size limit exceeded (maximum 2 GiB); no disk fallback"
+            if capacity >= MAX_ARCHIVE_BYTES
+            else None
+        ),
+    )
     md5, sha = hashlib.md5(PREFIX), hashlib.sha256(PREFIX)
     file_digests = {}
     try:
@@ -311,6 +327,8 @@ def build_archive(path: Path, *, max_mib=DEFAULT_MAX_ARCHIVE_MIB, cancelled=None
                 "zip_size": len(view),
                 "archive_buffer_allocated_bytes": archive.__sizeof__(),
                 "original_file_bytes": sum(e.state[3] for e in entries if not e.directory),
+                "max_original_file_bytes": MAX_SOURCE_BYTES,
+                "max_zip_bytes": MAX_ARCHIVE_BYTES,
                 "memory_limit_bytes": limit,
                 "memory_budget_bytes": 2 * overhead + (len(view) * 5 + 3) // 4,
                 "file_count": len(file_digests),
