@@ -15,17 +15,18 @@ def play_opencv(
     protocol_version=2,
     chunk_size=None,
     interval_ms=None,
-    initial_delay_ms=0,
     retransmit=None,
     start_id=0,
     end_id=None,
     fullscreen=False,
     exit_when_finished=False,
+    workers=2,
+    prefetch=4,
 ):
     if protocol_version != 2:
-        raise ValueError("OpenCV path currently requires v2; use the Qt player for v1")
+        raise ValueError("only protocol v2 is supported")
     interval_ms = 50 if interval_ms is None else interval_ms
-    if interval_ms < 1 or initial_delay_ms < 0:
+    if interval_ms < 1:
         raise ValueError("invalid playback timing")
     import cv2
     import numpy as np
@@ -55,8 +56,8 @@ def play_opencv(
             end_id=end_id,
         ),
         protocol_version=2,
-        workers=2,
-        capacity=4,
+        workers=workers,
+        capacity=prefetch,
     )
     name = "QRFT v2 | Space: start/pause/resume | Esc: stop"
     opened = False
@@ -85,7 +86,7 @@ def play_opencv(
                 width = work_area.right - work_area.left
                 height = work_area.bottom - work_area.top
             if canvas.shape[1] > width - (0 if fullscreen else 40) or canvas.shape[0] > height - (
-                0 if fullscreen else 70
+                0 if fullscreen else 40
             ):
                 raise ValueError("显示器空间不足；无法完整显示固定录屏区，请使用更大屏幕")
             if fullscreen:

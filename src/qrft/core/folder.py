@@ -7,7 +7,7 @@ import struct
 import zipfile
 from pathlib import PurePosixPath
 
-from qrft.encoder2100.archive import FORMAT, PREFIX
+from qrft.encoder_cli.archive import FORMAT, PREFIX
 
 
 def verify_folder(path, max_bytes):

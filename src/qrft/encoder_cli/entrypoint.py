@@ -1,4 +1,4 @@
-"""Independent encoder console: authenticate first, then export or explicitly play."""
+"""Terminal-gated encoder CLI: inspect, export or play a V2 file/folder source."""
 
 from __future__ import annotations
 
@@ -23,95 +23,83 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.reconfigure(errors="backslashreplace")
     if not authenticate():
         return 1
-    if not (sys.argv[1:] if argv is None else argv):
-        print("QRFT 编码器：export 导出 PNG；play 打开独立播放器。参数见 docs/V2_USER_GUIDE.md。")
+    arguments = sys.argv[1:] if argv is None else argv
+    if not arguments:
+        print("QRFT 编码器：info 检查；export 导出 PNG；play 播放二维码。参数见 README.md。")
         return 0
     parser = CommandParser()
-    sub = parser.add_subparsers(dest="command", required=True)
-    export = sub.add_parser("export", help="将文件导出为二维码 PNG")
-    export.add_argument("source", type=Path)
-    export.add_argument("--output", type=Path, required=True)
-    export.add_argument("--protocol", choices=["v1", "v2"], default="v1")
-    export.add_argument("--chunk-size", type=int)
-    export.add_argument("--retransmit", type=Path)
-    export.add_argument("--start-id", type=int, default=0)
-    export.add_argument("--end-id", type=int)
-    export.add_argument("--correction", choices=["L", "M", "Q", "H"])
-    export.add_argument("--box-size", type=int)
-    player = sub.add_parser("play")
-    player.add_argument("source", type=Path)
-    player.add_argument("--protocol", choices=["v1", "v2"], default="v1")
-    player.add_argument("--player", choices=["qt", "opencv"], default="qt")
-    player.add_argument("--chunk-size", type=int)
-    player.add_argument("--interval-ms", type=int)
-    player.add_argument("--initial-delay-ms", type=int, default=0)
-    player.add_argument("--retransmit", type=Path)
-    player.add_argument("--start-id", type=int, default=0)
-    player.add_argument("--end-id", type=int)
-    player.add_argument("--workers", type=int, default=2)
-    player.add_argument("--prefetch", type=int, default=4)
-    player.add_argument("--windowed", action="store_true")
-    player.add_argument("--fullscreen", action="store_true")
-    player.add_argument("--exit-when-finished", action="store_true", help="播放全部包后自动退出")
+    commands = parser.add_subparsers(dest="command", required=True)
+    for command in ("info", "export", "play"):
+        sub = commands.add_parser(command)
+        sub.add_argument("source", type=Path)
+        sub.add_argument("--chunk-size", type=int, help="每包字节数，默认 2100，范围 1..2124")
+        sub.add_argument("--max-archive-mib", type=int, default=128)
+        sub.add_argument("--expected-archive-md5")
+        sub.add_argument("--protocol", choices=["v2"], default="v2")
+        if command != "info":
+            sub.add_argument("--start-id", type=int, default=0)
+            sub.add_argument("--end-id", type=int)
+            sub.add_argument("--retransmit", "--missing", dest="retransmit", type=Path)
+        if command == "export":
+            sub.add_argument("--output", type=Path, required=True)
+        if command == "play":
+            sub.add_argument("--interval-ms", type=int, default=50)
+            sub.add_argument("--fullscreen", action="store_true")
+            sub.add_argument("--workers", type=int, default=2)
+            sub.add_argument("--prefetch", type=int, default=4)
+            sub.add_argument("--exit-when-finished", action="store_true")
     try:
-        args = parser.parse_args(argv)
+        args = parser.parse_args(arguments)
         return execute(args)
+    except (KeyboardInterrupt, InterruptedError):
+        print("操作已取消，保留本次输出。", file=sys.stderr)
+        return 130
+    except MemoryError:
+        print("内存不足，请减小文件夹或内存预算；文件夹 ZIP 仅在内存中生成。", file=sys.stderr)
+        return 2
     except (ValueError, OSError, RuntimeError) as exc:
         print(str(exc), file=sys.stderr)
         return 2
 
 
 def execute(args) -> int:
-    if args.command == "export":
-        from qrft.encoder_cli.main import export_frames
+    from qrft.core.protocol import encode_start_v2
+    from qrft.core.qr_image import render_png
+    from qrft.encoder_cli.source import Source
 
-        result = export_frames(
-            args.source,
-            args.output,
-            protocol_version=2 if args.protocol == "v2" else 1,
-            chunk_size=args.chunk_size,
-            retransmit=args.retransmit,
-            start_id=args.start_id,
-            end_id=args.end_id,
-            qr_options={
-                k: v
-                for k, v in {"correction": args.correction, "box_size": args.box_size}.items()
-                if v is not None
-            },
-        )
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-        return 0
-    if args.player == "opencv":
+    with Source(
+        args.source,
+        chunk_size=args.chunk_size,
+        max_archive_mib=args.max_archive_mib,
+        expected_archive_md5=args.expected_archive_md5,
+    ) as source:
+        if args.command == "info":
+            render_png(encode_start_v2(source.metadata), protocol_version=2)
+            print(json.dumps(source.describe(), ensure_ascii=False, indent=2))
+            return 0
+        options = {
+            "retransmit": args.retransmit,
+            "start_id": args.start_id,
+            "end_id": args.end_id,
+        }
+        source.select(**options)
+        if args.command == "export":
+            from qrft.encoder_cli.main import export_frames
+
+            result = export_frames(source, args.output, **options)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0
         from qrft.encoder_cli.opencv_player import play_opencv
 
         return play_opencv(
-            args.source,
-            protocol_version=2 if args.protocol == "v2" else 1,
-            chunk_size=args.chunk_size,
+            source,
             interval_ms=args.interval_ms,
-            initial_delay_ms=args.initial_delay_ms,
-            retransmit=args.retransmit,
-            start_id=args.start_id,
-            end_id=args.end_id,
-            fullscreen=args.fullscreen and not args.windowed,
+            fullscreen=args.fullscreen,
             exit_when_finished=args.exit_when_finished,
+            workers=args.workers,
+            prefetch=args.prefetch,
+            **options,
         )
-    from qrft.encoder_cli.player import play
-
-    return play(
-        args.source,
-        protocol_version=2 if args.protocol == "v2" else 1,
-        chunk_size=args.chunk_size,
-        interval_ms=args.interval_ms,
-        initial_delay_ms=args.initial_delay_ms,
-        retransmit=args.retransmit,
-        start_id=args.start_id,
-        end_id=args.end_id,
-        workers=args.workers,
-        prefetch=args.prefetch,
-        fullscreen=args.fullscreen and not args.windowed,
-        exit_when_finished=args.exit_when_finished,
-    )
 
 
 if __name__ == "__main__":

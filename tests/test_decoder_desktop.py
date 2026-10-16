@@ -144,8 +144,8 @@ def test_real_two_processes_mp4_missing_repair_and_fenced_pause(tmp_path):
         missing = tmp_path / "missing.txt"
         client.request(f"/tasks/{task}/missing/download?format=txt", download=missing)
         assert missing.read_text().strip() == "00000001"
-        receipts = client.request(f"/acceptance/slices?video_id={video}")
-        assert len({row["node_id"] for row in receipts if row["completed_at"]}) == 2
+        slices = client.request(f"/slices?video_id={video}")
+        assert all(row["state"] == "done" for row in slices)
         session.pause(task)
         assert client.request(f"/tasks/{task}/progress")["paused"]
         register(session, task, repair)
@@ -360,11 +360,30 @@ def test_control_client_retries_only_idempotent_requests_after_connection_abort(
         server.server_close()
 
 
+@pytest.mark.parametrize(
+    "module,command", [("qrft.control.app", "control"), ("qrft.decoder.worker", "worker")]
+)
+def test_frozen_managed_session_dispatches_same_executable(tmp_path, monkeypatch, module, command):
+    from qrft.decoder_gui import service
+
+    observed = []
+    monkeypatch.setattr(service.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(service.subprocess, "Popen", lambda args, **kwargs: observed.append(args))
+    session = ManagedSession.__new__(ManagedSession)
+    session.logs, session.handles, session.env = tmp_path, [], {}
+    try:
+        session.spawn("managed", module, "--port", "9000")
+        assert observed == [[sys.executable, command, "--port", "9000"]]
+    finally:
+        for handle in session.handles:
+            handle.close()
+
+
 def test_failed_md5_persists_failure_over_previous_incomplete_evidence(tmp_path):
     import base64
 
     from qrft.core.manifest import inspect_file
-    from qrft.core.protocol_v2 import encode_data_v2, encode_start_v2
+    from qrft.core.protocol import encode_data_v2, encode_start_v2
 
     source = tmp_path / "hash.bin"
     source.write_bytes(b"a" * 1401)

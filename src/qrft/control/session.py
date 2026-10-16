@@ -19,7 +19,7 @@ def bind_start(db, task_id, raw):
     if frame.kind != "start" or frame.metadata is None:
         raise ProtocolError("START frame required")
     meta = frame.metadata
-    if meta.get("version", 1) != frame.version:
+    if meta.get("version", 2) != frame.version:
         raise ProtocolError("START metadata version disagrees with wire protocol")
     validate_manifest(meta)
     lock_protocol(db, task_id, frame.version)
@@ -42,7 +42,7 @@ def bind_start(db, task_id, raw):
             raw,
             meta["total_packets"],
             meta["chunk_size"],
-            meta["file_size"] if frame.version == 1 else -1,
+            -1,
         ),
     )
     return "bound"

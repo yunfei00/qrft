@@ -23,7 +23,18 @@ def test_process_slice_uses_video_range_and_batches(monkeypatch) -> None:
 
     def fake_frames(path, *, sample_fps, start_seconds, end_seconds):
         observed.append((str(path), start_seconds, end_seconds))
-        yield Frame("start", 88888888, b"", {"version": 1})
+        yield Frame(
+            "start",
+            88888888,
+            b"",
+            {
+                "version": 2,
+                "filename": "file.bin",
+                "md5": "0" * 32,
+                "total_packets": 2,
+                "chunk_size": 2100,
+            },
+        )
         yield Frame("data", 0, b"\x00\xff")
         yield Frame("data", 1, b"binary")
 

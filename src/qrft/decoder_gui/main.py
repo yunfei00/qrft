@@ -58,7 +58,7 @@ class JobQueue(QThread):
 class DecoderWindow(QMainWindow):
     def __init__(self, workspace: Path | None = None, *, settings=None):
         super().__init__()
-        self.setWindowTitle("QRFT 视频解码与文件恢复 · 源码版")
+        self.setWindowTitle("QRFT 视频解码与文件恢复")
         self.setAcceptDrops(True)
         self.resize(1000, 780)
         if screen := QApplication.primaryScreen():
@@ -256,18 +256,12 @@ class DecoderWindow(QMainWindow):
         )
         if not ok or not name:
             return
-        version, ok = QInputDialog.getItem(
-            self, "任务协议", "建立后协议锁定", ["v2", "v1"], 0, False
-        )
-        if ok:
-            self.create_task(name, 2 if version == "v2" else 1)
+        self.create_task(name)
 
-    def create_task(self, name, version=2):
+    def create_task(self, name):
         self.submit(
             "新建任务",
-            lambda: self.session.client.request(
-                "/tasks", {"name": name, "protocol_version": version}
-            ),
+            lambda: self.session.client.request("/tasks", {"name": name, "protocol_version": 2}),
         )
 
     def choose_videos(self):
@@ -422,7 +416,6 @@ class DecoderWindow(QMainWindow):
                     and not progress.get("conflicts")
                     and not progress.get("paused")
                     and not progress.get("cancelled")
-                    and (progress["protocol_version"] == 2 or progress["finished"])
                 ):
                     result["automatic_recovery"] = client.request(f"/tasks/{task}/recover", {})
             return result
@@ -485,7 +478,7 @@ class DecoderWindow(QMainWindow):
             self.status.setText(
                 "恢复成功：哈希验证通过"
                 if result["status"] == "verified"
-                else "数据尚不完整，等待补传或 v1 FINISH"
+                else "数据尚不完整，等待缺包补传"
             )
             self.output_path = result.get("path")
         else:
@@ -536,7 +529,7 @@ class DecoderWindow(QMainWindow):
                 f"恢复失败：请核对 MD5 / 来源 / 冲突，详情：{recovery.get('reason', '查看日志')}"
             )
         elif result.get("slices") and all(s["state"] == "done" for s in result["slices"]):
-            state = "扫描完成，等待 START / 缺包补传 / v1 FINISH；不是恢复成功"
+            state = "扫描完成，等待 START / 缺包补传；文件尚未恢复"
         self.status.setText(state)
         if result.get("worker_exits"):
             self.status.setText(
@@ -607,18 +600,10 @@ class DecoderWindow(QMainWindow):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="QRFT 单机 / 分布式视频解码 GUI（无编码口令）")
+    parser = argparse.ArgumentParser(description="QRFT v2 单机 / 分布式视频解码界面")
     parser.add_argument("--workspace", type=Path)
     parser.add_argument("--smoke-test", action="store_true", help="原生窗口启动后安全退出")
-    parser.add_argument(
-        "--acceptance-output", type=Path, help="独占新目录：真实 Qt 控件完整自动验收"
-    )
-    parser.add_argument("--acceptance-stability-seconds", type=float, default=60)
     args = parser.parse_args(argv)
-    if args.acceptance_output:
-        from qrft.decoder_gui.acceptance import run
-
-        return run(args.acceptance_output, args.workspace, args.acceptance_stability_seconds)
     app = QApplication.instance() or QApplication([])
     app.setFont(QFont("Microsoft YaHei UI", 10))
     smoke_settings = (

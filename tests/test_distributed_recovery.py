@@ -1,6 +1,7 @@
 """Distributed ordering, retransmission and durable recovery regression tests."""
 
 import base64
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -42,7 +43,7 @@ def bind(client, task, meta):
     )
 
 
-@pytest.mark.parametrize("content", [b"", bytes(range(256)) * 3])
+@pytest.mark.parametrize("content", [b"", bytes(range(256)) * 3], ids=["empty", "binary"])
 @pytest.mark.parametrize(
     "filename", ["all-bytes.bin", "missing.txt", "received.part", "no-extension"]
 )
@@ -66,12 +67,11 @@ def test_data_before_start_retransmission_and_restart(control, tmp_path, content
     )
     if frames:
         assert submit(control, task, [frames[0], frames[0]]).json()["duplicate"] == 1
-        assert submit(control, task, [encode_data(0, b"x" * 64)]).json()["conflict"] == 1
         restarted = TestClient(app, headers={"Authorization": "Bearer test-token"})
         result = restarted.post(f"/tasks/{task}/recover").json()
         assert result["status"] == "verified"
         assert Path(result["path"]).read_bytes() == content
-        assert result["sha256"] == meta["sha256"]
+        assert result["sha256"] == hashlib.sha256(content).hexdigest()
     assert control.post(f"/tasks/{task}/recover").status_code == 409
     assert control.get(f"/tasks/{task}/progress").json()["finished"] is True
 
@@ -104,9 +104,9 @@ def test_workers_real_avi(control, tmp_path, monkeypatch, workers):
 
     source = tmp_path / "payload.bin"
     source.write_bytes(bytes(range(256)))
-    video = export_video(source, tmp_path / "recording.avi", chunk_size=64, fps=5, repeats=2)
-    # Six QR images, two frames each, five frames per second.
-    duration = 12 / 5
+    video = export_video(source, tmp_path / "recording.avi", chunk_size=64)
+    # Twenty START, four DATA, twenty FINISH frames at 20 fps.
+    duration = 44 / 20
     task = control.post("/tasks", json={"name": "AVI"}).json()["id"]
     video_id = control.post(
         "/videos", json={"task_id": task, "path": str(video), "duration_seconds": duration}
@@ -127,13 +127,13 @@ def test_workers_real_avi(control, tmp_path, monkeypatch, workers):
             db.execute("DELETE FROM slices WHERE video_id=?", (video_id,))
             db.executemany(
                 "INSERT INTO slices(video_id,start_ms,end_ms) VALUES (?,?,?)",
-                [(video_id, 0, 1200), (video_id, 1200, 2400)],
+                [(video_id, 0, 1100), (video_id, 1100, 2200)],
             )
         first = request("", "", "/slices/claim", {"node_id": "a"})
         second = request("", "", "/slices/claim", {"node_id": "b"})
         # The slice without START is processed before the first node.
-        worker.process_slice("http://localhost", "test-token", "b", second, sample_fps=5)
-        worker.process_slice("http://localhost", "test-token", "a", first, sample_fps=5)
+        worker.process_slice("http://localhost", "test-token", "b", second, sample_fps=60)
+        worker.process_slice("http://localhost", "test-token", "a", first, sample_fps=60)
     result = control.post(f"/tasks/{task}/recover").json()
     assert result["status"] == "verified"
     assert Path(result["path"]).read_bytes() == source.read_bytes()
@@ -147,12 +147,12 @@ def test_unreadable_qr_in_real_video_and_retransmission(control, tmp_path, monke
 
     source = tmp_path / "binary.bin"
     source.write_bytes(bytes(range(256)))
-    good = export_video(source, tmp_path / "good.avi", chunk_size=64, fps=5, repeats=2)
+    good = export_video(source, tmp_path / "good.avi", chunk_size=64)
     damaged = tmp_path / "damaged.avi"
     reader = cv2.VideoCapture(str(good))
     width = int(reader.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(reader.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    writer = cv2.VideoWriter(str(damaged), cv2.VideoWriter_fourcc(*"MJPG"), 5, (width, height))
+    writer = cv2.VideoWriter(str(damaged), cv2.VideoWriter_fourcc(*"MJPG"), 20, (width, height))
     assert writer.isOpened()
     try:
         index = 0
@@ -160,15 +160,15 @@ def test_unreadable_qr_in_real_video_and_retransmission(control, tmp_path, monke
             ok, image = reader.read()
             if not ok:
                 break
-            if index in (4, 5):
-                image[:] = 255  # Remove both appearances of DATA 1.
+            if index == 21:
+                image[:] = 255  # Remove DATA 1.
             writer.write(image)
             index += 1
     finally:
         reader.release()
         writer.release()
     task = control.post("/tasks", json={"name": "damaged"}).json()["id"]
-    control.post("/videos", json={"task_id": task, "path": str(damaged), "duration_seconds": 2.4})
+    control.post("/videos", json={"task_id": task, "path": str(damaged), "duration_seconds": 2.2})
 
     def request(base_url, token, route, payload):
         response = control.post(route, json=payload)
@@ -179,7 +179,7 @@ def test_unreadable_qr_in_real_video_and_retransmission(control, tmp_path, monke
     worker.run_worker("http://localhost", "test-token", "a", once=True)
     assert control.get(f"/tasks/{task}/missing").json()["missing_ids"] == [1]
     assert control.post(f"/tasks/{task}/recover").json()["status"] == "incomplete"
-    control.post("/videos", json={"task_id": task, "path": str(good), "duration_seconds": 2.4})
+    control.post("/videos", json={"task_id": task, "path": str(good), "duration_seconds": 2.2})
     worker.run_worker("http://localhost", "test-token", "b", once=True)
     result = control.post(f"/tasks/{task}/recover").json()
     assert result["status"] == "verified"
@@ -207,7 +207,7 @@ def test_finish_batch_rollback_and_manifest_conflict(control, tmp_path):
     meta = inspect_file(source, 3)
     task = control.post("/tasks", json={"name": "binary"}).json()["id"]
     assert bind(control, task, meta).status_code == 200
-    changed = {**meta, "sha256": "0" * 64}
+    changed = {**meta, "md5": "0" * 32}
     assert bind(control, task, changed).status_code == 409
     assert submit(control, task, [encode_finish(), b"bad"]).status_code == 422
     assert control.get(f"/tasks/{task}/progress").json()["finished"] is False

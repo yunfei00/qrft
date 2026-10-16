@@ -7,33 +7,28 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
-from .protocol import FINISH_ID, START_ID, ProtocolError
+from .protocol import CHUNK_SIZE, FINISH_ID, START_ID, ProtocolError, validate_chunk_size
 
 
-def inspect_file(path: Path, chunk_size: int, *, cancelled=None) -> dict[str, object]:
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be positive")
+def inspect_file(path: Path, chunk_size: int = CHUNK_SIZE, *, cancelled=None) -> dict[str, object]:
+    validate_chunk_size(chunk_size)
     size = path.stat().st_size
     total = (size + chunk_size - 1) // chunk_size
     if total > START_ID:
         raise ProtocolError("file requires reserved or unavailable packet IDs")
     md5 = hashlib.md5(usedforsecurity=False)
-    sha256 = hashlib.sha256()
     with path.open("rb") as stream:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             if cancelled is not None and cancelled():
                 raise InterruptedError("operation cancelled")
             md5.update(block)
-            sha256.update(block)
     return {
-        "version": 1,
+        "version": 2,
         "filename": path.name,
-        "file_size": size,
+        "file_size": None,
         "chunk_size": chunk_size,
         "total_packets": total,
-        "md5": md5.hexdigest(),
-        "sha256": sha256.hexdigest(),
-        "file_id": sha256.hexdigest()[:32],
+        "md5": md5.hexdigest().upper(),
     }
 
 
@@ -59,7 +54,8 @@ def parse_packet_list(text: str, total: int) -> list[int]:
 
 
 def packet_bytes(path: Path, chunk_size: int, packet_id: int) -> bytes:
-    if packet_id < 0 or packet_id in (START_ID, FINISH_ID):
+    validate_chunk_size(chunk_size)
+    if type(packet_id) is not int or not 0 <= packet_id < START_ID:
         raise ProtocolError("invalid data packet ID")
     with path.open("rb") as stream:
         stream.seek(packet_id * chunk_size)

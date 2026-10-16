@@ -63,7 +63,7 @@ def test_authenticated_invalid_parameters_have_no_help(monkeypatch, capsys, argu
     assert "usage" not in output.err and "--output" not in output.err
 
 
-@pytest.mark.parametrize("module", ["entrypoint", "main", "player"])
+@pytest.mark.parametrize("module", ["entrypoint", "main"])
 def test_real_pipe_refused_and_no_side_effects(tmp_path, module):
     output = tmp_path / "never-created"
     command = [
@@ -132,9 +132,10 @@ def test_real_windows_terminal_export_md5_and_invalid_password(tmp_path):
     pytest.importorskip("zxingcpp")
     import hashlib
 
+    from encoder_console_driver import run_encoder
+
     from qrft.core.qr_decode import decode_qr_png
     from qrft.decoder.main import restore_video
-    from qrft.encoder_cli.console_test import run_encoder
     from qrft.encoder_cli.video_export import write_v2_video
 
     source = tmp_path / "中文,源.bin"

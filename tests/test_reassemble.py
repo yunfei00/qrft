@@ -55,11 +55,39 @@ def test_reject_conflicting_duplicate(tmp_path: Path) -> None:
 
 def test_reject_invalid_length(tmp_path: Path) -> None:
     source = tmp_path / "source.bin"
-    source.write_bytes(b"abc")
+    source.write_bytes(b"abcd")
     assembler = FileAssembler(tmp_path / "received")
     assembler.accept(decode_frame(encode_start(inspect_file(source, 3))))
     with pytest.raises(ProtocolError, match="incorrect packet length"):
         assembler.accept(decode_frame(encode_data(0, b"ab")))
+
+
+def test_finish_not_required_and_shorter_tail_conflict(tmp_path):
+    source = tmp_path / "source.bin"
+    source.write_bytes(b"abcdef")
+    assembler = FileAssembler(tmp_path / "received")
+    assembler.accept(decode_frame(encode_start(inspect_file(source, 6))))
+    assembler.accept(decode_frame(encode_data(0, b"abcdef")))
+    with pytest.raises(ProtocolError, match="conflicting"):
+        assembler.accept(decode_frame(encode_data(0, b"abc")))
+    with pytest.raises(ProtocolError, match="conflicts"):
+        assembler.finalize()
+    complete = FileAssembler(tmp_path / "complete")
+    complete.accept(decode_frame(encode_start(inspect_file(source, 6))))
+    complete.accept(decode_frame(encode_data(0, b"abcdef")))
+    assert complete.finalize().read_bytes() == b"abcdef"
+
+
+def test_file_md5_mismatch_blocks_publication(tmp_path):
+    source = tmp_path / "source.bin"
+    source.write_bytes(b"abcdef")
+    assembler = FileAssembler(tmp_path / "received")
+    assembler.accept(decode_frame(encode_start(inspect_file(source, 3))))
+    assembler.accept(decode_frame(encode_data(0, b"abc")))
+    assembler.accept(decode_frame(encode_data(1, b"xyz")))
+    with pytest.raises(ProtocolError, match="hash mismatch"):
+        assembler.finalize()
+    assert not (tmp_path / "received" / source.name).exists()
 
 
 @pytest.mark.parametrize(

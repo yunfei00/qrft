@@ -1,39 +1,25 @@
-# QRFT 开发环境：uv
+# 开发
 
-**统一使用 uv 管理 Python 版本、虚拟环境、依赖和锁文件。** 不混用 Conda、Poetry 或手工 pip 安装。
-
-## Windows PowerShell 初始化
+Python 3.12 + uv；所有源码在 `src/qrft/`，测试在 `tests/`。
 
 ```powershell
-git clone https://github.com/yunfei00/qrft.git
-cd qrft
-uv python install 3.12
-uv sync --all-extras --group dev
-uv run pytest -q
-uv run ruff check .
-uv run ruff format --check .
-```
-
-首次安装 uv：https://docs.astral.sh/uv/getting-started/installation/
-
-## 增加依赖
-
-```powershell
-uv add 包名
-uv add --optional decoder 包名
-uv add --group dev 包名
-uv lock
 uv sync --locked --all-extras --group dev
+uv run --no-sync ruff format --check .
+uv run --no-sync ruff check .
+uv run --no-sync pytest -q
 ```
 
-`pyproject.toml` 是依赖声明，`uv.lock` 是 uv 生成的锁文件，必须提交 GitHub。不得手写锁文件。CI 使用 `uv sync --locked` 确保依赖一致。
+编码依赖在 `encoder` extra；桌面解码、后台进程和识别依赖在 `decoder` extra；独立调度中心依赖在 `control` extra。测试使用真实二维码、合成 AVI、HTTP、SQLite 和 Qt 控件验证完整流程；合成视频不等于实际屏幕录制。
 
-本地环境已生成锁文件，日常执行 `uv sync --locked --python 3.12 --all-extras --group dev`。
-若本机旧 pytest 临时目录 ACL 拒绝访问，可设置 `$env:PYTEST_DEBUG_TEMPROOT = "$PWD/temp"` 后执行原测试命令；temp 已被 Git 忽略。
-若本机代理下载极慢，可仅在当前 PowerShell 设置 `$env:NO_PROXY = '*'` 后重试 uv；不修改全局网络配置。
+协议只修改 `core/protocol.py`，不得在编码器、解码器中复制帧格式。分块参数默认 2100，可配置；START 与后续包长度必须一致。目录源、补传、缺包、冲突和完整文件哈希需要一起验证。
 
-## 项目状态
+## Windows 打包
 
-当前是工程骨架和协议原型，不代表编码器、视频解码器或 EXE 已完成。实际验证以 CI 和 `docs/STATUS.md` 为准。
+```powershell
+uv run --no-sync python scripts/build_windows.py
+uv run --no-sync python scripts/windows_smoke.py
+```
 
-需要用户操作时，只参考 [用户操作手册](USER_ACTIONS.md)。
+输出在 `dist/QRFT-Encoder-CLI`、`dist/QRFT-Decoder`、`dist/QRFT-Control`。编码 EXE 为 console；Decoder 默认打开桌面界面，并提供显式 `worker`、`control` 子命令供进程管理。调度中心启动后在浏览器访问 8787 端口。
+
+CI 只有代码检查、测试和统一三程序构建两个流程。每次交付保留完整 onedir 目录及核心文档；不提交构建输出、录屏、数据库、临时证据或真实 Token。

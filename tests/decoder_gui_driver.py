@@ -146,9 +146,7 @@ def exercise_busy_dialog(tmp_path):
         timer.start(20)
         button = next(b for b in window.findChildren(QPushButton) if b.text() == "新建任务")
         QTest.mouseClick(button, Qt.MouseButton.LeftButton)
-        assert dialogs == ["新建隔离任务", "任务协议"], (
-            "new-task click lost during real background refresh"
-        )
+        assert dialogs == ["新建隔离任务"], "new-task click lost during real background refresh"
         gate.set()
         until(lambda: not window.busy and window.task_id() is not None)
         assert "Busy refresh regression" in window.tasks.currentText()

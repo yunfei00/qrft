@@ -13,10 +13,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from zipfile import BadZipFile
 
-from qrft.encoder2100.archive import reject_link
-from qrft.encoder2100.protocol import FINISH_ID, START_ID
+from qrft.core.folder import verify_folder
+from qrft.core.protocol import FINISH_ID, START_ID, wrap_v2
+from qrft.encoder_cli.archive import reject_link
 
-from .folder import verify_folder
 from .protocol import identity, parse, valid_data
 from .video import fingerprint, frames
 
@@ -340,8 +340,6 @@ class Project:
             "SELECT payload,digest,content_md5 FROM packets WHERE packet_id=?",
             (START_ID,),
         ):
-            from qrft.encoder2100.protocol import frame
-
             try:
                 payload = bytes(start[0])
                 if (
@@ -349,7 +347,7 @@ class Project:
                     or hashlib.md5(payload).hexdigest().upper() != start[2]
                 ):
                     raise ValueError("Persisted START checksum invalid")
-                _, _, actual = parse(frame(payload, START_ID))
+                _, _, actual = parse(wrap_v2(payload, START_ID))
                 if actual == meta:
                     starts += 1
                 else:
@@ -537,3 +535,16 @@ class Project:
 def decode_project(root, **kwargs):
     with Project(root) as project:
         return project.run(**kwargs)
+
+
+def merge_project(root, *, max_folder_bytes=8 * 1024**3):
+    """Merge and verify committed receipts without reopening source videos."""
+    if max_folder_bytes <= 0:
+        raise ValueError("Folder verification budget must be positive")
+    with Project(root) as project:
+        counts = {"completed": 0, "skipped": 0, "failed": 0}
+        for row in project.db.execute(
+            "SELECT status,COUNT(*) FROM videos WHERE active=1 GROUP BY status"
+        ):
+            counts["skipped" if row[0] == "completed" else "failed"] += row[1]
+        return project.report(counts, sum(counts.values()), False, max_folder_bytes)

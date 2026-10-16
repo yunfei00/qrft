@@ -1,17 +1,18 @@
-"""二维码编码器命令行入口：导出按序编号的 PNG 帧。"""
+"""Export a file or RAM folder ZIP as ordered V2 PNG frames."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from qrft.core.protocol import decode_frame
+from qrft.core.protocol import encode_finish_v2, encode_start_v2
 from qrft.core.qr_image import render_png
-from qrft.encoder_cli.playback import iter_encoded_frames
+from qrft.encoder_cli.archive import DEFAULT_MAX_ARCHIVE_MIB
+from qrft.encoder_cli.source import Source, check_cancel, open_source
 
 
 def export_frames(
-    source: Path,
+    source: Path | Source,
     output: Path,
     *,
     chunk_size: int | None = None,
@@ -20,60 +21,65 @@ def export_frames(
     end_id: int | None = None,
     qr_options: dict | None = None,
     cancelled=None,
-    protocol_version: int = 1,
+    protocol_version: int = 2,
     progress=None,
+    max_archive_mib: int = DEFAULT_MAX_ARCHIVE_MIB,
+    expected_archive_md5: str | None = None,
 ) -> dict[str, object]:
-    """流式导出 PNG，不把整个文件或所有二维码载入内存。"""
-    if not source.is_file():
-        raise FileNotFoundError(source)
-    output.mkdir(parents=True, exist_ok=True)
-    manifest = None
-    count = 0
-    selected = 0
-    for packet_id, raw in iter_encoded_frames(
+    """Export each control once; playback repeats controls without duplicate PNGs."""
+    if protocol_version != 2:
+        raise ValueError("only protocol v2 is supported")
+    with open_source(
         source,
-        chunk_size=chunk_size,
-        retransmit=retransmit,
-        start_id=start_id,
-        end_id=end_id,
         cancelled=cancelled,
-        protocol_version=protocol_version,
-        repeat_controls=False,
-    ):
-        if cancelled is not None and cancelled():
-            raise InterruptedError("export cancelled")
-        frame = decode_frame(raw)
-        if frame.kind == "start":
-            manifest = frame.metadata
-            from qrft.core.manifest import selected_ranges
-
-            selected = sum(
-                last - first + 1
-                for first, last in selected_ranges(
-                    manifest["total_packets"],
-                    start_id=start_id,
-                    end_id=end_id,
-                    retransmit=retransmit,
-                    cancelled=cancelled,
-                )
-            )
-            name = "00000000-start.png"
-        elif frame.kind == "finish":
-            name = "99999999-finish.png"
-        else:
-            name = f"{packet_id}-data.png"
-            count += 1
-        png = render_png(raw, protocol_version=protocol_version, **(qr_options or {}))
-        with (output / name).open("xb") as stream:
-            stream.write(png)
-        if progress is not None:
-            progress(count, selected)
-    if cancelled is not None and cancelled():
-        raise InterruptedError("export cancelled")
-    summary = {**manifest, "exported_data_packets": count, "retransmission": retransmit is not None}
-    with (output / "manifest.json").open("x", encoding="utf-8") as stream:
-        stream.write(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
-    return summary
+        chunk_size=chunk_size,
+        max_archive_mib=max_archive_mib,
+        expected_archive_md5=expected_archive_md5,
+    ) as prepared:
+        prepared.check_output(output)
+        ranges = prepared.select(start_id=start_id, end_id=end_id, retransmit=retransmit)
+        selected = sum(last - first + 1 for first, last in ranges)
+        options = {"protocol_version": 2, **(qr_options or {})}
+        # Validate control QR capacity before creating output resources.
+        controls = {
+            "START": render_png(encode_start_v2(prepared.metadata), **options),
+            "FINISH": render_png(encode_finish_v2(), **options),
+        }
+        output = Path(output)
+        output.mkdir(parents=True, exist_ok=False)
+        count = 0
+        frames = prepared.frames(ranges, repeat_controls=False)
+        try:
+            for packet_id, raw in frames:
+                check_cancel(cancelled)
+                if packet_id == "START":
+                    name = "00000000-start.png"
+                elif packet_id == "FINISH":
+                    name = "99999999-finish.png"
+                else:
+                    name = f"{packet_id}-data.png"
+                    count += 1
+                png = controls.get(packet_id)
+                if png is None:
+                    png = render_png(raw, **options)
+                with (output / name).open("xb") as stream:
+                    stream.write(png)
+                if progress is not None:
+                    progress(count, selected)
+        finally:
+            frames.close()
+        check_cancel(cancelled)
+        summary = {
+            **prepared.describe(),
+            "exported_data_packets": count,
+            "retransmission": retransmit is not None,
+            "ranges": ranges,
+            "control_repeats": 1,
+        }
+        with (output / "manifest.json").open("x", encoding="utf-8") as stream:
+            json.dump(summary, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+        return summary
 
 
 def main(argv: list[str] | None = None) -> int:

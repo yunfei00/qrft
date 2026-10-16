@@ -1,88 +1,87 @@
-# QRFT — 二维码二进制文件传输与视频恢复系统
+# QRFT
 
-## 当前：V2 / QRFT2100 单机项目解码
+通过二维码和录屏传输文件，核心流程是 **编码 → 视频解码 → 合并恢复**。
 
-独立编码器已作为 [encoder2100-v0.1.0](https://github.com/yunfei00/qrft/releases/tag/encoder2100-v0.1.0) 发布，PR #8 已合并 main。新增单进程、无需 Control/Worker/GUI 的项目目录入口：自动扫描多个视频、SQLite 续跑、去重/冲突隔离、完整缺包清单、流式 MD5 恢复和文件夹 ZIP 内容指纹验证。操作见 [单机解码手册](docs/SINGLE_DECODER_USER_GUIDE.md)，索引 UA-013。
+| 程序 | 职责 |
+|---|---|
+| Encoder CLI | 命令行编码文件或文件夹、导出二维码、播放和缺包补传 |
+| Decoder | 桌面界面导入视频、扫描、查看缺包和合并恢复 |
+| Control | 网页调度中心，管理任务、视频、节点、进度和恢复结果 |
+
+仅保留 v2 协议和一套编码实现 `encoder_cli`。默认 **2100 字节/包**，编码时可用 `--chunk-size` 调整（1–2124）；START 携带实际分块大小，解码端自动读取。文件夹先在内存中打包成确定性 ZIP，恢复后不自动解压。
+
+## 安装
+
+Python 3.12，使用 uv 管理依赖：
 
 ```powershell
-Set-Location 'D:\code_2026\qrft'
-uv sync --locked --python 3.12 --no-dev --extra encoder --extra decoder
-# 编码：静默等待手动口令 qsnfj，Space 播放；将录屏放入项目 videos 目录。
-uv run --no-sync python -m qrft.encoder2100.cli play "D:\Data\ExampleFolder"
-# 解码：无需口令，多视频和补传都放在同一项目，重复运行自动跳过未变的成功视频。
-uv run --no-sync python -m qrft decode "D:\QRFT\project001"
+uv sync --locked --all-extras --group dev
 ```
 
-缺包见 `reports/missing_packets.txt`，输出在 `output`，最终结论见 `reports/decode_result.json`。当前 QRFT2100 为 2100 字节/包、START/FINISH 各一次；旧 V2 为 1400 字节，项目按 START 锁定，不能混用。线上没有文件大小/文件 ID，不擅自添加字段；ZIP MD5 与 Folder Content MD5 分开校验。恢复 ZIP 不自动解压。合成视频自动测试不等同真实屏幕录制。
+只运行编码端可用 `uv sync --locked --no-dev --extra encoder`；解码桌面端用 `--extra decoder`，独立调度中心用 `--extra control`。
 
-## 历史系统与既有 GUI / 分布式入口
+## 编码：只有 CLI
 
-以下 P8～P11、旧候选版及其“不合并/不发布”文字是对应阶段历史记录；不替代上面的当前单机操作。
-
-v2-P9 新增统一源码解码 GUI：单机自动管理 localhost Control 和独立 Worker；导入同任务 MP4/AVI、后台扫描、缺包导出、补传合并、哈希恢复；分布式模式复用现有 HTTP/SQLite。运行 `uv run --no-sync python -m qrft.decoder_gui.main`，完整操作见 [源码解码手册](docs/DECODER_USER_GUIDE.md)，最终桌面验收为 [UA-011](docs/USER_ACTIONS.md)。GUI 无编码 CLI 口令，本阶段不打包。
-
-v2-P10 的分级视频、1/2/4 Worker、真实 SQLite、大文件流式恢复、原生 GUI 长时负载和故障测试见 [稳定性/性能结果](docs/P10_STABILITY_PERFORMANCE_RESULTS.md) 与 [机器可读摘要](docs/P10_BENCHMARK_SUMMARY.json)。开发者入口为 `scripts/p10_acceptance.py` / `scripts/p10_report.py`，复现命令和资源保护说明在结果文档中；已有 P8/P9 用户验收不要求重复。合成视频及存储速度不代表真实录屏或 SMB 速度。
-
-本分支 `feature/qrft-v2-hex-md5` 开发软件0.4.0.dev0：新增v2大写HEX + MD5、固定1400字节、50ms、START/FINISH各20次；v1编码默认及解码兼容保留。见 [v2中文手册](docs/V2_USER_GUIDE.md) 和 [协议](docs/PROTOCOL.md)。本轮仅提交/推送、Draft PR验证，不合并main、不发布Release；下面已发布0.3.0rc1为历史候选版，不支持v2。
-
-v2-P8 编码端推荐按 [Windows 11 本地源码验收（uv）](docs/V2_USER_GUIDE.md) 操作：GUI 无需口令；纯 CLI 先执行本地交互校验，不提供帮助开关，不接受无终端/管道输入。Qt/OpenCV 默认固定窗口，首帧等待 Space，Space 开始/暂停/继续，Esc 结束；文字不进入固定白色录屏区。源码第 1～10 步及真实 Windows MP4 已由用户报告 PASS，见 [UA-010 / UA-009](docs/USER_ACTIONS.md) 和 [人工验收记录](docs/ACCEPTANCE_RESULTS.md)；Codex 未直接查阅其录屏/环境，真实双机 SMB 仍未验收。
-
-
-**当前状态：Python 编码/视频恢复闭环、控制中心和分布式 Worker 已实现；完整产品与真实双机验收尚未完成。** 目标交付日期：2026-10-16（7 天紧凑排期）。
-
-QRFT 支持将任意二进制文件转换为二维码序列，通过录屏保存，再使用单机或多台 Windows 解码节点从视频中恢复文件。
-
-## 项目文档（全部以 GitHub 为准）
-
-- [最新进度、已验证内容和下一步](docs/STATUS.md)
-- [一周开发计划](docs/ROADMAP.md)
-- [系统架构](docs/ARCHITECTURE.md)
-- [二进制协议草案](docs/PROTOCOL.md)
-- [验收标准](docs/ACCEPTANCE.md)
-- [uv 开发环境](docs/DEVELOPMENT.md)
-- [用户操作手册（可复制命令）](docs/USER_ACTIONS.md)
-- [开发规范](CONTRIBUTING.md)
-- [更新日志](CHANGELOG.md)
-
-## 五个 Windows 程序
-
-新增第五个独立工具 **QRFT-Acceptance.exe**，提供中文一键验收、真实 EXE 的单机/双 Worker/补传/故障恢复、性能采样与 HTML/JSON/CSV 报告。操作见 [一键验收手册](docs/ACCEPTANCE_RUNNER.md)。0.3.0rc1 五程序候选版已发布，旧 0.2.0rc1 下载仍保留。真实双机 SMB、实际录屏和大视频验收不能由本地模拟代替。
-
-当前候选软件版本 **0.3.0rc1**，新增第五个验收工具。部署、操作、备份、升级和排障见 [Windows 运维手册](docs/OPERATIONS.md)，本轮测试证据见 [一键验收结果](docs/ACCEPTANCE_RESULTS.md)，原四程序的历史证据见 [0.2.0rc1 交付记录](docs/FINAL_DELIVERY.md)。候选版不代表真实双机 SMB 和大视频已验收。
-
-下载入口：[0.3.0rc1 五程序候选版](https://github.com/yunfei00/qrft/releases/tag/v0.3.0-rc.1)。[旧 0.2.0rc1](https://github.com/yunfei00/qrft/releases/tag/v0.2.0-rc.1) 保留。性能方法、结果和未测项目见 [性能报告](docs/PERFORMANCE.md) 与 [一键验收结果](docs/ACCEPTANCE_RESULTS.md)。
-
-1. `QRFT-Encoder-CLI.exe`：命令行编码和二维码显示。
-2. `QRFT-Encoder-GUI.exe`：PySide6 图形编码器。
-3. `QRFT-Decoder.exe`：无界面分布式视频解码节点。
-4. `QRFT-Control.exe`：Web 管理中心、调度、缺包统计和文件恢复。
-5. `QRFT-Acceptance.exe`：中文一键验收、故障/补传测试、性能采样及证据报告。
-
-## 环境与部署
-
-- 使用 Release：完整解压五程序目录，无需安装 Python；请勿单独复制 EXE。
-- 源码开发：Python 3.12，**统一使用 uv** 管理虚拟环境、依赖和锁文件。
-- Windows 局域网；中心机保存可能达到数十 GB 的录屏文件。
-- 工作节点通过 SMB 共享按逻辑时间片读取原视频，不整体上传、复制或物理切片。
-- 恢复文件必须通过完整哈希校验，缺包列表可直接用于补传。
-
-## 协作原则
-
-**GitHub 是唯一事实来源，不依赖 ChatGPT 聊天记录。** 任何需要用户亲自操作的任务，必须先写入 [USER_ACTIONS.md](docs/USER_ACTIONS.md)，聊天中只需提示按照对应操作编号执行。能够通过 CI 自动验证的工作不要求用户重复操作。
-
-本仓库公开，请勿提交真实令牌、生产配置、录屏或业务文件。
-
-## 本地启动
+编码命令会先等待终端交互口令 `qsnfj`（输入不回显），之后执行参数。命令行管道输入不受支持。
 
 ```powershell
-uv sync --locked --python 3.12 --all-extras --group dev
+# 默认 2100 字节；文件和文件夹都可作为输入
+uv run --no-sync python -m qrft encode info "D:\Data\example.bin"
+uv run --no-sync python -m qrft encode play "D:\Data\example.bin"
+
+# 自定义分块，或导出 PNG
+uv run --no-sync python -m qrft encode play "D:\Data\ExampleFolder" --chunk-size 1400
+uv run --no-sync python -m qrft encode export "D:\Data\example.bin" --output "D:\QRFT\frames"
+
+# 使用缺包清单补传，分块大小须与首次传输一致
+uv run --no-sync python -m qrft encode play "D:\Data\example.bin" --missing "D:\QRFT\project\reports\missing_packets.txt"
+```
+
+`play` 的窗口仅显示供录屏的二维码；Space 开始、暂停或继续，Esc 结束。没有编码设置 GUI。文件夹补传还须提供首次 `info` 输出中的 `--expected-archive-md5`，防止源目录改变。
+
+## 解码和合并
+
+```powershell
+# 打开桌面界面：创建任务、导入同文件的视频和补传视频、开始解码、查看缺包、恢复
+uv run --no-sync python -m qrft decode
+
+# 也可对项目目录批量操作：录屏放入 PROJECT/videos
+uv run --no-sync python -m qrft decode "D:\QRFT\project"
+
+# 只合并项目已解出的包，不再扫描视频
+uv run --no-sync python -m qrft merge "D:\QRFT\project"
+```
+
+项目目录批量模式在 `state/` 保存续跑状态，`reports/missing_packets.txt` 保存缺包清单，`reports/decode_result.json` 保存结论，恢复文件放在 `output/`。同一文件的多个录屏、补传录屏放进同一个项目后再次解码即可；已成功且未改变的视频会跳过。
+
+桌面界面通过本地 Control/Worker 管理解码，也可以连接已有调度中心。它的任务数据保存在所选工作目录的 `.qrft-decoder/` 中，与批量项目目录分别使用。
+
+## 调度中心界面
+
+```powershell
 $env:QRFT_API_TOKEN = Read-Host 'API Token'
-uv run --no-sync python -m qrft.control.app
+uv run --no-sync python -m qrft control
 ```
 
-打开 `http://127.0.0.1:8787/`，输入同一 Token，创建任务并登记节点可访问的视频路径。分布式节点使用 `python -m qrft.decoder.worker --server URL --token TOKEN --node-id NODE_ID`；打包解码器对应 `QRFT-Decoder.exe worker` 子命令，本地视频恢复参数仍兼容。
-真实双机步骤、故障验收和哈希验证见 UA-006；测试覆盖与已知协议限制见 [分布式测试说明](docs/DISTRIBUTED_TESTING.md)。
+打开 [调度中心](http://127.0.0.1:8787/)，输入同一 Token。创建任务后登记视频路径；分布式节点需要能直接读取同一路径（可使用只读 SMB 共享）：
 
-## 许可证
+```powershell
+uv run --no-sync python -m qrft worker --server http://CENTER:8787 --node-id worker-1
+```
+
+节点通过 `QRFT_API_TOKEN` 环境变量读取 Token。调度中心合并各节点收到的包、导出缺包清单，并在整文件 MD5 一致后发布恢复文件。不同文件必须分开任务；同包号不同内容会阻止恢复。
+
+## 开发和打包
+
+```powershell
+uv run --no-sync pytest -q
+uv run --no-sync ruff check .
+uv run --no-sync ruff format --check .
+uv run --no-sync python scripts/build_windows.py
+```
+
+Windows 只打包三个程序：`QRFT-Encoder-CLI`、`QRFT-Decoder`、`QRFT-Control`。完整复制对应目录，不能只复制 EXE。
+
+核心说明：[协议](docs/PROTOCOL.md)、[架构](docs/ARCHITECTURE.md)、[开发](docs/DEVELOPMENT.md)。当前整理后的协议使用含分块大小的 START；历史三字段 START 和 QRFT2100 标记格式不再兼容，旧录屏应使用对应旧版本恢复。
 
 尚未选择许可证；公开可见不代表自动授予使用许可。

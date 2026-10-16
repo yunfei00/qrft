@@ -1,11 +1,8 @@
-"""将 QRFT PNG 帧编码成无损 AVI 视频，供自动化闭环验收。"""
+"""V2 video export for decoder integration and recorded-video checks."""
 
 from __future__ import annotations
 
-from itertools import chain
 from pathlib import Path
-
-from qrft.encoder_cli.main import export_frames
 
 
 def export_video(
@@ -15,69 +12,24 @@ def export_video(
     chunk_size: int | None = None,
     fps: float | None = None,
     repeats: int | None = None,
-    protocol_version: int = 1,
+    protocol_version: int = 2,
 ) -> Path:
-    """使用 MJPG AVI 保留二维码图案；不依赖显示器或外部录屏软件。"""
-    if protocol_version == 2:
-        if fps not in (None, 20) or repeats not in (None, 1):
-            raise ValueError("v2 video requires 20fps and one frame per scheduled display")
-        from qrft.encoder_cli.playback import iter_encoded_frames
+    """Encode the scheduled V2 stream at 20 fps, including repeated controls."""
+    if protocol_version != 2:
+        raise ValueError("only protocol v2 is supported")
+    if fps not in (None, 20) or repeats not in (None, 1):
+        raise ValueError("v2 video requires 20fps and one frame per scheduled display")
+    from qrft.encoder_cli.playback import iter_encoded_frames
 
-        return write_v2_video(
-            iter_encoded_frames(source, protocol_version=2, chunk_size=chunk_size), output
-        )
-    chunk_size = 128 if chunk_size is None else chunk_size
-    fps = 5.0 if fps is None else fps
-    repeats = 3 if repeats is None else repeats
-    if fps <= 0 or repeats < 1:
-        raise ValueError("fps must be positive and repeats >= 1")
-
-    import cv2
-    import numpy as np
-
-    output.parent.mkdir(parents=True, exist_ok=True)
-    if output.exists():
-        raise FileExistsError(output)
-    frames_dir = output.parent / (output.stem + "-frames")
-    meta = export_frames(source, frames_dir, chunk_size=chunk_size)
-    images = chain(
-        [frames_dir / "00000000-start.png"],
-        (frames_dir / f"{packet_id:08d}-data.png" for packet_id in range(meta["total_packets"])),
-        [frames_dir / "99999999-finish.png"],
-    )
-
-    def load(path):
-        return cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_COLOR)
-
-    first = load(frames_dir / "00000000-start.png")
-    if first is None:
-        raise OSError("cannot load START QR image")
-    height, width = first.shape[:2]
-    writer = cv2.VideoWriter(
-        str(output),
-        cv2.VideoWriter_fourcc(*"MJPG"),
-        fps,
-        (width, height),
-    )
-    if not writer.isOpened():
-        writer.release()
-        raise OSError(f"cannot create video: {output}")
+    frames = iter_encoded_frames(source, chunk_size=chunk_size)
     try:
-        for path in images:
-            image = load(path)
-            if image is None:
-                raise OSError(f"cannot read QR image: {path}")
-            if image.shape[:2] != (height, width):
-                image = cv2.resize(image, (width, height), interpolation=cv2.INTER_NEAREST)
-            for _ in range(repeats):
-                writer.write(np.ascontiguousarray(image))
+        return write_v2_video(frames, output)
     finally:
-        writer.release()
-    return output
+        frames.close()
 
 
 def write_v2_video(frames, output: Path) -> Path:
-    """Synthetic 20fps MJPG; center exact QR pixels, never resize to the START size."""
+    """Synthetic 20fps MJPG; center exact QR pixels without resizing."""
     import cv2
     import numpy as np
 
@@ -86,8 +38,7 @@ def write_v2_video(frames, output: Path) -> Path:
     output.parent.mkdir(parents=True, exist_ok=True)
     if output.exists():
         raise FileExistsError(output)
-    # Version40 with four quiet-zone modules and exact 50% scaling fits in 925px.
-    side = 926  # Even codec dimensions; extra white pixel, QR unchanged.
+    side = 926  # Even codec dimensions, accommodating a 925px version-40 QR.
     writer = cv2.VideoWriter(str(output), cv2.VideoWriter_fourcc(*"MJPG"), 20, (side, side))
     if not writer.isOpened():
         writer.release()

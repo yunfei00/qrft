@@ -1,4 +1,4 @@
-"""从去重后的 QRFT 数据包恢复文件，并验证 SHA256/MD5。"""
+"""从去重后的 v2 数据包恢复文件，并验证文件 MD5。"""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ class PacketIds:
 
 
 class FileAssembler:
-    """仅将通过协议 CRC 校验的数据包写入随机访问文件。"""
+    """仅将通过协议 MD5 校验的数据包写入随机访问文件。"""
 
     def __init__(self, directory: Path) -> None:
         self.directory = directory
@@ -57,6 +57,8 @@ class FileAssembler:
         self.conflicted = False
 
     def accept(self, frame: Frame) -> None:
+        if frame.version != 2:
+            raise ProtocolError("only protocol v2 is supported")
         if frame.kind == "start":
             if self.manifest is not None:
                 if frame.metadata != self.manifest:
@@ -65,25 +67,19 @@ class FileAssembler:
             meta = frame.metadata
             if meta is None:
                 raise ProtocolError("START metadata missing")
-            if meta.get("version", 1) != frame.version:
+            if meta.get("version", 2) != frame.version:
                 raise ProtocolError("START metadata version disagrees with wire protocol")
             validate_manifest(meta)
-            size = meta["file_size"] or 0
             self.manifest = dict(meta)
             descriptor, temporary = tempfile.mkstemp(
                 prefix=".qrft-", suffix=".part", dir=self.directory
             )
             os.close(descriptor)
             self._file = Path(temporary)
-            with self._file.open("wb") as stream:
-                stream.truncate(size)
             return
 
         if self.manifest is None or self._file is None:
             raise ProtocolError("START frame required before data")
-
-        if frame.version != self.manifest.get("version", 1):
-            raise ProtocolError("protocol version mismatch: cannot mix v1 and v2")
 
         if frame.kind == "finish":
             self.finished = True
@@ -99,8 +95,7 @@ class FileAssembler:
             with self._file.open("rb") as stream:
                 stream.seek(packet_id * chunk)
                 if stream.read(expected) != frame.payload or (
-                    frame.version == 2
-                    and packet_id == self.manifest["total_packets"] - 1
+                    packet_id == self.manifest["total_packets"] - 1
                     and self._file.stat().st_size != packet_id * chunk + expected
                 ):
                     self.conflicted = True
@@ -119,20 +114,15 @@ class FileAssembler:
         if self.manifest.get("filename") in {"missing.txt", "missing.csv", "missing.json"}:
             reports = self.directory / ".qrft-missing"
         missing = stream_missing(reports, total, self.received)
-        if self.manifest.get("version", 1) == 2 and self.conflicted:
+        if self.conflicted:
             raise ProtocolError("v2 packet conflicts require a new isolated task")
-        if missing or (self.manifest.get("version", 1) == 1 and not self.finished):
+        if missing:
             return None
-        sha = hashlib.sha256()
         md5 = hashlib.md5(usedforsecurity=False)
         with self._file.open("rb") as stream:
             for block in iter(lambda: stream.read(1024 * 1024), b""):
-                sha.update(block)
                 md5.update(block)
-        if md5.hexdigest().upper() != self.manifest["md5"].upper() or (
-            self.manifest.get("version", 1) == 1
-            and sha.hexdigest().upper() != self.manifest["sha256"].upper()
-        ):
+        if md5.hexdigest().upper() != self.manifest["md5"].upper():
             raise ProtocolError("reassembled file hash mismatch")
         filename = self.manifest.get("filename")
         if not isinstance(filename, str) or not filename or Path(filename).name != filename:

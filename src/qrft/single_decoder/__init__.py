@@ -1,1 +1,1 @@
-"""Project-folder, single-process V2/QRFT2100 decoder; no v1 or Control dependency."""
+"""Durable v2 project decoding and merging."""

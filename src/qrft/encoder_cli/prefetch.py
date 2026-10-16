@@ -30,11 +30,16 @@ def ordered_prefetch[T](
                     break
                 pending.append((item, pool.submit(transform, item)))
 
-        fill()
-        while pending:
-            item, future = pending.pop(0)
-            yield item, future.result()
+        try:
             fill()
+            while pending:
+                item, future = pending.pop(0)
+                yield item, future.result()
+                fill()
+        finally:
+            close = getattr(iterator, "close", None)
+            if close is not None:
+                close()
 
 
 def prefetch_png(
@@ -43,8 +48,8 @@ def prefetch_png(
     workers: int = 2,
     capacity: int = 4,
     qr_options: dict | None = None,
-    protocol_version: int = 1,
-) -> Iterator[tuple[str, bytes]]:
+    protocol_version: int = 2,
+) -> Iterator[tuple[tuple[str, bytes], bytes]]:
     """对原始 QRFT 帧进行有界并行 PNG 生成。"""
 
     def render(frame: tuple[str, bytes]) -> bytes:

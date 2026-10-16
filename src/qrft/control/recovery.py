@@ -4,7 +4,11 @@ import hashlib
 import os
 import sqlite3
 import tempfile
+import zlib
 from pathlib import Path
+from zipfile import BadZipFile
+
+from qrft.core.folder import verify_folder
 
 from qrft.core.missing import stream_missing
 from qrft.core.protocol import ProtocolError, decode_frame
@@ -13,8 +17,15 @@ from qrft.core.validation import validate_data
 
 
 def recover(
-    db: sqlite3.Connection, task_id: int, directory: Path, *, files_subdirectory=True
+    db: sqlite3.Connection,
+    task_id: int,
+    directory: Path,
+    *,
+    files_subdirectory=True,
+    max_folder_bytes=8 * 1024**3,
 ) -> dict:
+    if max_folder_bytes <= 0:
+        raise ValueError("Folder verification budget must be positive")
     manifest = db.execute(
         "SELECT start_frame FROM task_manifests WHERE task_id=?", (task_id,)
     ).fetchone()
@@ -27,12 +38,9 @@ def recover(
         assembler.received.close()
         assembler.accept(decode_frame(bytes(manifest["start_frame"])))
         meta = assembler.manifest
-        if (
-            meta.get("version", 1) == 2
-            and db.execute(
-                "SELECT 1 FROM packet_conflicts WHERE task_id=? LIMIT 1", (task_id,)
-            ).fetchone()
-        ):
+        if db.execute(
+            "SELECT 1 FROM packet_conflicts WHERE task_id=? LIMIT 1", (task_id,)
+        ).fetchone():
             raise ProtocolError("v2 packet conflicts require a new isolated task")
         received = 0
         with assembler._file.open("r+b") as output:
@@ -63,10 +71,7 @@ def recover(
                 )
             ),
         )
-        if received != meta["total_packets"] or (
-            meta.get("version", 1) == 1
-            and not db.execute("SELECT 1 FROM task_finishes WHERE task_id=?", (task_id,)).fetchone()
-        ):
+        if received != meta["total_packets"]:
             return {"status": "incomplete"}
         sha = hashlib.sha256()
         md5 = hashlib.md5(usedforsecurity=False)
@@ -74,10 +79,12 @@ def recover(
             for block in iter(lambda: source.read(1024 * 1024), b""):
                 sha.update(block)
                 md5.update(block)
-        if md5.hexdigest().upper() != meta["md5"].upper() or (
-            meta.get("version", 1) == 1 and sha.hexdigest().upper() != meta["sha256"].upper()
-        ):
+        if md5.hexdigest().upper() != meta["md5"].upper():
             raise ProtocolError("reassembled file hash mismatch")
+        try:
+            folder = verify_folder(assembler._file, max_folder_bytes)
+        except (ValueError, OSError, BadZipFile, zlib.error, RuntimeError) as exc:
+            raise ProtocolError(f"folder verification failed: {exc}") from exc
         filename = meta.get("filename")
         if (
             not isinstance(filename, str)
@@ -110,5 +117,6 @@ def recover(
             "path": str(target),
             "sha256": sha.hexdigest(),
             "md5": md5.hexdigest().upper(),
-            "protocol_version": meta.get("version", 1),
+            "protocol_version": 2,
+            "folder": folder,
         }

@@ -1,4 +1,4 @@
-"""Exercise all four frozen EXEs, including an actual binary/AVI/HTTP recovery chain."""
+"""Exercise the three frozen EXEs, including an actual binary/AVI/HTTP recovery chain."""
 
 import argparse
 import hashlib
@@ -6,6 +6,7 @@ import json
 import os
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
@@ -20,7 +21,7 @@ def main():
     args = parser.parse_args()
     binaries = {
         name: (args.dist / name / f"{name}.exe").resolve()
-        for name in ("QRFT-Encoder-CLI", "QRFT-Encoder-GUI", "QRFT-Decoder", "QRFT-Control")
+        for name in ("QRFT-Encoder-CLI", "QRFT-Decoder", "QRFT-Control")
     }
     for binary in binaries.values():
         if not binary.is_file():
@@ -37,7 +38,8 @@ def main():
 
         def run(name, *options):
             if name == "QRFT-Encoder-CLI":
-                from qrft.encoder_cli.console_test import run_encoder
+                sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
+                from encoder_console_driver import run_encoder
 
                 result = run_encoder(
                     [str(binaries[name]), *map(str, options)], env=env, cwd=root, timeout=60
@@ -54,18 +56,9 @@ def main():
         source.write_bytes(payload)
         images = root / "png"
         run("QRFT-Encoder-CLI", "export", source, "--output", images, "--chunk-size", 64)
-        run("QRFT-Encoder-GUI", "--smoke-test")
-        run(
-            "QRFT-Encoder-GUI",
-            "--stability-file",
-            source,
-            "--stability-seconds",
-            1,
-            "--stability-evidence",
-            root / "player.json",
-        )
-        evidence = json.loads((root / "player.json").read_text(encoding="utf-8"))
-        assert evidence["displayed_frames"] and evidence["error"] is None
+        run("QRFT-Decoder", "--workspace", root / "desktop", "--smoke-test")
+        if not (root / "desktop" / ".qrft-decoder" / "control.sqlite3").is_file():
+            raise RuntimeError("Decoder GUI did not start its managed control process")
         import cv2
         import numpy as np
 
@@ -78,21 +71,22 @@ def main():
         def load(path):
             return cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_COLOR)
 
-        first = load(paths[0])
-        height, width = first.shape[:2]
+        height = width = 926
         video = root / "video.avi"
         writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"MJPG"), 5, (width, height))
         if not writer.isOpened():
             raise OSError("Cannot create smoke AVI")
         try:
             for path in paths:
-                image = cv2.resize(load(path), (width, height), interpolation=cv2.INTER_NEAREST)
+                qr = load(path)
+                image = np.full((height, width, 3), 255, dtype=np.uint8)
+                h, w = qr.shape[:2]
+                y, x = (height - h) // 2, (width - w) // 2
+                image[y : y + h, x : x + w] = qr
                 for _ in range(30):
                     writer.write(image)
         finally:
             writer.release()
-        run("QRFT-Decoder", video, "--output", root / "local", "--sample-fps", 5)
-        assert (root / "local" / source.name).read_bytes() == payload
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
@@ -161,7 +155,7 @@ def main():
             assert Path(restored["path"]).read_bytes() == payload
             assert restored["sha256"] == hashlib.sha256(payload).hexdigest()
             print(
-                "PASS: four EXEs; Qt startup; CLI PNG -> AVI -> local decoder and HTTP Worker -> SQLite -> SHA256"
+                "PASS: three EXEs; decoder GUI startup; CLI PNG -> AVI -> HTTP Worker -> SQLite -> MD5/SHA256"
             )
         finally:
             server.terminate()

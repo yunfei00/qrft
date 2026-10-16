@@ -24,7 +24,7 @@ def test_real_video_roundtrip(tmp_path: Path, filename, payload) -> None:
     pytest.importorskip("zxingcpp")
     source = tmp_path / filename
     source.write_bytes(payload)
-    video = export_video(source, tmp_path / "recording.avi", chunk_size=64, fps=5, repeats=5)
-    restored = restore_video(video, tmp_path / "recovered", sample_fps=5)
+    video = export_video(source, tmp_path / "recording.avi", chunk_size=64)
+    restored = restore_video(video, tmp_path / "recovered", sample_fps=60)
     assert restored is not None
     assert restored.read_bytes() == payload

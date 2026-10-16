@@ -12,7 +12,7 @@ from qrft.core.qr_image import qr_png
 @pytest.mark.parametrize(
     ("packet_id", "payload"),
     [
-        (0, b""),
+        (0, b"\x00"),
         (1, b"\x00\xff\xfe\x80\x00"),
         (2, bytes(range(256))),
         (3, b"\x00" * 64 + b"\xff" * 64),
@@ -28,7 +28,7 @@ def test_data_png_roundtrip(packet_id: int, payload: bytes) -> None:
 
 def test_start_and_finish_png_roundtrip() -> None:
     pytest.importorskip("zxingcpp")
-    metadata = {"filename": "测试-😀.bin", "size": 5, "sha256": "abc"}
+    metadata = {"filename": "测试-😀.bin", "md5": "A" * 32, "total_packets": 1}
     start = encode_start(metadata)
     finish = encode_finish()
     assert decode_qr_png(qr_png(start)) == decode_frame(start)

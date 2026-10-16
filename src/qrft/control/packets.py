@@ -13,7 +13,7 @@ def init_schema(db: sqlite3.Connection) -> None:
     db.executescript(
         """
         CREATE TABLE IF NOT EXISTS task_protocols (
-            task_id INTEGER PRIMARY KEY, version INTEGER NOT NULL CHECK(version IN (1,2))
+            task_id INTEGER PRIMARY KEY, version INTEGER NOT NULL CHECK(version=2)
         );
         CREATE TABLE IF NOT EXISTS packets (
             task_id INTEGER NOT NULL,
@@ -36,7 +36,7 @@ def init_schema(db: sqlite3.Connection) -> None:
 
 
 def ingest(db: sqlite3.Connection, task_id: int, raw: bytes) -> str:
-    """返回 inserted / duplicate / conflict；CRC 和格式由协议解码器验证。"""
+    """返回 inserted / duplicate / conflict；MD5 和格式由协议解码器验证。"""
     frame: Frame = decode_frame(raw)
     if frame.kind != "data":
         raise ProtocolError("only DATA frames accepted by packet ingestion")
@@ -67,9 +67,11 @@ def ingest(db: sqlite3.Connection, task_id: int, raw: bytes) -> str:
 
 
 def lock_protocol(db: sqlite3.Connection, task_id: int, version: int) -> None:
+    if version != 2:
+        raise ProtocolError("only protocol v2 is supported")
     existing = db.execute(
         "SELECT version FROM task_protocols WHERE task_id=?", (task_id,)
     ).fetchone()
     if existing is not None and existing[0] != version:
-        raise ProtocolError("protocol version mismatch: cannot mix v1 and v2")
+        raise ProtocolError("legacy task protocol is unsupported; create a new v2 task")
     db.execute("INSERT OR IGNORE INTO task_protocols VALUES (?,?)", (task_id, version))

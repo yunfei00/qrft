@@ -1,10 +1,9 @@
-"""Adapt existing strict parsers, without changing either frozen wire format."""
+"""Use the shared v2 parser for durable project receipts."""
 
 import hashlib
 import json
 
-from qrft.core.protocol_v2 import decode_v2
-from qrft.encoder2100.protocol import START_ID, inspect_frame
+from qrft.core.protocol import decode_frame
 
 
 def filename(value):
@@ -32,38 +31,21 @@ def filename(value):
 
 
 def parse(raw):
-    text = raw.decode("ascii") if isinstance(raw, bytes) else raw
-    try:
-        number, payload = inspect_frame(text)
-    except ValueError:
-        # Only an old v2 START differs; DATA and FINISH have the same strict envelope.
-        old = decode_v2(text.encode("ascii"))
-        if old.kind != "start":
-            raise ValueError("Invalid V2 frame") from None
-        meta = old.metadata
-        return (
-            START_ID,
-            bytes.fromhex(text[:-48]),
-            {
-                "protocol": "V2",
-                "filename": filename(meta["filename"]),
-                "expected_md5": meta["md5"],
-                "total_packets": meta["total_packets"],
-                "chunk_size": 1400,
-            },
-        )
-    if number != START_ID:
-        return number, payload, None
-    name, md5, count, marker = payload.decode("utf-8").rsplit(",", 3)
+    raw = raw.encode("ascii") if isinstance(raw, str) else raw
+    frame = decode_frame(raw)
+    payload = bytes.fromhex(raw[:-48].decode("ascii"))
+    if frame.kind != "start":
+        return frame.packet_id, payload, None
+    meta = frame.metadata
     return (
-        number,
+        frame.packet_id,
         payload,
         {
-            "protocol": marker,
-            "filename": filename(name),
-            "expected_md5": md5,
-            "total_packets": int(count),
-            "chunk_size": 2100,
+            "protocol": "V2",
+            "filename": filename(meta["filename"]),
+            "expected_md5": meta["md5"],
+            "total_packets": meta["total_packets"],
+            "chunk_size": meta["chunk_size"],
         },
     )
 

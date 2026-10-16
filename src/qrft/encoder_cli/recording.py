@@ -2,8 +2,8 @@
 
 QR_SIDE = 926
 PADDING = 10
-HEADER = 24
-FOOTER = 48
+HEADER = 18
+FOOTER = 22
 
 
 class KeyLatch:
@@ -35,7 +35,7 @@ def recording_canvas(image, label, state):
     cv2.putText(
         canvas,
         "QRFT | RECORD THE WHITE SQUARE",
-        (10, 17),
+        (10, 13),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.45,
         (50, 50, 50),
@@ -43,17 +43,8 @@ def recording_canvas(image, label, state):
     )
     cv2.putText(
         canvas,
-        f"{state} | {label}",
-        (10, HEADER + QR_SIDE + 19),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.45,
-        (50, 50, 50),
-        1,
-    )
-    cv2.putText(
-        canvas,
-        "Space: start/pause/resume | Esc: stop",
-        (10, canvas.shape[0] - 9),
+        f"{state} | {label} | Space: start/pause/resume | Esc: stop",
+        (10, canvas.shape[0] - 7),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.45,
         (50, 50, 50),

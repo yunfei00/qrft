@@ -1,27 +1,20 @@
-"""Version 1 QRFT binary framing.
-
-Wire format:
-DATA:   payload || crc32_be(payload || packet_id_ascii) || packet_id_ascii
-START:  b"QRFT1S" || compact_utf8_json || crc32_be(prefix) || b"88888888"
-FINISH: b"QRFT1F" || crc32_be(prefix) || b"99999999"
-
-A control packet can only be interpreted as control when its reserved packet ID is present.
-"""
+"""QRFT v2: uppercase content HEX, content MD5 HEX and decimal-ASCII ID HEX."""
 
 from __future__ import annotations
 
-import json
+import hashlib
 import re
-import zlib
 from dataclasses import dataclass
 from typing import Any
 
 START_ID = 88_888_888
 FINISH_ID = 99_999_999
 MAX_ID = 99_999_999
-START_MAGIC = b"QRFT1S"
-FINISH_MAGIC = b"QRFT1F"
-_PACKET_ID_RE = re.compile(rb"[0-9]{8}")
+CHUNK_SIZE = 2100
+MAX_CHUNK_SIZE = 2124
+_HEX = re.compile(rb"[0-9A-F]*")
+_MD5 = re.compile(r"[0-9A-F]{32}")
+_PACKET_ID = re.compile(rb"[0-9]{8}")
 
 
 class ProtocolError(ValueError):
@@ -34,117 +27,122 @@ class Frame:
     packet_id: int
     payload: bytes
     metadata: dict[str, Any] | None = None
-    version: int = 1
+    version: int = 2
     raw: bytes | None = None
 
 
+def validate_chunk_size(value: int) -> int:
+    if type(value) is not int or not 1 <= value <= MAX_CHUNK_SIZE:
+        raise ProtocolError(f"chunk size must be 1..{MAX_CHUNK_SIZE} bytes")
+    return value
+
+
 def _packet_id(value: int) -> bytes:
-    if not isinstance(value, int) or isinstance(value, bool):
-        raise ProtocolError("packet ID must be an integer")
-    if not 0 <= value <= MAX_ID:
-        raise ProtocolError("packet ID exceeds eight decimal digits")
+    if type(value) is not int or not 0 <= value <= MAX_ID:
+        raise ProtocolError("packet ID must be an integer of at most eight decimal digits")
     return f"{value:08d}".encode("ascii")
 
 
-def _crc(data: bytes) -> bytes:
-    return (zlib.crc32(data) & 0xFFFFFFFF).to_bytes(4, "big")
-
-
-def _wrap(body: bytes, packet_id: int) -> bytes:
-    suffix = _packet_id(packet_id)
-    return body + _crc(body + suffix) + suffix
+def wrap_v2(content: bytes, packet_id: int) -> bytes:
+    return (
+        content.hex().upper()
+        + hashlib.md5(content, usedforsecurity=False).hexdigest().upper()
+        + _packet_id(packet_id).hex().upper()
+    ).encode("ascii")
 
 
 def encode_data(packet_id: int, payload: bytes) -> bytes:
-    """Encode arbitrary file bytes; control IDs are never valid DATA IDs."""
-    if packet_id in (START_ID, FINISH_ID):
-        raise ProtocolError("reserved packet ID")
-    if not isinstance(payload, bytes):
-        raise TypeError("payload must be bytes")
-    return _wrap(payload, packet_id)
+    if type(packet_id) is not int or not 0 <= packet_id < START_ID:
+        raise ProtocolError("v2 DATA ID outside contiguous range")
+    if not isinstance(payload, bytes) or not 1 <= len(payload) <= MAX_CHUNK_SIZE:
+        raise ProtocolError(f"v2 DATA requires 1..{MAX_CHUNK_SIZE} original bytes")
+    return wrap_v2(payload, packet_id)
 
 
 def encode_start(metadata: dict[str, Any]) -> bytes:
-    """Emit a compact metadata control frame.
-
-    Large manifests will require protocol extension; no silent truncation is allowed.
-    """
     if not isinstance(metadata, dict):
         raise TypeError("metadata must be a dictionary")
-    try:
-        raw = json.dumps(
-            metadata, ensure_ascii=False, separators=(",", ":"), sort_keys=True
-        ).encode("utf-8")
-    except (TypeError, ValueError) as exc:
-        raise ProtocolError("metadata is not JSON serializable") from exc
-    return _wrap(START_MAGIC + raw, START_ID)
+    if metadata.get("version", 2) != 2:
+        raise ProtocolError("only protocol v2 is supported")
+    filename = metadata.get("filename")
+    md5 = metadata.get("md5")
+    total = metadata.get("total_packets")
+    chunk = validate_chunk_size(metadata.get("chunk_size", CHUNK_SIZE))
+    if not isinstance(filename, str) or not filename or "\x00" in filename:
+        raise ProtocolError("v2 filename missing or contains NUL")
+    if not isinstance(md5, str) or _MD5.fullmatch(md5.upper()) is None:
+        raise ProtocolError("invalid file MD5")
+    if type(total) is not int or not 0 <= total <= START_ID:
+        raise ProtocolError("invalid total block count")
+    return wrap_v2(f"{filename},{md5.upper()},{total},{chunk}".encode(), START_ID)
 
 
 def encode_finish() -> bytes:
-    return _wrap(FINISH_MAGIC, FINISH_ID)
-
-
-def _decode_v1(raw: bytes) -> Frame:
-    if not isinstance(raw, bytes):
-        raise TypeError("QR decoder must return raw bytes, not text")
-    if len(raw) < 12:
-        raise ProtocolError("frame too short")
-    suffix = raw[-8:]
-    if _PACKET_ID_RE.fullmatch(suffix) is None:
-        raise ProtocolError("frame must end in eight ASCII decimal digits")
-    packet_id = int(suffix)
-    body, checksum = raw[:-12], raw[-12:-8]
-    if checksum != _crc(body + suffix):
-        raise ProtocolError("CRC32 mismatch")
-    if packet_id == START_ID:
-        if not body.startswith(START_MAGIC):
-            raise ProtocolError("invalid START magic")
-        try:
-            metadata = json.loads(body[len(START_MAGIC) :].decode("utf-8"))
-        except (UnicodeError, json.JSONDecodeError) as exc:
-            raise ProtocolError("invalid START metadata") from exc
-        if not isinstance(metadata, dict):
-            raise ProtocolError("START metadata must be a JSON object")
-        return Frame("start", packet_id, b"", metadata)
-    if packet_id == FINISH_ID:
-        if body != FINISH_MAGIC:
-            raise ProtocolError("invalid FINISH magic")
-        return Frame("finish", packet_id, b"")
-    return Frame("data", packet_id, body)
+    return wrap_v2(b"finish", FINISH_ID)
 
 
 def decode_frame(raw: bytes) -> Frame:
-    """Keep strict v1 CRC parsing; v2 uses a separate strict HEX/MD5 parser."""
     if not isinstance(raw, bytes):
         raise TypeError("QR decoder must return raw bytes, not text")
-    try:
-        frame = _decode_v1(raw)
-    except ProtocolError as v1_error:
-        from .protocol_v2 import decode_v2
-
+    if len(raw) < 48 or len(raw) % 2 or _HEX.fullmatch(raw) is None:
+        raise ProtocolError("v2 requires even-length uppercase HEX and 48 suffix characters")
+    suffix = bytes.fromhex(raw[-16:].decode("ascii"))
+    if _PACKET_ID.fullmatch(suffix) is None:
+        raise ProtocolError("v2 ID must encode eight decimal ASCII digits")
+    packet_id = int(suffix)
+    payload = bytes.fromhex(raw[:-48].decode("ascii"))
+    digest = hashlib.md5(payload, usedforsecurity=False).hexdigest().upper().encode("ascii")
+    if digest != raw[-48:-16]:
+        raise ProtocolError("v2 content MD5 mismatch")
+    if packet_id == START_ID:
         try:
-            return decode_v2(raw)
-        except ProtocolError:
-            if len(raw) >= 48 and re.fullmatch(rb"[0-9A-Fa-f]+", raw):
-                raise
-            raise v1_error
-    return Frame(frame.kind, frame.packet_id, frame.payload, frame.metadata, 1, raw)
+            filename, md5, count, chunk_text = payload.decode("utf-8").rsplit(",", 3)
+        except (UnicodeError, ValueError) as exc:
+            raise ProtocolError("invalid v2 START text") from exc
+        if (
+            not filename
+            or "\x00" in filename
+            or _MD5.fullmatch(md5) is None
+            or re.fullmatch(r"[0-9]+", count) is None
+            or len(count) > 8
+            or int(count) > START_ID
+            or re.fullmatch(r"[0-9]{1,4}", chunk_text) is None
+        ):
+            raise ProtocolError("invalid v2 START fields")
+        metadata = {
+            "version": 2,
+            "filename": filename,
+            "md5": md5,
+            "total_packets": int(count),
+            "chunk_size": validate_chunk_size(int(chunk_text)),
+            "file_size": None,
+        }
+        return Frame("start", packet_id, b"", metadata, raw=raw)
+    if packet_id == FINISH_ID:
+        if payload != b"finish":
+            raise ProtocolError("v2 FINISH content must be lowercase finish")
+        return Frame("finish", packet_id, b"", raw=raw)
+    if not 0 <= packet_id < START_ID or not 1 <= len(payload) <= MAX_CHUNK_SIZE:
+        raise ProtocolError("invalid v2 DATA ID or block size")
+    return Frame("data", packet_id, payload, raw=raw)
 
 
 def serialize_frame(frame: Frame) -> bytes:
-    """Workers preserve the scanned wire frame; never translate v2 into v1."""
+    if frame.version != 2:
+        raise ProtocolError("only protocol v2 is supported")
     if frame.raw is not None:
+        decode_frame(frame.raw)
         return frame.raw
-    if frame.version == 2:
-        from .protocol_v2 import encode_data_v2, encode_finish_v2, encode_start_v2
-
-        if frame.kind == "start":
-            return encode_start_v2(frame.metadata or {})
-        if frame.kind == "finish":
-            return encode_finish_v2()
-        return encode_data_v2(frame.packet_id, frame.payload)
     if frame.kind == "start":
         return encode_start(frame.metadata or {})
     if frame.kind == "finish":
         return encode_finish()
-    return encode_data(frame.packet_id, frame.payload)
+    if frame.kind == "data":
+        return encode_data(frame.packet_id, frame.payload)
+    raise ProtocolError("unknown frame kind")
+
+
+encode_data_v2 = encode_data
+encode_start_v2 = encode_start
+encode_finish_v2 = encode_finish
+decode_v2 = decode_frame

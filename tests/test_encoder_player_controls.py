@@ -1,96 +1,18 @@
-"""Real QR images/Qt events; mock only OpenCV desktop key and window I/O."""
-
-import os
-import time
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+"""Real QR images; mock only OpenCV desktop keys and window I/O."""
 
 import pytest
 
 cv2 = pytest.importorskip("cv2")
 np = pytest.importorskip("numpy")
-pytest.importorskip("PySide6")
-from PySide6.QtCore import QEvent, Qt
-from PySide6.QtGui import QKeyEvent
-from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
 
 from qrft.encoder_cli import opencv_player
-from qrft.encoder_cli.recording import HEADER, PADDING, QR_SIDE, KeyLatch, recording_canvas
-from qrft.encoder_gui.main import EncoderWindow
-from qrft.encoder_gui.player import PlayerWindow
+from qrft.encoder_cli.recording import FOOTER, HEADER, PADDING, QR_SIDE, KeyLatch, recording_canvas
 
 
-def ready(app, window):
-    deadline = time.monotonic() + 10
-    while not window.ready and time.monotonic() < deadline:
-        app.processEvents()
-        QTest.qWait(5)
-    assert window.ready and not window.error
-
-
-def test_qt_first_frame_space_repeat_pause_resume_escape_and_geometry(tmp_path):
-    app = QApplication.instance() or QApplication([])
-    source = tmp_path / "文件.bin"
-    source.write_bytes(bytes(range(256)) * 7)
-    missing = tmp_path / "missing.txt"
-    missing.write_text("00000001\n")
-    positions = []
-    for selection in (None, missing):
-        window = PlayerWindow(source, protocol_version=2, retransmit=selection)
-        try:
-            window.show()
-            ready(app, window)
-            assert not window.isFullScreen() and window.paused and not window.started
-            positions.append((window.size(), window.image.geometry()))
-            count = window.displayed
-            QTest.qWait(120)
-            app.processEvents()
-            assert window.displayed == count == 1
-            QTest.keyClick(window, Qt.Key.Key_Space)
-            assert not window.paused and window.started
-            repeated = QKeyEvent(
-                QEvent.Type.KeyPress, Qt.Key.Key_Space, Qt.KeyboardModifier.NoModifier, " ", True, 1
-            )
-            app.sendEvent(window, repeated)
-            assert not window.paused
-            QTest.keyClick(window, Qt.Key.Key_Space)
-            assert window.paused
-            paused = window.displayed
-            QTest.qWait(120)
-            app.processEvents()
-            assert window.displayed == paused
-            QTest.keyClick(window, Qt.Key.Key_Space)
-            assert not window.paused
-            QTest.qWait(120)
-            app.processEvents()
-            assert window.displayed > paused
-            assert window.image.geometry() == positions[-1][1]
-            QTest.keyClick(window, Qt.Key.Key_Escape)
-            assert window.finished and not window.thread.is_alive()
-        finally:
-            window.close()
-    assert positions[0] == positions[1]
-
-
-def test_gui_has_no_console_gate_and_windowed_default(tmp_path, monkeypatch):
-    from qrft.encoder_cli import entrypoint
-
-    monkeypatch.setattr(entrypoint, "authenticate", lambda: pytest.fail("GUI used CLI gate"))
-    app = QApplication.instance() or QApplication([])
-    source = tmp_path / "gui.bin"
-    source.write_bytes(b"data")
-    gui = EncoderWindow()
-    try:
-        gui.source.setText(str(source))
-        gui.protocol.setCurrentIndex(1)
-        assert not gui.fullscreen.isChecked()
-        assert gui.chunk_size.value() == 1400 and not gui.chunk_size.isEnabled()
-        gui.start_playback()
-        ready(app, gui.player)
-        assert gui.player.paused and not gui.player.started
-    finally:
-        gui.close()
+def test_full_density_recording_window_fits_1080p_work_area():
+    # A 40px taskbar and 40px window decoration allowance leave 1000px for content.
+    assert HEADER + QR_SIDE + FOOTER + 40 <= 1080 - 40
+    assert QR_SIDE + 2 * PADDING + 40 <= 1920
 
 
 def test_recording_region_never_contains_status_or_border():

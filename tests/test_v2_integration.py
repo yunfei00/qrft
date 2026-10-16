@@ -16,8 +16,13 @@ from fastapi.testclient import TestClient
 
 from qrft.control.app import app, connection
 from qrft.core.manifest import inspect_file
-from qrft.core.protocol import ProtocolError, encode_data
-from qrft.core.protocol_v2 import encode_data_v2, encode_finish_v2, encode_start_v2
+from qrft.core.protocol import (
+    ProtocolError,
+    encode_data,
+    encode_data_v2,
+    encode_finish_v2,
+    encode_start_v2,
+)
 from qrft.decoder.main import restore_video
 from qrft.decoder.video import iter_video_frames
 from qrft.decoder.worker import process_slice
@@ -65,7 +70,7 @@ def test_real_video_sequence_and_restore(tmp_path, payload):
     source.write_bytes(payload)
     video = export_video(source, tmp_path / "synthetic.avi", protocol_version=2)
     capture = cv2.VideoCapture(str(video))
-    total = (len(payload) + 1399) // 1400
+    total = (len(payload) + 2099) // 2100
     assert capture.get(cv2.CAP_PROP_FPS) == 20
     assert capture.get(cv2.CAP_PROP_FRAME_COUNT) == 40 + total
     capture.release()
@@ -178,9 +183,13 @@ def test_control_unordered_lock_dedup_conflict_and_md5(control, tmp_path):
     assert control.post(f"/tasks/{wrong}/recover").status_code == 409
 
 
-def test_v1_default_and_wrong_size_reject_v2(control, tmp_path):
-    task = control.post("/tasks", json={"name": "legacy"}).json()["id"]
-    assert batch(control, task, [encode_data_v2(0, b"x")]).status_code == 422
+def test_v2_default_and_metadata_size_validation(control, tmp_path):
+    task = control.post("/tasks", json={"name": "default v2"}).json()["id"]
+    assert batch(control, task, [encode_data_v2(0, b"x")]).status_code == 200
+    assert control.get(f"/tasks/{task}/progress").json()["protocol_version"] == 2
+    assert (
+        control.post("/tasks", json={"name": "obsolete", "protocol_version": 1}).status_code == 422
+    )
     source = tmp_path / "large.bin"
     source.write_bytes(b"x" * 1401)
     task = create(control)
@@ -274,79 +283,10 @@ def test_real_http_workers_and_independent_processes(control, tmp_path):
 def test_mixed_local_task_rejected(tmp_path):
     source = tmp_path / "same.bin"
     source.write_bytes(b"x")
-    v1 = export_video(source, tmp_path / "v1.avi")
-    v2 = export_video(source, tmp_path / "v2.avi", protocol_version=2)
-    with pytest.raises(ProtocolError, match="version mismatch"):
-        restore_video([v2, v1], tmp_path / "mixed", protocol_version=2)
-
-
-def test_gui_fixed_v2_and_real_png(tmp_path):
-    from PySide6.QtTest import QTest
-    from PySide6.QtWidgets import QApplication
-
-    from qrft.core.qr_decode import decode_qr_png
-    from qrft.encoder_gui.main import EncoderWindow
-
-    qt = QApplication.instance() or QApplication([])
-    source = tmp_path / "qt.bin"
-    source.write_bytes(random.Random(20).randbytes(1400))
-    window = EncoderWindow()
-    try:
-        window.protocol.setCurrentIndex(1)
-        assert window.chunk_size.value() == 1400 and not window.chunk_size.isEnabled()
-        assert window.interval_ms.value() == 50 and window.correction.currentText() == "L"
-        window.source.setText(str(source))
-        window.output.setText(str(tmp_path / "png"))
-        window.export_png()
-        deadline = time.monotonic() + 10
-        while window.jobs and time.monotonic() < deadline:
-            qt.processEvents()
-            QTest.qWait(10)
-        assert not window.jobs
-        assert (
-            decode_qr_png((tmp_path / "png/00000000-data.png").read_bytes()).payload
-            == source.read_bytes()
-        )
-    finally:
-        window.close()
-
-
-def test_qt_player_v2_repeats_and_lifecycle(tmp_path):
-    from PySide6.QtTest import QTest
-    from PySide6.QtWidgets import QApplication
-
-    from qrft.encoder_gui.player import PlayerWindow
-
-    qt = QApplication.instance() or QApplication([])
-    source = tmp_path / "player.bin"
-    source.write_bytes(b"\x00\xff")
-    window = PlayerWindow(
-        source, protocol_version=2, interval_ms=50, initial_delay_ms=0, fullscreen=False
-    )
-    seen = []
-    maxima = []
-    window.progress.connect(
-        lambda packet, _: (seen.append(packet), maxima.append(window.bar.maximum()))
-    )
-    try:
-        window.show()
-        ready_deadline = time.monotonic() + 10
-        while not window.ready and time.monotonic() < ready_deadline:
-            qt.processEvents()
-            QTest.qWait(5)
-        assert window.ready
-        window.toggle_pause()
-        deadline = time.monotonic() + 10
-        while not window.finished and time.monotonic() < deadline:
-            qt.processEvents()
-            QTest.qWait(5)
-        assert window.finished and window.error is None
-        assert seen == ["START"] * 20 + ["00000000"] + ["FINISH"] * 20
-        assert set(maxima) == {41}
-        assert window.bar.value() == 100
-    finally:
-        window.close()
-    assert not window.thread.is_alive()
+    first = export_video(source, tmp_path / "first.avi", chunk_size=1024)
+    second = export_video(source, tmp_path / "second.avi", chunk_size=2100)
+    with pytest.raises(ProtocolError, match="Conflicting START"):
+        restore_video([first, second], tmp_path / "mixed", protocol_version=2)
 
 
 def test_invalid_md5_in_real_video_is_logged_and_dropped(tmp_path, caplog):
@@ -375,27 +315,13 @@ def test_invalid_md5_in_real_video_is_logged_and_dropped(tmp_path, caplog):
 
 def test_truncated_video_does_not_publish(tmp_path):
     source = tmp_path / "truncated.bin"
-    source.write_bytes(b"x" * 2801)
+    source.write_bytes(b"x" * 4201)
     frames = list(iter_encoded_frames(source, protocol_version=2))
     video = write_v2_video(frames[:21], tmp_path / "short.avi")
     directory = tmp_path / "task"
     assert restore_video(video, directory, protocol_version=2) is None
     assert (directory / "missing.txt").read_text().splitlines() == ["00000001", "00000002"]
     assert not (directory / "files/truncated.bin").exists()
-
-
-def test_pre_v2_database_migration_is_v1(tmp_path, monkeypatch):
-    import sqlite3
-
-    database = tmp_path / "old.db"
-    with sqlite3.connect(database) as db:
-        db.execute("CREATE TABLE tasks(id INTEGER PRIMARY KEY,name TEXT,created_at REAL)")
-        db.execute("INSERT INTO tasks VALUES (1,'legacy',0)")
-    monkeypatch.setenv("QRFT_DB_PATH", str(database))
-    with connection() as db:
-        assert db.execute("SELECT version FROM task_protocols WHERE task_id=1").fetchone()[0] == 1
-    with connection() as db:
-        assert db.execute("SELECT COUNT(*) FROM task_protocols").fetchone()[0] == 1
 
 
 def test_local_reports_do_not_overwrite_user_files(tmp_path):
@@ -409,13 +335,13 @@ def test_local_reports_do_not_overwrite_user_files(tmp_path):
 
 
 @pytest.mark.parametrize("filename", ["missing.txt", "verification.json", "legacy.bin"])
-def test_v1_output_location_and_report_filenames_preserved(tmp_path, filename):
+def test_output_location_and_report_filenames(tmp_path, filename):
     source = tmp_path / filename
     source.write_bytes(b"\x00\xff binary")
     video = export_video(source, tmp_path / "legacy.avi")
     directory = tmp_path / "output"
     restored = restore_video(video, directory)
-    assert restored == directory / filename
+    assert restored == directory / "files" / filename
     assert restored.read_bytes() == source.read_bytes()
 
 
@@ -425,7 +351,7 @@ def test_30fps_capture_phase_does_not_undersample_requested_rate(tmp_path, sampl
     import numpy as np
 
     source = tmp_path / "phase.bin"
-    source.write_bytes(b"z" * 1401)
+    source.write_bytes(b"z" * 2101)
     original = export_video(source, tmp_path / "20fps.avi", protocol_version=2)
     reader = cv2.VideoCapture(str(original))
     frames = []

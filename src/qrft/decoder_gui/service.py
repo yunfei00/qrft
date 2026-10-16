@@ -1,4 +1,4 @@
-"""Managed source processes and authenticated desktop API client; no Qt dependency."""
+"""Managed decoder processes and authenticated desktop API client; no Qt dependency."""
 
 from __future__ import annotations
 
@@ -147,7 +147,6 @@ class ManagedSession:
             "QRFT_OUTPUT_DIR": str(self.state / "outputs"),
             "PYTHONUNBUFFERED": "1",
         }
-        self.env.pop("QRFT_ACCEPTANCE_ID", None)
         if server:
             self.client = ControlClient(server, token)
             self.client.request("/tasks")
@@ -176,8 +175,16 @@ class ManagedSession:
     def spawn(self, label, module, *args):
         log = (self.logs / f"{label}-{uuid.uuid4().hex[:8]}.log").open("xb")
         self.handles.append(log)
+        if getattr(sys, "frozen", False):
+            command = [
+                sys.executable,
+                {"qrft.control.app": "control", "qrft.decoder.worker": "worker"}[module],
+                *args,
+            ]
+        else:
+            command = [sys.executable, "-m", module, *args]
         return subprocess.Popen(
-            [sys.executable, "-m", module, *args],
+            command,
             env=self.env,
             stdout=log,
             stderr=subprocess.STDOUT,

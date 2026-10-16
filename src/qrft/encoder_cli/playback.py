@@ -1,63 +1,37 @@
-"""实时二维码播放帧生成器：惰性读取文件，不预生成整批图片。"""
+"""Lazy V2 playback frames: 20 STARTs, selected DATA, then 20 FINISHes."""
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
 
-from qrft.core.manifest import inspect_file, selected_ranges
-from qrft.core.protocol import encode_data, encode_finish, encode_start
-from qrft.core.protocol_v2 import encode_data_v2, encode_finish_v2, encode_start_v2
+from qrft.core.protocol import CHUNK_SIZE, validate_chunk_size
+from qrft.encoder_cli.archive import DEFAULT_MAX_ARCHIVE_MIB
+from qrft.encoder_cli.source import Source, open_source
 
 
 def iter_encoded_frames(
-    source: Path,
+    source: Path | Source,
     *,
     chunk_size: int | None = None,
     retransmit: Path | None = None,
     start_id: int = 0,
     end_id: int | None = None,
     cancelled=None,
-    protocol_version: int = 1,
+    protocol_version: int = 2,
     repeat_controls: bool = True,
+    max_archive_mib: int = DEFAULT_MAX_ARCHIVE_MIB,
+    expected_archive_md5: str | None = None,
 ) -> Iterator[tuple[str, bytes]]:
-    """START、选定 DATA、FINISH；每次迭代仅读取一个数据包。"""
-    if not source.is_file():
-        raise FileNotFoundError(source)
-    if protocol_version not in (1, 2):
-        raise ValueError("unsupported protocol")
-    chunk_size = chunk_size if chunk_size is not None else (1400 if protocol_version == 2 else 256)
-    if protocol_version == 2 and chunk_size != 1400:
-        raise ValueError("v2 requires fixed 1400-byte blocks")
-    manifest = inspect_file(source, chunk_size, cancelled=cancelled)
-    total = int(manifest["total_packets"])
-    if start_id < 0 or start_id > total:
-        raise ValueError("start_id outside packet range")
-    last = total - 1 if end_id is None else end_id
-    if last < -1 or last >= total or (last < start_id and not (total == 0 and last == -1)):
-        raise ValueError("end_id outside packet range")
-    ranges = selected_ranges(
-        total, start_id=start_id, end_id=last, retransmit=retransmit, cancelled=cancelled
-    )
-    encoder = encode_data_v2 if protocol_version == 2 else encode_data
-    start = encode_start_v2(manifest) if protocol_version == 2 else encode_start(manifest)
-    finish = encode_finish_v2() if protocol_version == 2 else encode_finish()
-    repeats = 20 if protocol_version == 2 and repeat_controls else 1
-    for _ in range(repeats):
-        if cancelled is not None and cancelled():
-            return
-        yield "START", start
-    with source.open("rb") as stream:
-        for first, end in ranges:
-            stream.seek(first * chunk_size)
-            for packet_id in range(first, end + 1):
-                if cancelled is not None and cancelled():
-                    return
-                payload = stream.read(chunk_size)
-                if not payload:
-                    raise ValueError("source changed during encoding")
-                yield f"{packet_id:08d}", encoder(packet_id, payload)
-    for _ in range(repeats):
-        if cancelled is not None and cancelled():
-            return
-        yield "FINISH", finish
+    if protocol_version != 2:
+        raise ValueError("only protocol v2 is supported")
+    validate_chunk_size(CHUNK_SIZE if chunk_size is None else chunk_size)
+    with open_source(
+        source,
+        cancelled=cancelled,
+        chunk_size=chunk_size,
+        max_archive_mib=max_archive_mib,
+        expected_archive_md5=expected_archive_md5,
+    ) as prepared:
+        ranges = prepared.select(start_id=start_id, end_id=end_id, retransmit=retransmit)
+        yield from prepared.frames(ranges, repeat_controls=repeat_controls)

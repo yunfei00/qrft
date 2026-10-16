@@ -1,4 +1,4 @@
-"""English project decoder CLI; no encoder gate, GUI, server or Worker required."""
+"""Project video decoding with durable receipts and verified output."""
 
 import argparse
 import sqlite3
@@ -26,7 +26,7 @@ class Progress:
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Single-project V2 / QRFT2100 video decoder")
+    parser = argparse.ArgumentParser(description="QRFT v2 project video decoder")
     parser.add_argument("command", choices=["decode"])
     parser.add_argument("project", type=Path)
     parser.add_argument(

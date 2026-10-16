@@ -1,24 +1,16 @@
-name: Windows Python CI
+name: Windows tests
 
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-    inputs:
-      build_encoder2100:
-        description: Build and verify independent QRFT2100 release ZIP
-        type: boolean
-        default: false
 
 jobs:
-  encoder2100-release:
-    if: github.event_name == 'workflow_dispatch' && inputs.build_encoder2100
-    needs: test
-    uses: ./.github/workflows/build-encoder2100.yml
   test:
     runs-on: windows-latest
     env:
+      QT_QPA_PLATFORM: offscreen
       OPENBLAS_NUM_THREADS: '1'
       OMP_NUM_THREADS: '1'
     steps:
@@ -26,65 +18,14 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: false
-      - name: 安装 Python
-        run: uv python install 3.12
-      - name: 安装核心测试依赖
-        run: uv sync --locked --group dev --all-extras
-      - name: 检查代码格式
-        run: uv run --no-sync ruff format --check .
-      - name: 静态检查
-        run: uv run --no-sync ruff check .
-      - name: 单元测试
-        run: uv run --no-sync pytest -q
-      - name: 解码 GUI 原生 Windows 源码启动与安全退出（不打包 EXE）
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-extras --group dev
+      - run: uv run --no-sync ruff format --check .
+      - run: uv run --no-sync ruff check .
+      - run: uv run --no-sync pytest -q
+      - name: Native decoder GUI startup and shutdown
         shell: pwsh
         run: |
           $env:QT_QPA_PLATFORM = 'windows'
-          $workspace = Join-Path $env:RUNNER_TEMP ('qrft-decoder-smoke-' + [guid]::NewGuid().ToString('N'))
-          uv run --no-sync python -m qrft.decoder_gui.main --workspace $workspace --smoke-test
-          if ($LASTEXITCODE -ne 0) { throw 'Decoder GUI source smoke failed' }
-      - name: 二维码图片测试（含 encoder 可选依赖）
-        run: |
-          uv sync --locked --all-extras --group dev
-          uv run --no-sync pytest -q tests/test_qr_image.py tests/test_encoder_cli.py
-      - name: 真实二维码字节往返测试（ZXing）
-        run: |
-          uv sync --locked --all-extras --group dev
-          uv run --no-sync pytest -q tests/test_qr_roundtrip.py
-      - name: 真实 AVI 视频端到端恢复测试
-        run: uv run --no-sync pytest -q tests/test_video_end_to_end.py
-      - name: 控制中心 API 与 SQLite 测试
-        run: |
-          uv run --no-sync pytest -q tests/test_control_api.py tests/test_control_packets.py tests/test_worker.py tests/test_distributed_recovery.py
-      - name: QRFT2100 实际 PNG/MP4、权限拒绝与流式性能验收（不打包）
-        if: hashFiles('src/qrft/encoder2100/cli.py') != ''
-        run: uv run --no-sync python scripts/encoder2100_acceptance.py benchmark --root temp/encoder2100-ci
-      - name: QRFT2100 内存 ZIP、稳定内容摘要与单次控制帧验收
-        if: hashFiles('src/qrft/encoder2100/archive.py') != ''
-        run: uv run --no-sync python scripts/encoder2100_folder_acceptance.py --root temp/encoder2100-folder-ci
-      - name: 单机项目真实 MP4 缺包补传与文件夹双摘要闭环
-        if: hashFiles('src/qrft/single_decoder/project.py') != ''
-        run: uv run --no-sync python scripts/single_decoder_acceptance.py --root temp/single-decoder-ci
-      - name: 上传单机解码验收报告与合成视频
-        if: always() && hashFiles('src/qrft/single_decoder/project.py') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: QRFT-single-decoder-evidence
-          path: |
-            temp/single-decoder-ci/acceptance.json
-            temp/single-decoder-ci/project/reports/
-            temp/single-decoder-ci/project/videos/
-          if-no-files-found: error
-      - name: 上传 QRFT2100 源码验收证据
-        if: always() && hashFiles('src/qrft/encoder2100/cli.py') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: QRFT2100-source-evidence
-          path: |
-            temp/encoder2100-ci/report.json
-            temp/encoder2100-ci/synthetic.mp4
-            temp/encoder2100-ci/benchmark-png/
-            temp/encoder2100-ci/retransmit/
-            temp/encoder2100-folder-ci/report.json
-            temp/encoder2100-folder-ci/folder-synthetic.mp4
-          if-no-files-found: warn
+          uv run --no-sync python -m qrft decode --workspace "$env:RUNNER_TEMP/qrft-gui" --smoke-test
+          if ($LASTEXITCODE -ne 0) { throw 'Decoder GUI smoke failed' }

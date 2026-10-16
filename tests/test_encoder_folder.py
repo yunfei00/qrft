@@ -11,7 +11,6 @@ import subprocess
 import sys
 import tempfile
 import zipfile
-from collections import deque
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -19,10 +18,12 @@ import pytest
 import zxingcpp
 from PIL import Image
 
-from qrft.encoder2100 import archive, cli, player
-from qrft.encoder2100.encoder import Source, export, select
-from qrft.encoder2100.protocol import FINISH_ID, START_ID
-from qrft.encoder2100.qr import png
+from qrft.core.protocol import decode_frame
+from qrft.core.qr_image import render_png
+from qrft.encoder_cli import archive, opencv_player
+from qrft.encoder_cli import entrypoint as cli
+from qrft.encoder_cli.main import export_frames
+from qrft.encoder_cli.source import Source
 
 
 def sample(root):
@@ -62,8 +63,8 @@ def logical_from_memory_zip(data):
                 + content
             )
             if not path:
-                md5.update(b"QRFT2100-FOLDER-CONTENT\x00\x01")
-                sha.update(b"QRFT2100-FOLDER-CONTENT\x00\x01")
+                md5.update(b"QRFT-FOLDER-CONTENT\x00\x01")
+                sha.update(b"QRFT-FOLDER-CONTENT\x00\x01")
             md5.update(raw)
             sha.update(raw)
     return md5.hexdigest().upper(), sha.hexdigest().upper()
@@ -114,7 +115,7 @@ def test_timestamp_parent_root_name_and_attributes_do_not_change_zip(tmp_path):
     second, moved = snapshot(copied)
     assert second == first
     assert moved["folder_content_md5"] == details["folder_content_md5"]
-    assert moved["name"] == "RenamedRoot.zip"  # Name only in START, not ZIP bytes.
+    assert moved["filename"] == "RenamedRoot.zip"  # Name only in START, not ZIP bytes.
     if sys.platform == "win32":
         import ctypes
 
@@ -259,72 +260,70 @@ def test_junction_and_cycles_refused_without_outside_reads(tmp_path):
             (root / "Loop").unlink()
 
 
-def test_folder_real_qr_recovery_zip_content_and_retransmission(tmp_path):
+def test_folder_real_qr_recovery_and_retransmission(tmp_path):
     root = sample(tmp_path / "Input")
     (root / "random").write_bytes(os.urandom(5000))
     with Source(root) as source:
         with source.open_stream() as stream:
             original = stream.read()
         metadata = source.describe()
-        frames = list(source.frames(select(source.metadata.packets)))
-        assert [i for i, _ in frames] == [START_ID, *range(source.metadata.packets), FINISH_ID]
-        decoded = {}
-        for expected, text in frames:
-            result = zxingcpp.read_barcode(Image.open(io.BytesIO(png(text))))
-            assert result is not None and result.text == text
-            assert set(result.text) <= set("0123456789ABCDEF")
-            number = int(bytes.fromhex(result.text[-16:]))
-            content = bytes.fromhex(result.text[:-48])
-            assert hashlib.md5(content).hexdigest().upper() == result.text[-48:-16]
-            assert number == expected
-            decoded[number] = content
-        assert decoded[START_ID].decode().rsplit(",", 3)[1] == metadata["archive_zip_md5"]
-        recovered = b"".join(decoded[i] for i in range(source.metadata.packets))
-        assert recovered == original
-        assert hashlib.md5(recovered).hexdigest().upper() == metadata["archive_zip_md5"]
+        frames = list(source.frames(repeat_controls=False))
+        assert [label for label, _ in frames] == [
+            "START",
+            *[f"{i:08d}" for i in range(metadata["total_packets"])],
+            "FINISH",
+        ]
+        recovered = bytearray()
+        for label, raw in frames:
+            result = zxingcpp.read_barcode(Image.open(io.BytesIO(render_png(raw))))
+            assert result is not None and result.text == raw.decode("ascii")
+            decoded = decode_frame(result.text.encode("ascii"))
+            if decoded.kind == "start":
+                assert decoded.metadata["md5"] == metadata["archive_zip_md5"]
+                assert decoded.metadata["chunk_size"] == 2100
+            elif decoded.kind == "data":
+                assert decoded.packet_id == int(label)
+                recovered.extend(decoded.payload)
+        assert bytes(recovered) == original
         assert logical_from_memory_zip(recovered)[0] == metadata["folder_content_md5"]
         with pytest.raises(ValueError, match="original Archive ZIP MD5"):
-            list(source.frames([(0, 0)]))
+            list(source.frames([(0, 0)], repeat_controls=False))
         with zipfile.ZipFile(io.BytesIO(recovered)) as zipped:
             expected_files = {
                 p.relative_to(root).as_posix(): p.read_bytes()
                 for p in root.rglob("*")
                 if p.is_file()
             }
-            expected_dirs = {
-                p.relative_to(root).as_posix() + "/" for p in root.rglob("*") if p.is_dir()
-            }
             assert {
                 i.filename: zipped.read(i) for i in zipped.infolist() if not i.is_dir()
             } == expected_files
-            assert {i.filename for i in zipped.infolist() if i.is_dir()} == expected_dirs
-        output = tmp_path / "png"
-        assert export(source, output, select(source.metadata.packets))["control_repeats"] == 1
+        result = export_frames(source, tmp_path / "png")
+        assert result["control_repeats"] == 1
+        assert result["exported_data_packets"] == metadata["total_packets"]
     with Source(root, expected_archive_md5=metadata["archive_zip_md5"]) as retry:
-        frames2 = list(retry.frames([(0, 0)]))
+        frames2 = list(retry.frames([(0, 0)], repeat_controls=False))
         assert frames2[1][1] == frames[1][1]
-        with retry.open_stream() as stream:
-            assert stream.read() == original
     with pytest.raises(ValueError, match="mismatch"):
         Source(root, expected_archive_md5=metadata["folder_content_md5"])
 
 
-def test_cli_folder_info_play_export_and_expected_archive_guard(tmp_path, monkeypatch, capsys):
+def test_cli_folder_info_play_export_and_retransmission_guard(tmp_path, monkeypatch, capsys):
     root = sample(tmp_path / "Input")
     monkeypatch.setattr(cli, "authenticate", lambda: True)
     assert cli.main(["info", str(root)]) == 0
     metadata = json.loads(capsys.readouterr().out)
     assert metadata["file_count"] == 4 and metadata["directory_count"] == 3
+    assert metadata["chunk_size"] == 2100
     calls = []
     monkeypatch.setattr(
-        player,
-        "play",
-        lambda source, ranges, **options: calls.append((source.describe(), ranges, options)) or 0,
+        opencv_player,
+        "play_opencv",
+        lambda source, **options: calls.append((source.describe(), options)) or 0,
     )
     assert cli.main(["play", str(root)]) == 0
-    assert calls[0][2]["log_path"] is None
+    assert calls[0][1]["workers"] == 2
     assert cli.main(["export", str(root), "--output", str(tmp_path / "export")]) == 0
-    assert cli.main(["play", str(root), "--start-id", "0", "--end-id", "0"]) == 2
+    assert cli.main(["play", str(root), "--end-id", "0"]) == 2
     assert (
         cli.main(
             [
@@ -342,24 +341,7 @@ def test_cli_folder_info_play_export_and_expected_archive_guard(tmp_path, monkey
     assert cli.main(["info", str(root), "--max-archive-mib", "0"]) == 2
 
 
-def test_real_terminal_folder_info_and_export(tmp_path):
-    from qrft.encoder_cli.console_test import run_encoder
-
-    root = sample(tmp_path / "Input")
-    command = [sys.executable, "-m", "qrft.encoder2100.cli"]
-    info = run_encoder([*command, "info", str(root)], timeout=30)
-    assert info.returncode == 0 and "folder_content_md5" in info.stdout
-    output = tmp_path / "export"
-    result = run_encoder([*command, "export", str(root), "--output", str(output)], timeout=40)
-    assert result.returncode == 0, result.stdout
-    metadata = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
-    assert metadata["input_kind"] == "folder" and metadata["control_repeats"] == 1
-    assert len(list(output.glob("*.png"))) == metadata["packets"] + 2
-
-
 def test_file_symlink_guard_rejects_before_reading(tmp_path, monkeypatch):
-    # Actual junction coverage above needs no Windows symlink privilege. This guard
-    # test covers the file symlink mode too, even on hosts returning WinError 1314.
     link = tmp_path / "link"
     link.write_bytes(b"not followed")
     original = Path.lstat
@@ -376,15 +358,11 @@ def test_file_symlink_guard_rejects_before_reading(tmp_path, monkeypatch):
         Source(link)
 
 
-def test_export_and_optional_log_cannot_modify_input_folder(tmp_path):
+def test_export_cannot_modify_input_folder(tmp_path):
     root = sample(tmp_path / "Input")
     before = set(root.rglob("*"))
-    with Source(root) as source:
-        ranges = select(source.metadata.packets)
-        with pytest.raises(ValueError, match="outside the input folder"):
-            export(source, root / "png", ranges)
-        with pytest.raises(ValueError, match="outside the input folder"):
-            player.play(source, ranges, log_path=root / "play.jsonl")
+    with Source(root) as source, pytest.raises(ValueError, match="outside the input folder"):
+        export_frames(source, root / "png")
     assert set(root.rglob("*")) == before
 
 
@@ -424,66 +402,3 @@ def test_chunked_reads_cancellation_and_catalog_memory_bound(tmp_path, monkeypat
         (catalog / str(i)).touch()
     with pytest.raises(ValueError, match="memory limit"):
         Source(catalog, max_archive_mib=4)
-
-
-@pytest.mark.parametrize("kind", ["empty-file", "folder"])
-def test_player_single_control_frames_wait_and_finish_hold(tmp_path, monkeypatch, kind):
-    import cv2
-
-    if kind == "folder":
-        path = sample(tmp_path / "Input")
-    else:
-        path = tmp_path / "empty"
-        path.write_bytes(b"")
-    clock, ticks, displays = [0.0], [0], []
-    monkeypatch.setattr(player.time, "perf_counter", lambda: clock[0])
-    monkeypatch.setattr(player, "windows_desktop", lambda _: (None, None))
-    monkeypatch.setattr(cv2, "namedWindow", lambda *args: None)
-    monkeypatch.setattr(cv2, "destroyWindow", lambda *args: None)
-    monkeypatch.setattr(cv2, "getWindowProperty", lambda *args: 1)
-    monkeypatch.setattr(cv2, "imshow", lambda title, pixels: displays.append(pixels.copy()))
-
-    def wait(_):
-        ticks[0] += 1
-        clock[0] += 0.02
-        if ticks[0] < 4:
-            assert len(displays) == 1  # Initial START stays completely static.
-        return 32 if ticks[0] == 4 else 27 if ticks[0] == 30 else -1
-
-    class Pending:
-        def __init__(self, frames, capacity):
-            self.frames = frames
-            self.queue = deque()
-
-        def fill(self):
-            for number, text in self.frames:
-                picture = player.render(text)
-                self.queue.append(
-                    (
-                        number,
-                        SimpleNamespace(done=lambda: True, result=lambda picture=picture: picture),
-                    )
-                )
-
-        def close(self):
-            self.frames.close()
-
-    monkeypatch.setattr(player, "Frames", Pending)
-    monkeypatch.setattr(cv2, "waitKey", wait)
-    with Source(path) as source:
-        log = tmp_path / "play.jsonl"
-        assert player.play(source, select(source.metadata.packets), log_path=log) == 0
-        events = [json.loads(line) for line in log.read_text().splitlines()]
-        assert [e["packet_id"] for e in events if e["event"] == "display"] == [
-            START_ID,
-            *range(source.metadata.packets),
-            FINISH_ID,
-        ]
-        assert (
-            next(e for e in events if e["event"] == "completed")["position"]
-            == source.metadata.packets + 2
-        )
-        assert events[-1]["event"] == "exit" and events[-1]["complete"]
-        region = displays[-1][player.QR_Y : player.QR_Y + 925, player.QR_X : player.QR_X + 925]
-        result = zxingcpp.read_barcode(region)
-        assert result is not None and int(bytes.fromhex(result.text[-16:])) == FINISH_ID

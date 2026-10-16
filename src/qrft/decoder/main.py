@@ -29,8 +29,8 @@ def restore_video(
     """Explicit output directory is one durable task, including all retransmission videos."""
     output.mkdir(parents=True, exist_ok=True)
     session = output / ".qrft-session"
-    if protocol_version not in (None, 1, 2):
-        raise ValueError("unsupported protocol")
+    if protocol_version not in (None, 2):
+        raise ValueError("only protocol v2 is supported")
     marker = "QRFT local video task; one file and one protocol only\n"
     if session.exists():
         if (
@@ -54,8 +54,7 @@ def restore_video(
         db.row_factory = sqlite3.Row
         init_schema(db)
         init_session(db)
-        if protocol_version is not None:
-            lock_protocol(db, 1, protocol_version)
+        lock_protocol(db, 1, 2)
         db.commit()
         for path in videos:
             for frame in iter_video_frames(
@@ -79,9 +78,8 @@ def restore_video(
             with (session / "status.json").open("w", encoding="utf-8") as stream:
                 json.dump({"status": "awaiting_start", "missing_ids": None}, stream)
             return None
-        version = db.execute("SELECT version FROM task_protocols WHERE task_id=1").fetchone()[0]
-        result = recover(db, 1, output, files_subdirectory=version == 2)
-        evidence = output / "verification.json" if version == 2 else session / "verification.json"
+        result = recover(db, 1, output, files_subdirectory=True)
+        evidence = output / "verification.json"
         with evidence.open("w", encoding="utf-8") as stream:
             json.dump(result, stream, ensure_ascii=False, indent=2)
         return Path(result["path"]) if result["status"] == "verified" else None
@@ -99,9 +97,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--output", required=True, type=Path, help="恢复文件输出目录")
     parser.add_argument(
-        "--sample-fps", type=float, default=60.0, help="默认60，避免漏掉50ms DATA；低于20不适合v2"
+        "--sample-fps", type=float, default=60.0, help="默认 60，避免漏掉短暂显示的数据包"
     )
-    parser.add_argument("--protocol", choices=["auto", "v1", "v2"], default="auto")
     parser.add_argument("--start", type=float, default=0.0, help="起始秒数")
     parser.add_argument("--end", type=float, help="结束秒数")
     args = parser.parse_args(argv)
@@ -111,7 +108,6 @@ def main(argv: list[str] | None = None) -> int:
         sample_fps=args.sample_fps,
         start_seconds=args.start,
         end_seconds=args.end,
-        protocol_version={"auto": None, "v1": 1, "v2": 2}[args.protocol],
     )
     if restored is None:
         print("未完成恢复；请查看输出目录中的 missing.txt、missing.csv、missing.json")
