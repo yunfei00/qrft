@@ -7,7 +7,7 @@ from pathlib import Path
 
 from qrft.core.protocol import encode_finish_v2, encode_start_v2
 from qrft.core.qr_image import render_png
-from qrft.encoder_cli.archive import DEFAULT_MAX_ARCHIVE_MIB
+from qrft.encoder_cli.archive import DEFAULT_MAX_SOURCE_GIB
 from qrft.encoder_cli.source import Source, check_cancel, open_source
 
 
@@ -23,7 +23,7 @@ def export_frames(
     cancelled=None,
     protocol_version: int = 2,
     progress=None,
-    max_archive_mib: int = DEFAULT_MAX_ARCHIVE_MIB,
+    max_source_gib: int = DEFAULT_MAX_SOURCE_GIB,
     expected_archive_md5: str | None = None,
 ) -> dict[str, object]:
     """Export each control once; playback repeats controls without duplicate PNGs."""
@@ -33,7 +33,7 @@ def export_frames(
         source,
         cancelled=cancelled,
         chunk_size=chunk_size,
-        max_archive_mib=max_archive_mib,
+        max_source_gib=max_source_gib,
         expected_archive_md5=expected_archive_md5,
     ) as prepared:
         prepared.check_output(output)

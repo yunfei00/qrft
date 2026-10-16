@@ -14,13 +14,10 @@ import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_MAX_ARCHIVE_MIB = 4096
-MAX_ARCHIVE_BYTES = 2 * 1024**3
-MAX_SOURCE_BYTES = 4 * 1024**3
+DEFAULT_MAX_SOURCE_GIB = 16
 FORMAT = "QRFT-FOLDER-1"
 PREFIX = b"QRFT-FOLDER-CONTENT\x00\x01"
 BLOCK = 64 * 1024
-RESERVE = 1024 * 1024
 
 
 def signature(state):
@@ -47,8 +44,14 @@ class Entry:
     state: tuple
 
 
+def source_limit_bytes(max_source_gib):
+    if type(max_source_gib) is not int or max_source_gib < 1:
+        raise ValueError("max-source-gib must be a positive integer")
+    return max_source_gib * 1024**3
+
+
 def inventory(root: Path, limit: int, cancelled=None):
-    entries, visited, charge = [], set(), RESERVE
+    entries, visited = [], set()
     original_bytes = 0
     pending = [(root, "")]
     while pending:
@@ -64,9 +67,6 @@ def inventory(root: Path, limit: int, cancelled=None):
             raise ValueError("Repeated directory or cycle rejected")
         visited.add(identity)
         entries.append(Entry(relative, True, signature(state)))
-        charge += 4096 + 8 * len(relative.encode("utf-8"))
-        if charge >= limit:
-            raise ValueError("Folder archive memory limit exceeded (entry metadata)")
         with os.scandir(directory) as children:
             for child in children:
                 if cancelled and cancelled():
@@ -79,36 +79,17 @@ def inventory(root: Path, limit: int, cancelled=None):
                 child_state = Path(child.path).lstat()
                 reject_link(Path(child.path), child_state)
                 if stat.S_ISDIR(child_state.st_mode):
-                    # Bound both the pending directory list and finished inventory.
-                    charge += 4096 + 8 * len(path.encode("utf-8"))
-                    if charge >= limit:
-                        raise ValueError("Folder archive memory limit exceeded (directories)")
                     pending.append((Path(child.path), path))
                 elif stat.S_ISREG(child_state.st_mode):
                     original_bytes += child_state.st_size
-                    if original_bytes > MAX_SOURCE_BYTES:
-                        raise ValueError("Folder source size limit exceeded (maximum 4 GiB)")
-                    charge += 4096 + 8 * len(path.encode("utf-8"))
-                    if charge >= limit:
-                        raise ValueError("Folder archive memory limit exceeded (files)")
+                    if original_bytes > limit:
+                        raise ValueError(
+                            f"Folder source size limit exceeded (maximum {limit} bytes)"
+                        )
                     entries.append(Entry(path, False, signature(child_state)))
                 else:
                     raise ValueError("Only regular files and directories can be archived")
-    return sorted(entries, key=lambda entry: entry.relative.encode("utf-8")), charge
-
-
-class BoundedRAM(io.BytesIO):
-    def __init__(self, capacity, *, limit_message=None):
-        super().__init__()
-        self.capacity = capacity
-        self.limit_message = limit_message or (
-            "Folder archive memory limit exceeded (ZIP bytes); no disk fallback"
-        )
-
-    def write(self, data):
-        if self.tell() + len(data) > self.capacity:
-            raise ValueError(self.limit_message)
-        return super().write(data)
+    return sorted(entries, key=lambda entry: entry.relative.encode("utf-8"))
 
 
 class MemoryReader(io.RawIOBase):
@@ -212,25 +193,12 @@ def checked_open(path: Path, root: Path, expected):
         raise
 
 
-def build_archive(path: Path, *, max_mib=DEFAULT_MAX_ARCHIVE_MIB, cancelled=None):
-    if type(max_mib) is not int or not 4 <= max_mib <= 4096:
-        raise ValueError("max-archive-mib must be 4..4096")
+def build_archive(path: Path, *, max_source_gib=DEFAULT_MAX_SOURCE_GIB, cancelled=None):
+    limit = source_limit_bytes(max_source_gib)
     reject_link(path, path.lstat())
     root = path.resolve(strict=True)
-    limit = max_mib * 1024 * 1024
-    entries, overhead = inventory(root, limit, cancelled)
-    # Reserve metadata twice for the verification inventory, plus BytesIO over-allocation.
-    capacity = (limit - 2 * overhead) * 4 // 5
-    if capacity <= 0:
-        raise ValueError("Folder archive memory limit exceeded (snapshot metadata)")
-    archive = BoundedRAM(
-        min(capacity, MAX_ARCHIVE_BYTES),
-        limit_message=(
-            "Folder ZIP size limit exceeded (maximum 2 GiB); no disk fallback"
-            if capacity >= MAX_ARCHIVE_BYTES
-            else None
-        ),
-    )
+    entries = inventory(root, limit, cancelled)
+    archive = io.BytesIO()
     md5, sha = hashlib.md5(PREFIX), hashlib.sha256(PREFIX)
     file_digests = {}
     try:
@@ -299,7 +267,7 @@ def build_archive(path: Path, *, max_mib=DEFAULT_MAX_ARCHIVE_MIB, cancelled=None
             )
         # Re-enumerate, then rehash: detect additions/deletions, renamed/replaced files,
         # and in-place rewrites even if modification timestamps were restored.
-        verified, _ = inventory(root, limit, cancelled)
+        verified = inventory(root, limit, cancelled)
         if verified != entries:
             raise ValueError("Folder source changed during packaging (tree snapshot)")
         for entry in entries:
@@ -317,7 +285,7 @@ def build_archive(path: Path, *, max_mib=DEFAULT_MAX_ARCHIVE_MIB, cancelled=None
                         raise ValueError("Folder source changed during verification")
                 if digest.digest() != file_digests[entry.relative]:
                     raise ValueError("Folder content changed during packaging")
-        if inventory(root, limit, cancelled)[0] != entries:
+        if inventory(root, limit, cancelled) != entries:
             raise ValueError("Folder source changed before snapshot completion")
         with archive.getbuffer() as view:
             details = {
@@ -327,10 +295,7 @@ def build_archive(path: Path, *, max_mib=DEFAULT_MAX_ARCHIVE_MIB, cancelled=None
                 "zip_size": len(view),
                 "archive_buffer_allocated_bytes": archive.__sizeof__(),
                 "original_file_bytes": sum(e.state[3] for e in entries if not e.directory),
-                "max_original_file_bytes": MAX_SOURCE_BYTES,
-                "max_zip_bytes": MAX_ARCHIVE_BYTES,
-                "memory_limit_bytes": limit,
-                "memory_budget_bytes": 2 * overhead + (len(view) * 5 + 3) // 4,
+                "max_original_file_bytes": limit,
                 "file_count": len(file_digests),
                 "directory_count": sum(e.directory and bool(e.relative) for e in entries),
                 "python_version": sys.version.split()[0],

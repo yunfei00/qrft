@@ -36,7 +36,7 @@ def main(argv=None):
     commands.add_parser("decode", help="打开解码界面；提供项目目录时批量解码")
     merge = commands.add_parser("merge", help="合并项目已解出的包并校验文件，不扫描视频")
     merge.add_argument("project", type=Path)
-    merge.add_argument("--max-folder-bytes", type=int, default=8 * 1024**3)
+    merge.add_argument("--max-folder-bytes", type=int, default=16 * 1024**3)
     commands.add_parser("control", help="启动调度中心 Web 界面")
     commands.add_parser("worker", help="启动分布式解码节点")
     options = parser.parse_args(args)

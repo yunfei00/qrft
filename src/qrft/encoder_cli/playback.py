@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from qrft.core.protocol import CHUNK_SIZE, validate_chunk_size
-from qrft.encoder_cli.archive import DEFAULT_MAX_ARCHIVE_MIB
+from qrft.encoder_cli.archive import DEFAULT_MAX_SOURCE_GIB
 from qrft.encoder_cli.source import Source, open_source
 
 
@@ -20,7 +20,7 @@ def iter_encoded_frames(
     cancelled=None,
     protocol_version: int = 2,
     repeat_controls: bool = True,
-    max_archive_mib: int = DEFAULT_MAX_ARCHIVE_MIB,
+    max_source_gib: int = DEFAULT_MAX_SOURCE_GIB,
     expected_archive_md5: str | None = None,
 ) -> Iterator[tuple[str, bytes]]:
     if protocol_version != 2:
@@ -30,7 +30,7 @@ def iter_encoded_frames(
         source,
         cancelled=cancelled,
         chunk_size=chunk_size,
-        max_archive_mib=max_archive_mib,
+        max_source_gib=max_source_gib,
         expected_archive_md5=expected_archive_md5,
     ) as prepared:
         ranges = prepared.select(start_id=start_id, end_id=end_id, retransmit=retransmit)

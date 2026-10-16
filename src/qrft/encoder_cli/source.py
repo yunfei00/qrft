@@ -16,10 +16,11 @@ from qrft.core.protocol import (
     validate_chunk_size,
 )
 from qrft.encoder_cli.archive import (
-    DEFAULT_MAX_ARCHIVE_MIB,
+    DEFAULT_MAX_SOURCE_GIB,
     MemoryReader,
     build_archive,
     reject_link,
+    source_limit_bytes,
 )
 
 
@@ -37,10 +38,11 @@ class Source:
         cancelled=None,
         *,
         chunk_size=None,
-        max_archive_mib=DEFAULT_MAX_ARCHIVE_MIB,
+        max_source_gib=DEFAULT_MAX_SOURCE_GIB,
         expected_archive_md5=None,
     ):
         chunk_size = validate_chunk_size(CHUNK_SIZE if chunk_size is None else chunk_size)
+        limit = source_limit_bytes(max_source_gib)
         self.path = Path(path)
         self.cancelled = cancelled
         self._archive = None
@@ -50,7 +52,7 @@ class Source:
         reject_link(self.path, self.path.lstat())
         if self.path.is_dir():
             self._archive, self.archive_details = build_archive(
-                self.path, max_mib=max_archive_mib, cancelled=cancelled
+                self.path, max_source_gib=max_source_gib, cancelled=cancelled
             )
             details = self.archive_details
             size = details["zip_size"]
@@ -76,6 +78,8 @@ class Source:
                 raise ValueError("输入必须为普通文件或文件夹")
             self.signature = self._signature()
             self.actual_size = self.signature[0]
+            if self.actual_size > limit:
+                raise ValueError(f"Source file size limit exceeded (maximum {limit} bytes)")
             self.metadata = inspect_file(self.path, chunk_size, cancelled=cancelled)
             self.check()
         if self.metadata["total_packets"] > START_ID:

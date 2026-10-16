@@ -9,7 +9,6 @@ from pathlib import Path
 from zipfile import BadZipFile
 
 from qrft.core.folder import verify_folder
-
 from qrft.core.missing import stream_missing
 from qrft.core.protocol import ProtocolError, decode_frame
 from qrft.core.reassemble import FileAssembler
@@ -22,7 +21,7 @@ def recover(
     directory: Path,
     *,
     files_subdirectory=True,
-    max_folder_bytes=8 * 1024**3,
+    max_folder_bytes=16 * 1024**3,
 ) -> dict:
     if max_folder_bytes <= 0:
         raise ValueError("Folder verification budget must be positive")

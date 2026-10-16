@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from qrft.encoder_cli.access import authenticate
-from qrft.encoder_cli.archive import DEFAULT_MAX_ARCHIVE_MIB
+from qrft.encoder_cli.archive import DEFAULT_MAX_SOURCE_GIB
 
 
 class CommandParser(argparse.ArgumentParser):
@@ -41,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
 
 也可使用 python -m qrft encode 或 QRFT-Encoder-CLI.exe，后接相同子命令。
 默认每包 2100 字节；补传须使用与首次传输相同的分块大小。
-文件夹压缩前总文件大小不超过 4 GiB，压缩后 ZIP 不超过 2 GiB。
+仅限制源文件或文件夹内文件总大小，默认不超过 16 GiB；压缩后 ZIP 不设大小上限。
 播放窗口：Space 开始/暂停/继续，Esc 结束。使用 <子命令> --help 查看参数。""",
     )
     commands = parser.add_subparsers(dest="command", required=True)
@@ -54,10 +54,10 @@ def main(argv: list[str] | None = None) -> int:
         sub.add_argument("source", type=Path, help="待传输的文件或文件夹路径")
         sub.add_argument("--chunk-size", type=int, help="每包字节数，默认 2100，范围 1..2124")
         sub.add_argument(
-            "--max-archive-mib",
+            "--max-source-gib",
             type=int,
-            default=DEFAULT_MAX_ARCHIVE_MIB,
-            help="目录 ZIP 内存预算，默认 4096 MiB（含开销）；压缩前最多 4 GiB，ZIP 最多 2 GiB",
+            default=DEFAULT_MAX_SOURCE_GIB,
+            help="源文件或目录内文件总大小上限，默认 16 GiB；正整数",
         )
         sub.add_argument("--expected-archive-md5", help="目录补传必填：首次传输的 ZIP MD5")
         sub.add_argument("--protocol", choices=["v2"], default="v2", help="仅支持 v2 协议")
@@ -99,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
         print("操作已取消，保留本次输出。", file=sys.stderr)
         return 130
     except MemoryError:
-        print("内存不足，请减小文件夹或内存预算；文件夹 ZIP 仅在内存中生成。", file=sys.stderr)
+        print("内存不足，请减小输入或释放内存；文件夹 ZIP 仅在内存中生成。", file=sys.stderr)
         return 2
     except (ValueError, OSError, RuntimeError) as exc:
         print(str(exc), file=sys.stderr)
@@ -114,7 +114,7 @@ def execute(args) -> int:
     with Source(
         args.source,
         chunk_size=args.chunk_size,
-        max_archive_mib=args.max_archive_mib,
+        max_source_gib=args.max_source_gib,
         expected_archive_md5=args.expected_archive_md5,
     ) as source:
         if args.command == "info":

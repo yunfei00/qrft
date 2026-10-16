@@ -37,8 +37,8 @@ def main(argv=None):
     parser.add_argument(
         "--max-folder-bytes",
         type=int,
-        default=8 * 1024**3,
-        help="Maximum uncompressed bytes for folder fingerprint verification (default 8 GiB)",
+        default=16 * 1024**3,
+        help="Maximum uncompressed bytes for folder fingerprint verification (default 16 GiB)",
     )
     args = parser.parse_args(argv)
     try:

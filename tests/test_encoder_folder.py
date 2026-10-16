@@ -101,7 +101,6 @@ def test_deterministic_zip_and_stable_content(tmp_path, kind):
             if not item.filename.isascii():
                 assert item.flag_bits & 0x800
     assert details["zip_size"] == len(first)
-    assert details["memory_budget_bytes"] <= details["memory_limit_bytes"]
 
 
 def test_timestamp_parent_root_name_and_attributes_do_not_change_zip(tmp_path):
@@ -174,7 +173,7 @@ def test_no_tempfiles_or_disk_zip_and_limit(tmp_path, monkeypatch):
         return original_open(self, mode, *args, **kwargs)
 
     monkeypatch.setattr(Path, "open", read_only)
-    with Source(root, max_archive_mib=4) as source:
+    with Source(root) as source:
         assert isinstance(source._archive, io.BytesIO)
         with source.open_stream() as first, source.open_stream() as second:
             assert first.read(10) == second.read(10)
@@ -186,8 +185,9 @@ def test_no_tempfiles_or_disk_zip_and_limit(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "open", original_open)
     (root / "random").write_bytes(os.urandom(4 * 1024 * 1024))
     before = {p.relative_to(tmp_path) for p in tmp_path.rglob("*")}
-    with pytest.raises(ValueError, match="memory limit"):
-        Source(root, max_archive_mib=4)
+    monkeypatch.setattr(archive, "source_limit_bytes", lambda _: 4 * 1024**2)
+    with pytest.raises(ValueError, match="source size limit"):
+        Source(root)
     assert {p.relative_to(tmp_path) for p in tmp_path.rglob("*")} == before
 
 
@@ -338,7 +338,7 @@ def test_cli_folder_info_play_export_and_retransmission_guard(tmp_path, monkeypa
         == 0
     )
     assert cli.main(["play", str(root), "--expected-archive-md5", "A" * 32]) == 2
-    assert cli.main(["info", str(root), "--max-archive-mib", "0"]) == 2
+    assert cli.main(["info", str(root), "--max-source-gib", "0"]) == 2
 
 
 def test_file_symlink_guard_rejects_before_reading(tmp_path, monkeypatch):
@@ -366,7 +366,7 @@ def test_export_cannot_modify_input_folder(tmp_path):
     assert set(root.rglob("*")) == before
 
 
-def test_chunked_reads_cancellation_and_catalog_memory_bound(tmp_path, monkeypatch):
+def test_chunked_reads_cancellation_and_empty_file_catalog(tmp_path, monkeypatch):
     root = sample(tmp_path / "Input")
     (root / "large").write_bytes(bytes(200000))
     actual = archive.checked_open
@@ -400,5 +400,5 @@ def test_chunked_reads_cancellation_and_catalog_memory_bound(tmp_path, monkeypat
     catalog.mkdir()
     for i in range(300):
         (catalog / str(i)).touch()
-    with pytest.raises(ValueError, match="memory limit"):
-        Source(catalog, max_archive_mib=4)
+    with Source(catalog) as source:
+        assert source.archive_details["file_count"] == 300

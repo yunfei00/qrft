@@ -282,7 +282,7 @@ class Project:
                 raise
             return "failed"
 
-    def run(self, *, cancelled=None, progress=None, max_folder_bytes=8 * 1024**3, rescan=False):
+    def run(self, *, cancelled=None, progress=None, max_folder_bytes=16 * 1024**3, rescan=False):
         if max_folder_bytes <= 0:
             raise ValueError("Folder verification budget must be positive")
         counts = {"completed": 0, "skipped": 0, "failed": 0}
@@ -537,7 +537,7 @@ def decode_project(root, **kwargs):
         return project.run(**kwargs)
 
 
-def merge_project(root, *, max_folder_bytes=8 * 1024**3):
+def merge_project(root, *, max_folder_bytes=16 * 1024**3):
     """Merge and verify committed receipts without reopening source videos."""
     if max_folder_bytes <= 0:
         raise ValueError("Folder verification budget must be positive")
