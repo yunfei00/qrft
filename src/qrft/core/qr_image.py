@@ -13,25 +13,24 @@ def v2_image(frame: bytes):
     import qrcode
     from qrcode.exceptions import DataOverflowError
 
+    from ._qr_rs import create_codewords
+
     qr = qrcode.QRCode(
         version=None, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=4
     )
     qr.add_data(frame.decode("ascii"), optimize=0)
     try:
-        qr.make(fit=True)
+        # Select the symbol size, then supply all codewords before mask evaluation.
+        # qrcode's Polynomial arithmetic is never used, for any input pattern.
+        qr.best_fit()
+        qr.data_cache = create_codewords(qr.version, qr.error_correction, qr.data_list)
+        qr.make(fit=False)
     except (DataOverflowError, ValueError) as exc:
         if isinstance(exc, DataOverflowError) or str(exc).startswith("Invalid version (was 41,"):
             raise ValueError(
                 "v2 QR capacity exceeded; shorten the filename or reduce chunk size"
             ) from exc
-        if str(exc) != "glog(0)":
-            raise
-        # All-zero RS blocks trigger qrcode 8.2's polynomial log(0). Rebuild only
-        # the codewords locally, without mutating qrcode globals used by other threads.
-        from ._qr_rs import create_codewords
-
-        qr.data_cache = create_codewords(qr.version, qr.error_correction, qr.data_list)
-        qr.make(fit=False)
+        raise
     pil = qr.make_image(fill_color="black", back_color="white").convert("RGB")
     bgr = cv2.cvtColor(np.asarray(pil), cv2.COLOR_RGB2BGR)
     return cv2.resize(bgr, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_NEAREST)

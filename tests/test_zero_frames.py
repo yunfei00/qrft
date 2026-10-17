@@ -57,9 +57,7 @@ def test_unrelated_qr_error_is_not_reported_as_capacity(monkeypatch):
 @pytest.mark.parametrize("version", range(1, 41))
 @pytest.mark.parametrize("correction", [0, 1, 2, 3])
 @pytest.mark.parametrize("payload", [b"HELLO", b"12345", b"\x00\x01\x80\xff\x00"])
-def test_fallback_codewords_match_qrcode_for_every_version_and_correction(
-    version, correction, payload
-):
+def test_codewords_match_qrcode_for_every_version_and_correction(version, correction, payload):
     from qrcode import util
 
     from qrft.core._qr_rs import create_codewords
@@ -82,3 +80,69 @@ def test_zero_and_random_frames_can_be_generated_in_parallel():
         pngs = list(pool.map(render_png, frames))
     assert [decode_qr_png(png).payload for png in pngs] == payloads
     assert base.Polynomial.__mod__ is original_mod
+
+
+def test_production_never_uses_buggy_polynomial_arithmetic(monkeypatch):
+    from qrcode import base, util
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("production used qrcode's unsafe RS arithmetic")
+
+    monkeypatch.setattr(base.Polynomial, "__mul__", forbidden)
+    monkeypatch.setattr(base.Polynomial, "__mod__", forbidden)
+    monkeypatch.setattr(util, "create_data", forbidden)
+    original_log = base.glog
+
+    def nonzero_log(value):
+        assert value != 0, "log(0) reached"
+        return original_log(value)
+
+    monkeypatch.setattr(base, "glog", nonzero_log)
+    for payload in (bytes(2100), b"x" + bytes(2098) + b"y", random.Random(19).randbytes(2100)):
+        assert decode_qr_png(render_png(encode_data(9, payload))).payload == payload
+
+
+def _reference_multiply(left, right):
+    """Independent GF(256) multiplication using shifts and XOR, never log tables."""
+    product = 0
+    for _ in range(8):
+        if right & 1:
+            product ^= left
+        right >>= 1
+        left <<= 1
+        if left & 0x100:
+            left ^= 0x11D
+    return product
+
+
+@pytest.mark.parametrize("degree", [7, 10, 13, 15, 16, 17, 18, 20, 22, 24, 26, 28, 30])
+@pytest.mark.parametrize("pattern", ["zero", "zero-middle", "alternating", "random"])
+def test_arbitrary_zero_coefficients_have_valid_rs_syndromes(degree, pattern, monkeypatch):
+    from qrcode import base
+
+    from qrft.core._qr_rs import _parity
+
+    original_log = base.glog
+
+    def nonzero_log(value):
+        assert value != 0
+        return original_log(value)
+
+    monkeypatch.setattr(base, "glog", nonzero_log)
+    if pattern == "zero":
+        data = [0] * 155
+    elif pattern == "zero-middle":
+        data = [1, *([0] * 153), 255]
+    elif pattern == "alternating":
+        data = [index % 2 * 255 for index in range(155)]
+    else:
+        data = list(random.Random(degree).randbytes(155))
+    parity = _parity(data, degree)
+    assert len(parity) == degree
+    root = 1
+    for _ in range(degree):
+        syndrome = 0
+        for coefficient in [*data, *parity]:
+            syndrome = _reference_multiply(syndrome, root) ^ coefficient
+        assert syndrome == 0
+        root = _reference_multiply(root, 2)

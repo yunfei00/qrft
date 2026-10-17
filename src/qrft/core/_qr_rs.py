@@ -1,7 +1,7 @@
-"""Zero-safe QR codeword fallback for python-qrcode 8.2's glog(0) bug.
+"""Zero-safe QR codewords for every production frame, avoiding qrcode's glog(0) bug.
 
-Only used when qrcode fails in Reed-Solomon arithmetic (upstream issue #330).
-Keep qrcode's data modes, block tables, padding and symbol rendering unchanged.
+Every logarithm operates on a nonzero GF(256) element. Zero coefficients simply
+contribute zero; data modes, block tables, padding and symbol rendering stay unchanged.
 """
 
 from functools import lru_cache
@@ -30,7 +30,7 @@ def _parity(data, degree):
     for offset in range(len(data)):
         leading = remainder[offset]
         if not leading:
-            continue  # The zero polynomial has an all-zero remainder; log(0) is undefined.
+            continue  # A zero leading coefficient contributes nothing to this division step.
         exponent = base.glog(leading)
         for index, coefficient in enumerate(divisor):
             if coefficient:
